@@ -102,16 +102,65 @@ Lead Dev  → gabungkan N komponen → 1 Platform Feature
 
 ### 4.5 Infrastruktur Server
 
-| Tipe Server | Fungsi | Efek Overload |
-|---|---|---|
-| Web Server | Menangani request masuk | RPS melebihi capacity → latency naik |
-| Database Server | Simpan data user | Overload → data corruption risk / crash |
-| Caching Server | Percepat response | Overload → performa turun, bukan crash langsung |
+Sistem server didesain seperti data center mini: pemain membeli **rack** terlebih dahulu, lalu memasang **node** ke dalam slot rack. Setiap node memiliki fungsi, kapasitas, panas, dan biaya sendiri.
 
-- `load = (RPS masuk / capacity) * 100%`.
-- Jika `load` ≥ 100% dalam durasi tertentu → **Server Crash**: fitur terkait mati sementara, users kabur, rating turun.
-- Pemain beli/upgrade server dengan `monthlyCost` berjalan (biaya tetap bulanan, bukan cuma one-time).
-- SysAdmin bisa mengurangi risiko crash (buffer tambahan) dan mempercepat recovery.
+#### 4.5.1 Rack
+
+Rack adalah infrastruktur fisik tempat semua node dipasang.
+
+| Tier | Slot | Harga Beli | Biaya/bulan | Kapasitas Cooling | Konsumsi Daya Dasar |
+|---|---|---|---|---|---|
+| Basic | 4 | $200 | $20 | 40 unit | 5 watt |
+| Advanced | 6 | $500 | $50 | 80 unit | 10 watt |
+| Enterprise | 8 | $1.200 | $100 | 150 unit | 20 watt |
+
+Setiap rack memiliki:
+- **Cooling Capacity** — batas maksimum panas yang bisa ditangani.
+- **Cooling Used** — total panas dari semua node aktif di rack.
+- **Power Draw** — total daya dari semua node (memengaruhi biaya listrik bulanan).
+- Jika `coolingUsed > coolingCapacity` → rack overheating → risiko crash node.
+
+#### 4.5.2 Node
+
+Node adalah komponen yang dipasang di slot rack. Pemain harus membeli node dan menempatkannya di slot yang tersedia.
+
+| Node | Fungsi | Kapasitas | Panas (heat) | Daya (power) | Harga Beli | Biaya/bulan |
+|---|---|---|---|---|---|---|
+| Web Server T1 | Menangani request HTTP | 100 RPS | 10 | 5 | $100 | $15 |
+| Web Server T2 | Menangani request HTTP | 250 RPS | 20 | 10 | $250 | $35 |
+| Web Server T3 | Menangani request HTTP | 500 RPS | 35 | 20 | $500 | $70 |
+| Database T1 | Menyimpan data user | 50 RPS | 15 | 8 | $150 | $25 |
+| Database T2 | Menyimpan data user | 150 RPS | 30 | 16 | $350 | $55 |
+| Caching T1 | Mempercepat response (offload) | 200 RPS | 5 | 3 | $80 | $10 |
+| Caching T2 | Mempercepat response (offload) | 500 RPS | 12 | 8 | $200 | $25 |
+| Router | Distribusi traffic & efisiensi | — (unlimited) | 3 | 5 | $120 | $20 |
+| Cooling Fan | Tambahan pendingin | +30 cooling | — | 2 | $50 | $8 |
+| Industrial Fan | Tambahan pendingin besar | +60 cooling | — | 4 | $120 | $15 |
+| Storage | Tambah kapasitas database | +50 DB cap | 8 | 6 | $90 | $12 |
+
+**Fungsi Node Khusus:**
+- **Router:** Diperlukan jika total node > 3 dalam satu rack. Memberikan +5% efisiensi per router.
+- **Cooling Fan / Industrial Fan:** Menambah cooling capacity rack.
+- **Storage:** Menambah kapasitas penyimpanan database server.
+- **Caching Server:** Mengurangi RPS yang mencapai web server (offload).
+
+#### 4.5.3 Mekanik Beban & Panas
+
+1. **Distribusi RPS:** Traffic masuk didistribusikan merata ke semua Web Server aktif.
+2. **Load tiap server:** `load = (RPS diterima / capacity) * 100%`.
+3. **Total panas rack:** `sum(heat)` dari semua node aktif.
+4. **Overheat:** Jika `totalHeat > coolingCapacity` selama ≥5 tick berturut-turut.
+5. **Saat overheat:**
+   - Semua node di rack terkena penalty speed (-30%).
+   - Setiap tick tambahan overheat → 5% chance random node crash.
+6. **Crash:** Node mati total, fitur yang bergantung kehilangan kapasitas, users turun drastis.
+7. **Recovery:** SysAdmin otomatis memperbaiki node setelah N tick (lebih cepat dengan level SysAdmin tinggi). Atau pemain bisa bayar perbaikan instan.
+
+#### 4.5.4 Biaya
+
+- Biaya server di `monthlyBilling()` = `sum(monthlyCost semua node) + sum(monthlyCost semua rack) + sum(powerDraw * 2)`.
+- Listrik dipengaruhi total daya (power draw) semua node.
+- Pemain bisa menjual node (50% refund) atau menjual rack (harus kosong, 50% refund).
 
 ### 4.6 Keuangan Perusahaan
 

@@ -52,11 +52,18 @@ Tujuan: game loop dasar jalan, tanpa visual. Bisa dites lewat console/log & UI t
 Tujuan: loop inti lengkap — produksi → fitur → traffic → server → uang masuk.
 - Sistem Platform Feature (bangun & upgrade fitur).
 - Kalkulasi traffic → users → RPS.
-- Sistem server (load, capacity, crash trigger).
+- Sistem server dengan infrastruktur nyata:
+  - Beli **rack** (Basic/Advanced/Enterprise) sebagai infrastruktur fisik.
+  - Pasang **node** ke slot rack: Web Server, Database Server, Caching Server, Router, Cooling Fan, Storage.
+  - Mekanik **panas/cooling**: setiap node menghasilkan heat, rack punya kapasitas cooling terbatas.
+  - Overheat → penalty performa → risiko crash node.
+  - Cooling fan bisa meningkatkan kapasitas pendingin.
+  - SysAdmin membantu recovery & kurangi risiko crash.
+- Biaya server bulanan (rack + node + daya listrik).
 - Sistem monetisasi (Ads Contract, Subscription).
 - Dashboard UI dengan Tailwind (masih flat, belum visual kantor).
 
-**Definisi selesai:** Loop penuh bisa dimainkan dari awal (garasi kosong) sampai punya beberapa karyawan, fitur, server, dan pendapatan — dan bisa *bangkrut* atau *server crash* sebagai konsekuensi nyata.
+**Definisi selesai:** Loop penuh bisa dimainkan — pemain harus mengelola infrastruktur server secara aktif (beli rack, atur node, jaga cooling), bukan cuma klik "beli server". Risiko crash akibat overheat nyata terjadi jika cooling tidak dikelola.
 
 ---
 

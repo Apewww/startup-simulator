@@ -65,13 +65,42 @@ Checklist kerja per fase. Centang `[x]` setiap task selesai. Urutan disusun agar
 - [x] Konversi `users` → `RPS` yang membebani server
 - [x] Tampilkan `users` dan `RPS` di dashboard
 
-### 2.4 Sistem Server
-- [ ] Fungsi `buyServer(type)` — tambah `ServerInstance` baru ke store
-- [ ] Fungsi hitung `load` per server = `(RPS masuk / capacity) * 100`
-- [ ] UI: panel server dengan load bar per instance
-- [ ] Trigger crash: jika `load >= 100%` selama N tick berturut → set fitur terkait nonaktif sementara + kurangi rating
-- [ ] Biaya server (`monthlyCost`) ikut terpotong di `deductSalaries()`/fungsi billing bulanan (rename jadi `monthlyBilling()`)
-- [ ] Test: overload server memicu crash, saldo tetap terpotong biaya server tiap bulan
+### 2.4 Sistem Server (Rack + Node + Cooling) ✅
+Server tidak dibeli langsung — pemain harus beli **rack** dulu, lalu pasang **node** (server, fan, router, dll) ke slot rack. Ada mekanik **panas/cooling** yang memengaruhi stabilitas.
+
+#### 2.4.1 Tipe Data Server
+- [x] Buat `src/types/server.ts` — interface `ServerInstance`, `ServerType` (sudah ada, diperluas)
+- [x] Buat tipe baru: `RackTier`, `NodeType`, `ServerNode`, `ServerRack`, `RackSlot`, `NodeDef`, `RackDef`
+- [x] Update barrel export `src/types/index.ts`
+
+#### 2.4.2 Data Server
+- [x] Buat `src/data/servers.ts`:
+  - Data rack tiers (Basic/Advanced/Enterprise: slot, cooling, price, monthly)
+  - Data node definitions (Web T1-T3, DB T1-T2, Caching T1-T2, Router, Cooling Fan, Industrial Fan, Storage)
+
+#### 2.4.3 Store & Logic
+- [x] Tambah state `racks: ServerRack[]` ke `gameStore`
+- [x] Fungsi `buyRack(tier)` — beli rack, kurangi cash, tambah ke store
+- [x] Fungsi `buyNode(rackId, nodeTypeId)` — beli node, kurangi cash, pasang di slot kosong pertama
+- [x] Fungsi `sellNode(rackId, slotIndex)` — jual node (50% refund), hapus dari slot
+- [x] Fungsi `sellRack(rackId)` — jual rack (harus kosong, 50% refund)
+- [x] Di `incrementTick`: hitung distribusi RPS ke web server → `load` per node
+- [x] Hitung total heat vs cooling capacity per rack → deteksi overheat
+- [x] Trigger crash saat overheat berkepanjangan (≥5 tick overheat → 5% chance crash per tick)
+- [x] Tambah biaya bulanan server ke monthly billing (salary + server cost dipotong bersamaan)
+- [ ] Efek SysAdmin: mempercepat recovery, kurangi chance crash *(di task terpisah)*
+
+#### 2.4.4 UI Server Panel
+- [x] Panel utama: daftar rack dengan status (online/overheat/cooling used / total cooling)
+- [x] Dalam tiap rack: daftar slot + isi node dengan load bar / status
+- [x] Tombol beli rack (pilih tier) dan beli node (pilih jenis dari data)
+- [x] Visual: progress bar load per server, indikator overheat (warna merah/oranye)
+- [x] Detail node: kapasitas, heat, power, biaya
+
+#### 2.4.5 Test & Verifikasi
+- [ ] Test: beli rack → beli node → RPS masuk → load terlihat → overheat → crash *(manual)*
+- [ ] Test: cooling fan bisa menunda/mencegah overheat *(manual)*
+- [x] Test: biaya bulanan server terpotong dari cash *(di store incrementTick)*
 
 ### 2.5 Sistem Monetisasi
 - [ ] Fungsi `calculateAdsRevenue()` — berdasarkan users/RPS

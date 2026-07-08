@@ -2,9 +2,11 @@ import { useEffect } from 'react';
 import { useGameStore, TICKS_PER_MONTH, getComponentsByRole } from './store/gameStore';
 import type { EmployeeRole, Employee, ComponentRequirement, PlatformFeature } from './types';
 import { ProductSelect } from './components/ProductSelect';
+import { ServerPanel } from './components/ServerPanel';
 import { getProductDef } from './data/products';
 import { getComponentDef } from './data/components';
 import { getTrafficStats } from './systems/traffic';
+import { calcMonthlyServerCost } from './systems/server';
 
 const ROLES: EmployeeRole[] = ['Developer', 'Designer', 'Lead_Developer', 'SysAdmin'];
 
@@ -145,7 +147,7 @@ function FeatureCard({ feature }: { feature: PlatformFeature }) {
 }
 
 function App() {
-  const { tick, isPaused, speed, cash, month, employees, resources, features, totalSalary, selectedProduct, togglePause, setSpeed, incrementTick, hireEmployee } = useGameStore();
+  const { tick, isPaused, speed, cash, month, employees, resources, features, totalSalary, racks, selectedProduct, togglePause, setSpeed, incrementTick, hireEmployee } = useGameStore();
 
   useEffect(() => {
     if (isPaused || !selectedProduct) return;
@@ -159,6 +161,7 @@ function App() {
 
   const product = getProductDef(selectedProduct);
   const trafficStats = getTrafficStats(features);
+  const serverCost = racks.length > 0 ? calcMonthlyServerCost(racks) : 0;
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-8">
@@ -180,6 +183,11 @@ function App() {
               <span className="text-sm text-gray-400">
                 Payroll: {formatCash(totalSalary)}/mo
               </span>
+              {serverCost > 0 && (
+                <span className="text-sm text-orange-400">
+                  Server: {formatCash(serverCost)}/mo
+                </span>
+              )}
               <span className="text-sm text-cyan-400">
                 Users: {trafficStats.users.toLocaleString()}
               </span>
@@ -226,6 +234,8 @@ function App() {
               </div>
             )}
           </div>
+
+          <ServerPanel />
         </div>
 
         <div className="space-y-6">
@@ -245,9 +255,12 @@ function App() {
             )}
           </div>
 
-          {totalSalary > 0 && cash > 0 && (
+          {(totalSalary > 0 || serverCost > 0) && (
             <div className="text-xs text-gray-500 bg-gray-800 rounded p-3 border border-gray-700">
-              Next salary deduction: Month {month + 1} ({formatCash(totalSalary)})
+              <div>Monthly expenses at Month {month + 1}:</div>
+              {totalSalary > 0 && <div>Payroll: {formatCash(totalSalary)}</div>}
+              {serverCost > 0 && <div>Server: {formatCash(serverCost)}</div>}
+              <div className="mt-1 font-medium text-gray-400">Total: {formatCash(totalSalary + serverCost)}</div>
             </div>
           )}
 
