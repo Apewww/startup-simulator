@@ -24,16 +24,16 @@ Checklist kerja per fase. Centang `[x]` setiap task selesai. Urutan disusun agar
 - [x] Buat `src/types/company.ts` — interface `Company` (cash, month, dsb)
 
 ### 1.3 Game Loop Dasar
-- [ ] Buat `src/store/gameStore.ts` (Zustand) dengan state: `tick`, `isPaused`, `speed` (1x/2x/4x)
-- [ ] Implementasi loop menggunakan `setInterval` (atau `requestAnimationFrame` + delta time)
-- [ ] Tombol UI: Pause, Play, 1x, 2x, 4x
-- [ ] Test: tick bertambah sesuai speed, berhenti saat pause
+- [x] Buat `src/store/gameStore.ts` (Zustand) dengan state: `tick`, `isPaused`, `speed` (1x/2x/4x)
+- [x] Implementasi loop menggunakan `setInterval`
+- [x] Tombol UI: Pause, Play, 1x, 2x, 4x
+- [x] Test: tick bertambah sesuai speed, berhenti saat pause
 
 ### 1.4 Sistem Keuangan Dasar
-- [ ] Tambah field `cash` di `Company` store
-- [ ] Fungsi `deductSalaries()` dipanggil tiap akhir "bulan" in-game (definisikan berapa tick = 1 bulan)
-- [ ] Tampilkan saldo real-time di UI (boleh teks polos dulu)
-- [ ] Test: saldo berkurang otomatis tiap bulan sesuai total gaji karyawan
+- [x] Tambah field `cash` di `Company` store
+- [x] Fungsi `deductSalaries()` dipanggil tiap akhir "bulan" in-game (definisikan berapa tick = 1 bulan)
+- [x] Tampilkan saldo real-time di UI (boleh teks polos dulu)
+- [x] Test: saldo berkurang otomatis tiap bulan sesuai total gaji karyawan
 
 ### 1.5 Sistem Karyawan Dasar
 - [ ] Fungsi `hireEmployee(role, level)` — generate data karyawan baru & masukkan ke store
