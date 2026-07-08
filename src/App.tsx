@@ -3,6 +3,7 @@ import { useGameStore, TICKS_PER_MONTH, getComponentsByRole } from './store/game
 import type { EmployeeRole, Employee, ComponentRequirement, PlatformFeature } from './types';
 import { ProductSelect } from './components/ProductSelect';
 import { ServerPanel } from './components/ServerPanel';
+import { DevPanel } from './components/DevPanel';
 import { getProductDef } from './data/products';
 import { getComponentDef } from './data/components';
 import { getTrafficStats } from './systems/traffic';
@@ -28,8 +29,17 @@ function EmployeeCard({ employee }: { employee: Employee }) {
             {employee.role.replace('_', ' ')}
           </span>
           <span className="ml-2 text-xs text-gray-400">Lv.{employee.level}</span>
+          <span className="ml-2 text-xs font-mono" style={{ color: employee.happiness > 60 ? '#4ade80' : employee.happiness > 30 ? '#fbbf24' : '#ef4444' }}>
+            {employee.happiness.toFixed(0)}%
+          </span>
         </div>
-        <span className="text-sm text-gray-400">{formatCash(employee.salary)}/mo</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500">{employee.speed.toFixed(1)}x</span>
+          <span className="text-sm text-gray-400">{formatCash(employee.salary)}/mo</span>
+          {employee.happiness < 15 && (
+            <span className="text-xs text-red-400 animate-pulse" title="At risk of resigning!">RESIGN</span>
+          )}
+        </div>
       </div>
 
       {employee.currentTask ? (
@@ -148,7 +158,7 @@ function FeatureCard({ feature }: { feature: PlatformFeature }) {
 }
 
 function App() {
-  const { tick, isPaused, speed, cash, month, employees, resources, features, totalSalary, racks, selectedProduct, togglePause, setSpeed, incrementTick, hireEmployee } = useGameStore();
+  const { tick, isPaused, speed, cash, month, employees, resources, features, totalSalary, racks, selectedProduct, togglePause, setSpeed, incrementTick, hireEmployee, devMode, toggleDevMode } = useGameStore();
 
   useEffect(() => {
     if (isPaused || !selectedProduct) return;
@@ -167,8 +177,18 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-8">
-      <h1 className="text-3xl font-bold mb-2">Startup Simulator</h1>
-      <p className="text-gray-400 mb-2">{product?.name} — Build your startup from the ground up</p>
+      <div className="flex items-center justify-between mb-2">
+        <div>
+          <h1 className="text-3xl font-bold">Startup Simulator</h1>
+          <p className="text-gray-400">{product?.name} — Build your startup from the ground up</p>
+        </div>
+        <button
+          onClick={toggleDevMode}
+          className={`px-3 py-1.5 rounded text-xs font-mono transition-colors ${devMode ? 'bg-yellow-600 text-black' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+        >
+          {devMode ? 'DEV ON' : 'DEV'}
+        </button>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
@@ -290,6 +310,7 @@ function App() {
           </div>
         </div>
       </div>
+      <DevPanel />
     </div>
   );
 }

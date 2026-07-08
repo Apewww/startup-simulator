@@ -22,6 +22,7 @@ interface GameState {
   racks: ServerRack[];
   totalSalary: number;
   selectedProduct: string | null;
+  devMode: boolean;
   togglePause: () => void;
   setSpeed: (speed: GameSpeed) => void;
   incrementTick: () => void;
@@ -35,6 +36,11 @@ interface GameState {
   buyNode: (rackId: string, typeId: NodeTypeId) => void;
   sellNode: (rackId: string, slotIndex: number) => void;
   sellRack: (rackId: string) => void;
+  toggleDevMode: () => void;
+  addResources: (componentId: string, amount: number) => void;
+  completeTask: (employeeId: string) => void;
+  unlockAllFeatures: () => void;
+  fillRack: (rackId: string, typeId: NodeTypeId) => void;
 }
 
 function calcTotalSalary(employees: Employee[]): number {
@@ -63,6 +69,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   racks: [],
   totalSalary: 0,
   selectedProduct: null,
+  devMode: false,
 
   togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
   setSpeed: (speed) => set({ speed }),
@@ -77,6 +84,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const newEmp: Employee = {
       id, name, role, level: 1, salary: 500,
       happiness: 80, speed: 1, currentTask: null, taskProgress: 0,
+      resignTicks: 0,
     };
 
     const updated = [...state.employees, newEmp];
@@ -101,23 +109,66 @@ export const useGameStore = create<GameState>((set, get) => ({
     const oldMonth = Math.floor(tick / TICKS_PER_MONTH);
 
     const newResources = resources.map(r => ({ ...r }));
-    const newEmployees = employees.map(emp => {
-      if (!emp.currentTask) return { ...emp };
-      const def = getComponentDef(emp.currentTask);
-      if (!def) return { ...emp };
+    const resignedIds: string[] = [];
+    const newEmployees = employees
+      .map(emp => {
+        const def = emp.currentTask ? getComponentDef(emp.currentTask) : undefined;
+        let newHappiness = emp.happiness;
+        let newProgress = emp.taskProgress;
+        let newCurrentTask = emp.currentTask;
+        let newResignTicks = emp.resignTicks;
 
-      const newProgress = emp.taskProgress + emp.speed;
-      if (newProgress >= def.baseTicks) {
-        const existing = newResources.find(r => r.id === def.id);
-        if (existing) {
-          existing.quantity += 1;
-        } else {
-          newResources.push({ id: def.id, name: def.name, quantity: 1 });
+        if (emp.currentTask && def) {
+          newProgress = emp.taskProgress + emp.speed;
+          if (newProgress >= def.baseTicks) {
+            const existing = newResources.find(r => r.id === def.id);
+            if (existing) {
+              existing.quantity += 1;
+            } else {
+              newResources.push({ id: def.id, name: def.name, quantity: 1 });
+            }
+            newProgress = 0;
+            newCurrentTask = null;
+          }
         }
-        return { ...emp, taskProgress: 0, currentTask: null };
-      }
-      return { ...emp, taskProgress: newProgress };
-    });
+
+        if (newCurrentTask !== null) {
+          newHappiness -= 1;
+        } else {
+          newHappiness -= 0.2;
+        }
+        newHappiness = Math.max(0, Math.min(100, newHappiness));
+
+        let newSpeed: number;
+        if (newHappiness < 30) {
+          newSpeed = emp.level * 0.5;
+        } else if (newHappiness >= 80) {
+          newSpeed = emp.level * 1.2;
+        } else {
+          newSpeed = emp.level;
+        }
+
+        if (newHappiness < 15) {
+          newResignTicks += 1;
+        } else {
+          newResignTicks = 0;
+        }
+
+        if (newResignTicks >= 10 && Math.random() < 0.2) {
+          resignedIds.push(emp.id);
+          return null;
+        }
+
+        return {
+          ...emp,
+          happiness: newHappiness,
+          speed: newSpeed,
+          currentTask: newCurrentTask,
+          taskProgress: newProgress,
+          resignTicks: newResignTicks,
+        };
+      })
+      .filter((emp): emp is Employee => emp !== null);
 
     const trafficStats = getTrafficStats(features);
     const updatedRacks = calculateNodeLoads(racks, trafficStats.rps);
@@ -310,6 +361,86 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const refund = Math.floor(rack.price * 0.5);
     set({ cash: state.cash + refund, racks: state.racks.filter(r => r.id !== rackId) });
+  },
+
+  toggleDevMode: () => set((state) => ({ devMode: !state.devMode })),
+
+  addResources: (componentId: string, amount: number) => {
+    set((state) => {
+      const existing = state.resources.find(r => r.id === componentId);
+      if (existing) {
+        return { resources: state.resources.map(r => r.id === componentId ? { ...r, quantity: r.quantity + amount } : r) };
+      }
+      const def = getComponentDef(componentId);
+      if (!def) return state;
+      return { resources: [...state.resources, { id: def.id, name: def.name, quantity: amount }] };
+    });
+  },
+
+  completeTask: (employeeId: string) => {
+    set((state) => ({
+      employees: state.employees.map(emp => {
+        if (emp.id !== employeeId || !emp.currentTask) return emp;
+        const def = getComponentDef(emp.currentTask);
+        if (!def) return emp;
+        return { ...emp, taskProgress: def.baseTicks, currentTask: null };
+      }),
+    }));
+  },
+
+  unlockAllFeatures: () => {
+    const state = get();
+    const product = getProductDef(state.selectedProduct || '');
+    if (!product) return;
+
+    const newFeatures = state.features.map(f => {
+      const featDef = product.features.find(pf => pf.id === f.id);
+      if (!featDef || f.level > 0) return f;
+      return { ...f, level: 1, trafficGenerated: featDef.baseTraffic };
+    });
+    set({ features: newFeatures });
+  },
+
+  fillRack: (rackId: string, typeId: NodeTypeId) => {
+    const state = get();
+    const def = getNodeDef(typeId);
+    if (!def) return;
+
+    const rackIndex = state.racks.findIndex(r => r.id === rackId);
+    if (rackIndex === -1) return;
+
+    const rack = state.racks[rackIndex];
+    const emptySlots = rack.slots.filter(s => s.node === null);
+    if (emptySlots.length === 0) return;
+
+    const newRacks = state.racks.map((r, idx) => {
+      if (idx !== rackIndex) return r;
+      const newSlots = r.slots.map(s => {
+        if (s.node !== null) return s;
+        nodeCounter++;
+        return {
+          ...s,
+          node: {
+            id: `node-${nodeCounter}`,
+            typeId: def.typeId,
+            label: def.label,
+            category: def.category,
+            capacity: def.capacity,
+            heat: def.heat,
+            power: def.power,
+            price: def.price,
+            monthlyCost: def.monthlyCost,
+            status: 'active' as const,
+            load: 0,
+            crashTicks: 0,
+            recoveryTicks: 0,
+          },
+        };
+      });
+      return { ...r, slots: newSlots };
+    });
+
+    set({ racks: newRacks });
   },
 }));
 

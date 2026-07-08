@@ -10,4 +10,5 @@ export interface Employee {
   speed: number;
   currentTask: string | null;
   taskProgress: number;
+  resignTicks: number;
 }

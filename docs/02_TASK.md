@@ -108,11 +108,11 @@ Server tidak dibeli langsung — pemain harus beli **rack** dulu, lalu pasang **
 - [x] Tambahkan revenue ke `cash` tiap tick/bulan sesuai desain
 - [x] UI: breakdown pemasukan vs pengeluaran (List sederhana dulu, chart menyusul)
 
-### 2.6 Sistem Happiness & Resign
-- [ ] Fungsi decay happiness per tick (kerja vs idle)
-- [ ] Fungsi efek happiness terhadap `speed`
-- [ ] Fungsi kemungkinan resign saat happiness < threshold
-- [ ] UI: indikator happiness per karyawan (angka atau warna)
+### 2.6 Sistem Happiness & Resign ✅
+- [x] Fungsi decay happiness per tick (kerja vs idle)
+- [x] Fungsi efek happiness terhadap `speed`
+- [x] Fungsi kemungkinan resign saat happiness < threshold
+- [x] UI: indikator happiness per karyawan (angka atau warna)
 
 ### 2.7 Kondisi Bankrupt
 - [ ] Fungsi cek saldo negatif berkepanjangan → trigger game over screen
