@@ -9,4 +9,5 @@ export interface Employee {
   happiness: number;
   speed: number;
   currentTask: string | null;
+  taskProgress: number;
 }
