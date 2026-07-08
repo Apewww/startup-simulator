@@ -8,20 +8,20 @@ Checklist kerja per fase. Centang `[x]` setiap task selesai. Urutan disusun agar
 ## FASE 1 — Excel Phase (Logika Murni)
 
 ### 1.1 Setup Project
-- [ ] Install Rust & prasyarat Tauri (`rustup`, dependency OS sesuai platform)
-- [ ] `npm create tauri-app@latest` → pilih React + TypeScript
-- [ ] Setup Tailwind CSS di project
-- [ ] Install Zustand: `npm install zustand`
-- [ ] Install Dexie.js: `npm install dexie`
-- [ ] Setup struktur folder: `src/store`, `src/types`, `src/systems`, `src/components`, `src/data`
-- [ ] Commit awal ke Git (`git init`, `.gitignore` untuk `node_modules`, `target`, dsb)
+- [x] Install Rust & prasyarat Tauri (`rustup`, dependency OS sesuai platform)
+- [x] `npm create tauri-app@latest` → pilih React + TypeScript
+- [x] Setup Tailwind CSS di project
+- [x] Install Zustand: `npm install zustand`
+- [x] Install Dexie.js: `npm install dexie`
+- [x] Setup struktur folder: `src/store`, `src/types`, `src/systems`, `src/components`, `src/data`
+- [x] Commit awal ke Git (`git init`, `.gitignore` untuk `node_modules`, `target`, dsb)
 
 ### 1.2 Tipe Data Dasar
-- [ ] Buat `src/types/employee.ts` — interface `Employee`
-- [ ] Buat `src/types/resource.ts` — interface `ComponentResource`
-- [ ] Buat `src/types/server.ts` — interface `ServerInstance`
-- [ ] Buat `src/types/feature.ts` — interface `PlatformFeature`
-- [ ] Buat `src/types/company.ts` — interface `Company` (cash, month, dsb)
+- [x] Buat `src/types/employee.ts` — interface `Employee`
+- [x] Buat `src/types/resource.ts` — interface `ComponentResource`
+- [x] Buat `src/types/server.ts` — interface `ServerInstance`
+- [x] Buat `src/types/feature.ts` — interface `PlatformFeature`
+- [x] Buat `src/types/company.ts` — interface `Company` (cash, month, dsb)
 
 ### 1.3 Game Loop Dasar
 - [ ] Buat `src/store/gameStore.ts` (Zustand) dengan state: `tick`, `isPaused`, `speed` (1x/2x/4x)
