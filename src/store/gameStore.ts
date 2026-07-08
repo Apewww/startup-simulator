@@ -23,6 +23,8 @@ interface GameState {
   totalSalary: number;
   selectedProduct: string | null;
   devMode: boolean;
+  isBankrupt: boolean;
+  negativeCashMonths: number;
   togglePause: () => void;
   setSpeed: (speed: GameSpeed) => void;
   incrementTick: () => void;
@@ -32,7 +34,7 @@ interface GameState {
   selectProduct: (productId: string) => void;
   buildFeature: (featureId: string) => void;
   upgradeFeature: (featureId: string) => void;
-  buyRack: (tier: RackTier) => void;
+  buyRack: (rackId: string, tier: RackTier) => void;
   buyNode: (rackId: string, typeId: NodeTypeId) => void;
   sellNode: (rackId: string, slotIndex: number) => void;
   sellRack: (rackId: string) => void;
@@ -41,6 +43,7 @@ interface GameState {
   completeTask: (employeeId: string) => void;
   unlockAllFeatures: () => void;
   fillRack: (rackId: string, typeId: NodeTypeId) => void;
+  restartGame: () => void;
 }
 
 function calcTotalSalary(employees: Employee[]): number {
@@ -70,6 +73,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   totalSalary: 0,
   selectedProduct: null,
   devMode: false,
+  isBankrupt: false,
+  negativeCashMonths: 0,
 
   togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
   setSpeed: (speed) => set({ speed }),
@@ -175,12 +180,22 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     let cashChange = 0;
     let newTotalSalary = state.totalSalary;
+    let newNegativeCashMonths = state.negativeCashMonths;
     if (newMonth > oldMonth) {
       newTotalSalary = calcTotalSalary(newEmployees);
       const serverCost = calcMonthlyServerCost(updatedRacks);
       const revenue = calculateRevenue(trafficStats.users, features, updatedRacks);
       cashChange = revenue.total - (newTotalSalary + serverCost);
+
+      const cashAfter = state.cash + cashChange;
+      if (cashAfter < 0) {
+        newNegativeCashMonths += 1;
+      } else {
+        newNegativeCashMonths = 0;
+      }
     }
+
+    const isBankrupt = newNegativeCashMonths >= 3;
 
     set({
       tick: newTick,
@@ -190,6 +205,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       employees: newEmployees,
       resources: newResources,
       racks: updatedRacks,
+      negativeCashMonths: newNegativeCashMonths,
+      isBankrupt,
     });
   },
 
@@ -441,6 +458,15 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
 
     set({ racks: newRacks });
+  },
+
+  restartGame: () => {
+    set({
+      tick: 0, isPaused: false, speed: 1, cash: 10000, month: 0,
+      employees: [], resources: [], features: [], racks: [],
+      totalSalary: 0, selectedProduct: null, devMode: false,
+      isBankrupt: false, negativeCashMonths: 0,
+    });
   },
 }));
 

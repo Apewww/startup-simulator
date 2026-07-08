@@ -115,8 +115,8 @@ Server tidak dibeli langsung — pemain harus beli **rack** dulu, lalu pasang **
 - [x] UI: indikator happiness per karyawan (angka atau warna)
 
 ### 2.7 Kondisi Bankrupt
-- [ ] Fungsi cek saldo negatif berkepanjangan → trigger game over screen
-- [ ] UI: layar game over sederhana dengan opsi restart
+- [x] Fungsi cek saldo negatif berkepanjangan → trigger game over screen
+- [x] UI: layar game over sederhana dengan opsi restart
 
 **Milestone Fase 2 selesai:** Loop penuh bisa dimainkan — dari 0 karyawan sampai punya fitur, users, server, dan pendapatan — dengan risiko nyata bangkrut/crash.
 

@@ -157,14 +157,47 @@ function FeatureCard({ feature }: { feature: PlatformFeature }) {
   );
 }
 
+function GameOverScreen() {
+  const cash = useGameStore((s) => s.cash);
+  const month = useGameStore((s) => s.month);
+  const employees = useGameStore((s) => s.employees);
+  const restartGame = useGameStore((s) => s.restartGame);
+
+  return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+      <div className="bg-gray-800 rounded-xl border-2 border-red-500 p-10 max-w-lg text-center">
+        <div className="text-6xl mb-4">💀</div>
+        <h1 className="text-3xl font-bold text-red-400 mb-2">BANKRUPT</h1>
+        <p className="text-gray-400 mb-6">Your startup has run out of funds.</p>
+        <div className="space-y-2 text-sm text-gray-400 mb-8">
+          <p>Survived: {month} months</p>
+          <p>Team size: {employees.length} employees</p>
+          <p>Final cash: {formatCash(cash)}</p>
+          {month === 0 && <p className="text-yellow-400 mt-2">Tip: Start with hiring, build features, then manage server costs!</p>}
+        </div>
+        <button
+          onClick={restartGame}
+          className="px-8 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg text-lg font-semibold transition-colors"
+        >
+          Restart Game
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function App() {
-  const { tick, isPaused, speed, cash, month, employees, resources, features, totalSalary, racks, selectedProduct, togglePause, setSpeed, incrementTick, hireEmployee, devMode, toggleDevMode } = useGameStore();
+  const { tick, isPaused, speed, cash, month, employees, resources, features, totalSalary, racks, selectedProduct, togglePause, setSpeed, incrementTick, hireEmployee, devMode, toggleDevMode, isBankrupt, negativeCashMonths } = useGameStore();
 
   useEffect(() => {
-    if (isPaused || !selectedProduct) return;
+    if (isPaused || !selectedProduct || isBankrupt) return;
     const interval = setInterval(incrementTick, 1000 / speed);
     return () => clearInterval(interval);
-  }, [isPaused, speed, incrementTick, selectedProduct]);
+  }, [isPaused, speed, incrementTick, selectedProduct, isBankrupt]);
+
+  if (isBankrupt) {
+    return <GameOverScreen />;
+  }
 
   if (!selectedProduct) {
     return <ProductSelect />;
@@ -216,6 +249,11 @@ function App() {
               <span className="text-sm text-amber-400">
                 RPS: {trafficStats.rps.toLocaleString()}
               </span>
+              {negativeCashMonths > 0 && (
+                <span className="text-sm text-red-400 font-bold">
+                  ⚠ BANKRUPT in {3 - negativeCashMonths} months
+                </span>
+              )}
               <div className="flex gap-2">
                 <button onClick={togglePause} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded transition-colors">
                   {isPaused ? 'Play' : 'Pause'}
