@@ -49,9 +49,9 @@ Checklist kerja per fase. Centang `[x]` setiap task selesai. Urutan disusun agar
 ## FASE 2 — Platform & Server Management
 
 ### 2.1 Pemilihan Produk Awal
-- [ ] Buat data statis 3 produk (`src/data/products.ts`): Social Media, E-Commerce, Search Engine — masing-masing dengan daftar fitur unik
-- [ ] UI: layar awal game — pilih 1 dari 3 produk
-- [ ] Simpan pilihan produk ke `Company` store
+- [x] Buat data statis 3 produk (`src/data/products.ts`): Social Media, E-Commerce, Search Engine — masing-masing dengan daftar fitur unik
+- [x] UI: layar awal game — pilih 1 dari 3 produk
+- [x] Simpan pilihan produk ke `Company` store
 
 ### 2.2 Sistem Fitur (Platform Feature)
 - [ ] Fungsi `buildFeature(featureId)` — cek `requiredComponents` cukup → kurangi stok → tambah fitur ke daftar aktif

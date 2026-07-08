@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useGameStore, TICKS_PER_MONTH, getComponentsByRole } from './store/gameStore';
 import type { EmployeeRole, Employee } from './types';
+import { ProductSelect } from './components/ProductSelect';
+import { getProductDef } from './data/products';
 
 const ROLES: EmployeeRole[] = ['Developer', 'Designer', 'Lead_Developer', 'SysAdmin'];
 
@@ -60,18 +62,24 @@ function EmployeeCard({ employee }: { employee: Employee }) {
 }
 
 function App() {
-  const { tick, isPaused, speed, cash, month, employees, resources, totalSalary, togglePause, setSpeed, incrementTick, hireEmployee } = useGameStore();
+  const { tick, isPaused, speed, cash, month, employees, resources, features, totalSalary, selectedProduct, togglePause, setSpeed, incrementTick, hireEmployee } = useGameStore();
 
   useEffect(() => {
-    if (isPaused) return;
+    if (isPaused || !selectedProduct) return;
     const interval = setInterval(incrementTick, 1000 / speed);
     return () => clearInterval(interval);
-  }, [isPaused, speed, incrementTick]);
+  }, [isPaused, speed, incrementTick, selectedProduct]);
+
+  if (!selectedProduct) {
+    return <ProductSelect />;
+  }
+
+  const product = getProductDef(selectedProduct);
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-8">
       <h1 className="text-3xl font-bold mb-2">Startup Simulator</h1>
-      <p className="text-gray-400 mb-6">Fase 1 — Excel Phase</p>
+      <p className="text-gray-400 mb-2">{product?.name} — Build your startup from the ground up</p>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
@@ -152,6 +160,29 @@ function App() {
               Next salary deduction: Month {month + 1} ({formatCash(totalSalary)})
             </div>
           )}
+
+          <div className="bg-gray-800 rounded p-4 border border-gray-700">
+            <h2 className="text-lg font-semibold mb-3">
+              {product?.name} — Features
+            </h2>
+            {features.length === 0 ? (
+              <p className="text-gray-500 text-sm">No features yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {features.map((f) => (
+                  <div key={f.id} className="flex justify-between items-center text-sm">
+                    <div>
+                      <span className="text-gray-300">{f.name}</span>
+                      <span className="ml-2 text-xs text-gray-500">Lv.{f.level}</span>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {f.level > 0 ? `${f.trafficGenerated} traffic` : '🔒 Locked'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

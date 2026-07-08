@@ -1,6 +1,7 @@
 import { create } from 'zustand';
-import type { Employee, EmployeeRole, ComponentResource } from '../types';
+import type { Employee, EmployeeRole, ComponentResource, PlatformFeature } from '../types';
 import { getComponentDef, COMPONENTS } from '../data/components';
+import { getProductDef } from '../data/products';
 
 export type GameSpeed = 1 | 2 | 4;
 export const TICKS_PER_MONTH = 30;
@@ -13,13 +14,16 @@ interface GameState {
   month: number;
   employees: Employee[];
   resources: ComponentResource[];
+  features: PlatformFeature[];
   totalSalary: number;
+  selectedProduct: string | null;
   togglePause: () => void;
   setSpeed: (speed: GameSpeed) => void;
   incrementTick: () => void;
   addCash: (amount: number) => void;
   hireEmployee: (role: EmployeeRole) => void;
   assignTask: (employeeId: string, componentId: string) => void;
+  selectProduct: (productId: string) => void;
 }
 
 function calcTotalSalary(employees: Employee[]): number {
@@ -41,7 +45,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   month: 0,
   employees: [],
   resources: [],
+  features: [],
   totalSalary: 0,
+  selectedProduct: null,
 
   togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
   setSpeed: (speed) => set({ speed }),
@@ -123,6 +129,19 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   addCash: (amount) => set((state) => ({ cash: state.cash + amount })),
+
+  selectProduct: (productId: string) => {
+    const product = getProductDef(productId);
+    if (!product) return;
+    const features: PlatformFeature[] = product.features.map((f) => ({
+      id: f.id,
+      name: f.name,
+      level: 0,
+      requiredComponents: f.requiredComponents,
+      trafficGenerated: 0,
+    }));
+    set({ selectedProduct: productId, features });
+  },
 }));
 
 export function getComponentsByRole(role: EmployeeRole) {
