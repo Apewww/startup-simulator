@@ -4,6 +4,7 @@ import type { EmployeeRole, Employee, ComponentRequirement, PlatformFeature } fr
 import { ProductSelect } from './components/ProductSelect';
 import { getProductDef } from './data/products';
 import { getComponentDef } from './data/components';
+import { getTrafficStats } from './systems/traffic';
 
 const ROLES: EmployeeRole[] = ['Developer', 'Designer', 'Lead_Developer', 'SysAdmin'];
 
@@ -157,6 +158,7 @@ function App() {
   }
 
   const product = getProductDef(selectedProduct);
+  const trafficStats = getTrafficStats(features);
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-8">
@@ -177,6 +179,12 @@ function App() {
               </span>
               <span className="text-sm text-gray-400">
                 Payroll: {formatCash(totalSalary)}/mo
+              </span>
+              <span className="text-sm text-cyan-400">
+                Users: {trafficStats.users.toLocaleString()}
+              </span>
+              <span className="text-sm text-amber-400">
+                RPS: {trafficStats.rps.toLocaleString()}
               </span>
               <div className="flex gap-2">
                 <button onClick={togglePause} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded transition-colors">

@@ -60,10 +60,10 @@ Checklist kerja per fase. Centang `[x]` setiap task selesai. Urutan disusun agar
 - [x] Test: fitur berhasil dibangun saat komponen cukup, gagal (dengan pesan jelas) saat kurang
 
 ### 2.3 Kalkulasi Traffic
-- [ ] Fungsi hitung total `trafficGenerated` dari semua fitur aktif
-- [ ] Konversi traffic → jumlah `users` (rumus sederhana dulu, linear)
-- [ ] Konversi `users` → `RPS` yang membebani server
-- [ ] Tampilkan `users` dan `RPS` di dashboard
+- [x] Fungsi hitung total `trafficGenerated` dari semua fitur aktif
+- [x] Konversi traffic → jumlah `users` (rumus sederhana dulu, linear)
+- [x] Konversi `users` → `RPS` yang membebani server
+- [x] Tampilkan `users` dan `RPS` di dashboard
 
 ### 2.4 Sistem Server
 - [ ] Fungsi `buyServer(type)` — tambah `ServerInstance` baru ke store
