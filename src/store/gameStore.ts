@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Employee, EmployeeRole, ComponentResource, PlatformFeature } from '../types';
+import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement } from '../types';
 import { getComponentDef, COMPONENTS } from '../data/components';
 import { getProductDef } from '../data/products';
 
@@ -24,6 +24,8 @@ interface GameState {
   hireEmployee: (role: EmployeeRole) => void;
   assignTask: (employeeId: string, componentId: string) => void;
   selectProduct: (productId: string) => void;
+  buildFeature: (featureId: string) => void;
+  upgradeFeature: (featureId: string) => void;
 }
 
 function calcTotalSalary(employees: Employee[]): number {
@@ -141,6 +143,68 @@ export const useGameStore = create<GameState>((set, get) => ({
       trafficGenerated: 0,
     }));
     set({ selectedProduct: productId, features });
+  },
+
+  buildFeature: (featureId: string) => {
+    const state = get();
+    const product = getProductDef(state.selectedProduct || '');
+    if (!product) return;
+
+    const featDef = product.features.find(f => f.id === featureId);
+    const feature = state.features.find(f => f.id === featureId);
+    if (!featDef || !feature || feature.level > 0) return;
+
+    for (const req of featDef.requiredComponents) {
+      const res = state.resources.find(r => r.id === req.componentId);
+      if (!res || res.quantity < req.amount) return;
+    }
+
+    const newResources = state.resources.map(r => {
+      const req = featDef.requiredComponents.find(req => req.componentId === r.id);
+      return req ? { ...r, quantity: r.quantity - req.amount } : r;
+    });
+
+    const newFeatures = state.features.map(f =>
+      f.id === featureId
+        ? { ...f, level: 1, trafficGenerated: featDef.baseTraffic }
+        : f
+    );
+
+    set({ resources: newResources, features: newFeatures });
+  },
+
+  upgradeFeature: (featureId: string) => {
+    const state = get();
+    const product = getProductDef(state.selectedProduct || '');
+    if (!product) return;
+
+    const featDef = product.features.find(f => f.id === featureId);
+    const feature = state.features.find(f => f.id === featureId);
+    if (!featDef || !feature || feature.level < 1) return;
+
+    const nextLevel = feature.level + 1;
+    const upgradeCost: ComponentRequirement[] = featDef.requiredComponents.map(r => ({
+      componentId: r.componentId,
+      amount: r.amount * nextLevel,
+    }));
+
+    for (const req of upgradeCost) {
+      const res = state.resources.find(r => r.id === req.componentId);
+      if (!res || res.quantity < req.amount) return;
+    }
+
+    const newResources = state.resources.map(r => {
+      const req = upgradeCost.find(req => req.componentId === r.id);
+      return req ? { ...r, quantity: r.quantity - req.amount } : r;
+    });
+
+    const newFeatures = state.features.map(f =>
+      f.id === featureId
+        ? { ...f, level: nextLevel, trafficGenerated: featDef.baseTraffic * nextLevel }
+        : f
+    );
+
+    set({ resources: newResources, features: newFeatures });
   },
 }));
 

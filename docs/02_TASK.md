@@ -54,10 +54,10 @@ Checklist kerja per fase. Centang `[x]` setiap task selesai. Urutan disusun agar
 - [x] Simpan pilihan produk ke `Company` store
 
 ### 2.2 Sistem Fitur (Platform Feature)
-- [ ] Fungsi `buildFeature(featureId)` — cek `requiredComponents` cukup → kurangi stok → tambah fitur ke daftar aktif
-- [ ] Fungsi `upgradeFeature(featureId)` — level naik, butuh komponen lebih banyak/kualitas lebih tinggi
-- [ ] UI panel: daftar fitur yang bisa dibangun/upgrade + requirement-nya
-- [ ] Test: fitur berhasil dibangun saat komponen cukup, gagal (dengan pesan jelas) saat kurang
+- [x] Fungsi `buildFeature(featureId)` — cek `requiredComponents` cukup → kurangi stok → tambah fitur ke daftar aktif
+- [x] Fungsi `upgradeFeature(featureId)` — level naik, butuh komponen lebih banyak/kualitas lebih tinggi
+- [x] UI panel: daftar fitur yang bisa dibangun/upgrade + requirement-nya
+- [x] Test: fitur berhasil dibangun saat komponen cukup, gagal (dengan pesan jelas) saat kurang
 
 ### 2.3 Kalkulasi Traffic
 - [ ] Fungsi hitung total `trafficGenerated` dari semua fitur aktif
