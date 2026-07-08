@@ -1,4 +1,4 @@
-import type { ServerRack, ServerNode } from '../types';
+import type { ServerRack } from '../types';
 import { getNodeDef } from '../data/servers';
 
 export interface ServerStats {
@@ -72,7 +72,6 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number): Se
   return racks.map(rack => {
     let rackHeat = 0;
     let rackCooling = rack.coolingCapacity;
-    let hasRouter = false;
 
     const newSlots = rack.slots.map(slot => {
       const node = slot.node;
@@ -93,7 +92,6 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number): Se
       }
 
       if (node.category === 'router') {
-        hasRouter = true;
         rackCooling += 5;
       }
 
@@ -145,9 +143,7 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number): Se
         newLoad = (node.status === 'active') ? 50 : 0;
       }
 
-      if (node.status !== 'crashed') {
-        rackHeat += node.heat;
-      }
+      rackHeat += node.heat;
 
       return { ...slot, node: { ...node, load: Math.round(newLoad), status: newStatus, crashTicks: newCrashTicks, recoveryTicks: newRecoveryTicks } };
     });

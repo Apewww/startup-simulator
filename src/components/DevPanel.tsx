@@ -7,7 +7,7 @@ import { NODE_DEFS, RACK_TIERS } from '../data/servers';
 const ROLES: EmployeeRole[] = ['Developer', 'Designer', 'Lead_Developer', 'SysAdmin'];
 
 export function DevPanel() {
-  const { devMode, toggleDevMode, cash, addCash, employees, hireEmployee, resources, addResources, completeTask, features, unlockAllFeatures, racks, buyRack, buyNode, fillRack, selectedProduct } = useGameStore();
+  const { devMode, toggleDevMode, cash, addCash, employees, hireEmployee, addResources, features, unlockAllFeatures, racks, fillRack, selectedProduct } = useGameStore();
   const [cashAmount, setCashAmount] = useState('100000');
   const [resAmount, setResAmount] = useState('10');
 
@@ -88,7 +88,7 @@ export function DevPanel() {
             <div className="text-xs text-gray-400">Buy rack (free):</div>
             <div className="flex flex-wrap gap-1">
               {RACK_TIERS.map(rack => (
-                <button key={rack.tier} onClick={() => { useGameStore.setState(s => { const prev = s.cash; s.buyRack(rack.tier); if (s.cash < prev) useGameStore.getState().addCash(rack.price); }); }} className="px-2 py-1 bg-cyan-700 hover:bg-cyan-600 rounded text-xs">
+                <button key={rack.tier} onClick={() => { const prev = useGameStore.getState().cash; useGameStore.getState().buyRack(rack.tier); if (useGameStore.getState().cash < prev) useGameStore.getState().addCash(rack.price); }} className="px-2 py-1 bg-cyan-700 hover:bg-cyan-600 rounded text-xs">
                   {rack.label}
                 </button>
               ))}

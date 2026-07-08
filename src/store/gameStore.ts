@@ -34,7 +34,7 @@ interface GameState {
   selectProduct: (productId: string) => void;
   buildFeature: (featureId: string) => void;
   upgradeFeature: (featureId: string) => void;
-  buyRack: (rackId: string, tier: RackTier) => void;
+  buyRack: (tier: RackTier) => void;
   buyNode: (rackId: string, typeId: NodeTypeId) => void;
   sellNode: (rackId: string, slotIndex: number) => void;
   sellRack: (rackId: string) => void;

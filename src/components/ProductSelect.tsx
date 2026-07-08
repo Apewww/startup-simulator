@@ -1,5 +1,7 @@
+import { useState } from 'react';
 import { PRODUCTS } from '../data/products';
 import { useGameStore } from '../store/gameStore';
+import { loadGame } from '../systems/saveLoad';
 
 const PRODUCT_ICONS: Record<string, string> = {
   social_media: '🌐',
@@ -9,9 +11,20 @@ const PRODUCT_ICONS: Record<string, string> = {
 
 export function ProductSelect() {
   const selectProduct = useGameStore((s) => s.selectProduct);
+  const [loadMsg, setLoadMsg] = useState('');
+
+  const handleLoad = async () => {
+    const ok = await loadGame();
+    setLoadMsg(ok ? 'Game loaded!' : 'No save file found');
+    setTimeout(() => setLoadMsg(''), 2000);
+  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-8 flex flex-col items-center justify-center">
+      <div className="absolute top-4 right-4">
+        <button onClick={handleLoad} className="px-4 py-2 bg-blue-800 hover:bg-blue-700 text-blue-200 rounded text-sm transition-colors">Load Saved Game</button>
+        {loadMsg && <span className="ml-2 text-xs text-yellow-300">{loadMsg}</span>}
+      </div>
       <h1 className="text-4xl font-bold mb-2">Startup Simulator</h1>
       <p className="text-gray-400 mb-8">Choose your product to begin</p>
 

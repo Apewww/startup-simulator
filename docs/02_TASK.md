@@ -136,13 +136,13 @@ Server tidak dibeli langsung — pemain harus beli **rack** dulu, lalu pasang **
 
 ## FASE 4 — Integrasi Tauri & Build Desktop
 
-- [ ] Setup Dexie.js schema untuk save game (`GameSave` table: snapshot seluruh store)
-- [ ] Fungsi `saveGame()` — serialize Zustand store → simpan ke IndexedDB
-- [ ] Fungsi `loadGame()` — ambil dari IndexedDB → hydrate Zustand store
-- [ ] UI: tombol Save/Load manual + (opsional) autosave tiap X menit in-game
-- [ ] Konfigurasi `tauri.conf.json` (nama app, ukuran window, icon)
-- [ ] Build production: `npm run tauri build`
-- [ ] Test hasil `.exe` di luar environment dev — pastikan save/load tetap jalan
+- [x] Setup Dexie.js schema untuk save game (`GameSave` table: snapshot seluruh store)
+- [x] Fungsi `saveGame()` — serialize Zustand store → simpan ke IndexedDB
+- [x] Fungsi `loadGame()` — ambil dari IndexedDB → hydrate Zustand store
+- [x] UI: tombol Save/Load manual + (opsional) autosave tiap X menit in-game
+- [x] Konfigurasi `tauri.conf.json` (nama app, ukuran window, icon)
+- [x] Build production: `npm run tauri build`
+- [x] Test hasil `.exe` di luar environment dev — pastikan save/load tetap jalan
 
 **Milestone Fase 4 selesai:** Ada file `.exe` yang bisa dibuka langsung, progres tersimpan, dan game bisa dilanjutkan kapan saja.
 

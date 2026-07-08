@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { RACK_TIERS, NODE_DEFS } from '../data/servers';
-import type { RackTier, NodeTypeId, ServerRack, ServerNode } from '../types';
+import type { RackTier, ServerRack, ServerNode } from '../types';
 
 function NodeSlot({ node, rackId, slotIndex }: { node: ServerNode | null; rackId: string; slotIndex: number }) {
   const sellNode = useGameStore(s => s.sellNode);

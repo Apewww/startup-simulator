@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useGameStore, TICKS_PER_MONTH, getComponentsByRole } from './store/gameStore';
 import type { EmployeeRole, Employee, ComponentRequirement, PlatformFeature } from './types';
 import { ProductSelect } from './components/ProductSelect';
@@ -10,6 +10,8 @@ import { getComponentDef } from './data/components';
 import { getTrafficStats } from './systems/traffic';
 import { calcMonthlyServerCost } from './systems/server';
 import { calculateRevenue } from './systems/monetization';
+import { saveGame, loadGame } from './systems/saveLoad';
+import { db } from './db/gameDB';
 
 const ROLES: EmployeeRole[] = ['Developer', 'Designer', 'Lead_Developer', 'SysAdmin'];
 
@@ -162,7 +164,12 @@ function GameOverScreen() {
   const cash = useGameStore((s) => s.cash);
   const month = useGameStore((s) => s.month);
   const employees = useGameStore((s) => s.employees);
-  const restartGame = useGameStore((s) => s.restartGame);
+
+  const handleRestart = async () => {
+    await db.saves.delete(1);
+    localStorage.removeItem('hasSave');
+    useGameStore.getState().restartGame();
+  };
 
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -177,7 +184,7 @@ function GameOverScreen() {
           {month === 0 && <p className="text-yellow-400 mt-2">Tip: Start with hiring, build features, then manage server costs!</p>}
         </div>
         <button
-          onClick={restartGame}
+          onClick={handleRestart}
           className="px-8 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg text-lg font-semibold transition-colors"
         >
           Restart Game
@@ -187,14 +194,51 @@ function GameOverScreen() {
   );
 }
 
+function useAutosave(selectedProduct: string | null) {
+  useEffect(() => {
+    if (!selectedProduct) return;
+    const interval = setInterval(async () => {
+      await saveGame();
+      localStorage.setItem('hasSave', '1');
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [selectedProduct]);
+}
+
 function App() {
   const { tick, isPaused, speed, cash, month, employees, resources, features, totalSalary, racks, selectedProduct, togglePause, setSpeed, incrementTick, hireEmployee, devMode, toggleDevMode, isBankrupt, negativeCashMonths } = useGameStore();
+  const [saveMsg, setSaveMsg] = useState('');
 
   useEffect(() => {
     if (isPaused || !selectedProduct || isBankrupt) return;
     const interval = setInterval(incrementTick, 1000 / speed);
     return () => clearInterval(interval);
   }, [isPaused, speed, incrementTick, selectedProduct, isBankrupt]);
+
+  useEffect(() => {
+    if (!selectedProduct) return;
+    const saved = localStorage.getItem('hasSave');
+    if (!saved) return;
+    setSaveMsg('Save file detected — click Load to continue');
+  }, [selectedProduct]);
+
+  useAutosave(selectedProduct);
+
+  const handleSave = useCallback(async () => {
+    await saveGame();
+    localStorage.setItem('hasSave', '1');
+    setSaveMsg('Game saved!');
+    setTimeout(() => setSaveMsg(''), 2000);
+  }, []);
+
+  const handleLoad = useCallback(async () => {
+    const ok = await loadGame();
+    setSaveMsg(ok ? 'Game loaded!' : 'No save file found');
+    setTimeout(() => setSaveMsg(''), 2000);
+  }, []);
+
+
+
 
   if (isBankrupt) {
     return <GameOverScreen />;
@@ -216,12 +260,19 @@ function App() {
           <h1 className="text-3xl font-bold">Startup Simulator</h1>
           <p className="text-gray-400">{product?.name} — Build your startup from the ground up</p>
         </div>
-        <button
-          onClick={toggleDevMode}
-          className={`px-3 py-1.5 rounded text-xs font-mono transition-colors ${devMode ? 'bg-yellow-600 text-black' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
-        >
-          {devMode ? 'DEV ON' : 'DEV'}
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1">
+            <button onClick={handleSave} className="px-3 py-1.5 rounded text-xs bg-green-800 hover:bg-green-700 text-green-200 transition-colors">Save</button>
+            <button onClick={handleLoad} className="px-3 py-1.5 rounded text-xs bg-blue-800 hover:bg-blue-700 text-blue-200 transition-colors">Load</button>
+          </div>
+          {saveMsg && <span className="text-xs text-yellow-300 animate-pulse">{saveMsg}</span>}
+          <button
+            onClick={toggleDevMode}
+            className={`px-3 py-1.5 rounded text-xs font-mono transition-colors ${devMode ? 'bg-yellow-600 text-black' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+          >
+            {devMode ? 'DEV ON' : 'DEV'}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
