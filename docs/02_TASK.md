@@ -36,11 +36,11 @@ Checklist kerja per fase. Centang `[x]` setiap task selesai. Urutan disusun agar
 - [x] Test: saldo berkurang otomatis tiap bulan sesuai total gaji karyawan
 
 ### 1.5 Sistem Karyawan Dasar
-- [ ] Fungsi `hireEmployee(role, level)` — generate data karyawan baru & masukkan ke store
-- [ ] UI sederhana: tombol "Rekrut Developer/Designer/dst" + list karyawan (teks/table)
-- [ ] Fungsi produksi: karyawan mengerjakan 1 `ComponentResource`, progress dihitung per tick berdasarkan `speed`
-- [ ] Tampilkan progress bar tekstual (misal `Progress: 45%`) per karyawan
-- [ ] Test: karyawan menghasilkan komponen setelah waktu produksi selesai, stok bertambah
+- [x] Fungsi `hireEmployee(role, level)` — generate data karyawan baru & masukkan ke store
+- [x] UI sederhana: tombol "Rekrut Developer/Designer/dst" + list karyawan (teks/table)
+- [x] Fungsi produksi: karyawan mengerjakan 1 `ComponentResource`, progress dihitung per tick berdasarkan `speed`
+- [x] Tampilkan progress bar tekstual (misal `Progress: 45%`) per karyawan
+- [x] Test: karyawan menghasilkan komponen setelah waktu produksi selesai, stok bertambah
 
 **Milestone Fase 1 selesai:** Bisa buka app, rekrut karyawan, lihat saldo berkurang tiap bulan, dan karyawan menghasilkan komponen — semua lewat UI teks sederhana tanpa styling rumit.
 
