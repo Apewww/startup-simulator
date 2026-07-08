@@ -124,11 +124,11 @@ Server tidak dibeli langsung — pemain harus beli **rack** dulu, lalu pasang **
 
 ## FASE 3 — Visual Kantor
 
-- [ ] Desain grid kantor sederhana (misal 8x8 petak) — pakai CSS Grid dulu (lebih cepat dari Canvas)
-- [ ] Render meja per karyawan yang direkrut (posisi otomatis mengisi grid)
-- [ ] Sprite/ikon karyawan berubah warna/status sesuai `currentTask` (bekerja/idle/istirahat)
-- [ ] Sinkronisasi: setiap update state karyawan di store, visual ikut update (pakai Zustand subscribe atau React re-render biasa)
-- [ ] (Opsional) Animasi progress bar mengambang di atas meja karyawan yang sedang bekerja
+- [x] Desain grid kantor sederhana (8x8 petak) — pakai CSS Grid dulu (lebih cepat dari Canvas)
+- [x] Render meja per karyawan yang direkrut (posisi otomatis mengisi grid)
+- [x] Sprite/ikon karyawan berubah warna/status sesuai `currentTask` (bekerja/idle/istirahat)
+- [x] Sinkronisasi: setiap update state karyawan di store, visual ikut update (pakai Zustand subscribe atau React re-render biasa)
+- [x] (Opsional) Animasi progress bar mengambang di atas meja karyawan yang sedang bekerja
 
 **Milestone Fase 3 selesai:** Kantor terlihat sebagai grid visual, bukan cuma tabel data — cukup untuk memberi rasa "ruang kerja hidup" tanpa perlu sprite artistik detail.
 

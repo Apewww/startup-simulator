@@ -3,6 +3,7 @@ import { useGameStore, TICKS_PER_MONTH, getComponentsByRole } from './store/game
 import type { EmployeeRole, Employee, ComponentRequirement, PlatformFeature } from './types';
 import { ProductSelect } from './components/ProductSelect';
 import { ServerPanel } from './components/ServerPanel';
+import { OfficeGrid } from './components/OfficeGrid';
 import { DevPanel } from './components/DevPanel';
 import { getProductDef } from './data/products';
 import { getComponentDef } from './data/components';
@@ -271,6 +272,8 @@ function App() {
             </div>
           </div>
 
+          <OfficeGrid />
+
           <div>
             <h2 className="text-xl font-semibold mb-3">Employees ({employees.length})</h2>
             <div className="flex flex-wrap gap-2 mb-4">
@@ -278,7 +281,7 @@ function App() {
                 <button
                   key={role}
                   onClick={() => hireEmployee(role)}
-                  className="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 rounded text-sm transition-colors"
+                  className="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 rounded text-sm transition-colors cursor-pointer"
                 >
                   Hire {role.replace('_', ' ')}
                 </button>
