@@ -102,11 +102,11 @@ Server tidak dibeli langsung — pemain harus beli **rack** dulu, lalu pasang **
 - [ ] Test: cooling fan bisa menunda/mencegah overheat *(manual)*
 - [x] Test: biaya bulanan server terpotong dari cash *(di store incrementTick)*
 
-### 2.5 Sistem Monetisasi
-- [ ] Fungsi `calculateAdsRevenue()` — berdasarkan users/RPS
-- [ ] Fungsi `calculateSubscriptionRevenue()` — berdasarkan users aktif, requires fitur pembayaran dibangun dulu
-- [ ] Tambahkan revenue ke `cash` tiap tick/bulan sesuai desain
-- [ ] UI: breakdown pemasukan vs pengeluaran (List sederhana dulu, chart menyusul)
+### 2.5 Sistem Monetisasi ✅
+- [x] Fungsi `calculateAdsRevenue()` — berdasarkan users/RPS
+- [x] Fungsi `calculateSubscriptionRevenue()` — berdasarkan users aktif, requires fitur pembayaran dibangun dulu
+- [x] Tambahkan revenue ke `cash` tiap tick/bulan sesuai desain
+- [x] UI: breakdown pemasukan vs pengeluaran (List sederhana dulu, chart menyusul)
 
 ### 2.6 Sistem Happiness & Resign
 - [ ] Fungsi decay happiness per tick (kerja vs idle)

@@ -5,6 +5,7 @@ import { getProductDef } from '../data/products';
 import { getNodeDef, getRackDef } from '../data/servers';
 import { calculateNodeLoads, calcMonthlyServerCost } from '../systems/server';
 import { getTrafficStats } from '../systems/traffic';
+import { calculateRevenue } from '../systems/monetization';
 
 export type GameSpeed = 1 | 2 | 4;
 export const TICKS_PER_MONTH = 30;
@@ -126,7 +127,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (newMonth > oldMonth) {
       newTotalSalary = calcTotalSalary(newEmployees);
       const serverCost = calcMonthlyServerCost(updatedRacks);
-      cashChange = -(newTotalSalary + serverCost);
+      const revenue = calculateRevenue(trafficStats.users, features, updatedRacks);
+      cashChange = revenue.total - (newTotalSalary + serverCost);
     }
 
     set({

@@ -7,6 +7,7 @@ import { getProductDef } from './data/products';
 import { getComponentDef } from './data/components';
 import { getTrafficStats } from './systems/traffic';
 import { calcMonthlyServerCost } from './systems/server';
+import { calculateRevenue } from './systems/monetization';
 
 const ROLES: EmployeeRole[] = ['Developer', 'Designer', 'Lead_Developer', 'SysAdmin'];
 
@@ -162,6 +163,7 @@ function App() {
   const product = getProductDef(selectedProduct);
   const trafficStats = getTrafficStats(features);
   const serverCost = racks.length > 0 ? calcMonthlyServerCost(racks) : 0;
+  const revenue = racks.length > 0 || features.some(f => f.level > 0) ? calculateRevenue(trafficStats.users, features, racks) : { ads: 0, subscription: 0, total: 0, hasSubscription: false, uptimePenalty: 1 };
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 p-8">
@@ -255,12 +257,20 @@ function App() {
             )}
           </div>
 
-          {(totalSalary > 0 || serverCost > 0) && (
-            <div className="text-xs text-gray-500 bg-gray-800 rounded p-3 border border-gray-700">
-              <div>Monthly expenses at Month {month + 1}:</div>
-              {totalSalary > 0 && <div>Payroll: {formatCash(totalSalary)}</div>}
-              {serverCost > 0 && <div>Server: {formatCash(serverCost)}</div>}
-              <div className="mt-1 font-medium text-gray-400">Total: {formatCash(totalSalary + serverCost)}</div>
+          {(totalSalary > 0 || serverCost > 0 || revenue.total > 0) && (
+            <div className="text-xs bg-gray-800 rounded p-3 border border-gray-700">
+              <div className="text-gray-500 mb-1">Monthly at Month {month + 1}:</div>
+              <div className="text-green-400">
+                Income: {formatCash(revenue.total)}
+                {revenue.uptimePenalty < 1 && <span className="text-red-400 ml-1">(-50% crash penalty)</span>}
+              </div>
+              {revenue.ads > 0 && <div className="text-green-500 ml-2">Ads: {formatCash(revenue.ads)}</div>}
+              {revenue.subscription > 0 && <div className="text-green-500 ml-2">Subscription: {formatCash(revenue.subscription)}</div>}
+              {totalSalary > 0 && <div className="text-red-400">Payroll: -{formatCash(totalSalary)}</div>}
+              {serverCost > 0 && <div className="text-red-400">Server: -{formatCash(serverCost)}</div>}
+              <div className={`mt-1 font-medium ${(revenue.total - totalSalary - serverCost) >= 0 ? 'text-green-300' : 'text-red-300'}`}>
+                Net: {formatCash(revenue.total - totalSalary - serverCost)}
+              </div>
             </div>
           )}
 
