@@ -1,8 +1,12 @@
 import { useEffect } from 'react';
-import { useGameStore } from './store/gameStore';
+import { useGameStore, TICKS_PER_MONTH } from './store/gameStore';
+
+function formatCash(n: number): string {
+  return `$${n.toLocaleString('en-US')}`;
+}
 
 function App() {
-  const { tick, isPaused, speed, togglePause, setSpeed, incrementTick } = useGameStore();
+  const { tick, isPaused, speed, cash, month, employees, totalSalary, togglePause, setSpeed, incrementTick } = useGameStore();
 
   useEffect(() => {
     if (isPaused) return;
@@ -21,6 +25,17 @@ function App() {
           <span className="text-sm text-gray-400">
             ({isPaused ? 'PAUSED' : `Running @ ${speed}x`})
           </span>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <span className="text-xl font-mono text-green-400">{formatCash(cash)}</span>
+          <span className="text-sm text-gray-400">
+            Month {month} ({(tick % TICKS_PER_MONTH)}/{TICKS_PER_MONTH} ticks)
+          </span>
+        </div>
+
+        <div className="text-sm text-gray-400">
+          Employees: {employees.length} | Monthly payroll: {formatCash(totalSalary)}
         </div>
 
         <div className="flex gap-2">
@@ -43,6 +58,10 @@ function App() {
               {s}x
             </button>
           ))}
+        </div>
+
+        <div className="text-sm text-gray-500">
+          {totalSalary > 0 && cash > 0 && `Next salary deduction: Month ${month + 1}`}
         </div>
       </div>
     </div>
