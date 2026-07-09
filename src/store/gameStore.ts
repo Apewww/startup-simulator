@@ -20,6 +20,14 @@ export interface Notification {
   type: 'info' | 'success' | 'warning' | 'error';
 }
 
+export interface MonthlySnapshot {
+  month: number;
+  revenue: number;
+  expenses: number;
+  net: number;
+  cash: number;
+}
+
 interface GameState {
   tick: number;
   isPaused: boolean;
@@ -40,6 +48,7 @@ interface GameState {
   visitedPlots: string[];
   gameLog: string[];
   notifications: Notification[];
+  cashFlowHistory: MonthlySnapshot[];
   isBankrupt: boolean;
   negativeCashMonths: number;
   screen: GameScreen;
@@ -248,6 +257,16 @@ export const useGameStore = create<GameState>((set, get) => ({
       } else {
         newNegativeCashMonths = 0;
       }
+
+      const snapshot: MonthlySnapshot = {
+        month: newMonth,
+        revenue: revenue.total,
+        expenses: newTotalSalary + serverCost,
+        net: cashChange,
+        cash: state.cash + cashChange,
+      };
+      const history = [...state.cashFlowHistory, snapshot].slice(-12);
+      set({ cashFlowHistory: history });
     }
 
     const isBankrupt = newNegativeCashMonths >= 3;
@@ -717,7 +736,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       tick: 0, isPaused: false, speed: 1, cash: 15000, month: 0,
       employees: [], resources: [], features: [], racks: [], plots: [], rentedServers: [],
       totalSalary: 0, selectedProduct: null, devMode: false,
-      inventoryNodes: [], activeView: { type: 'office' }, visitedPlots: [], gameLog: [],
+      inventoryNodes: [], activeView: { type: 'office' }, visitedPlots: [], gameLog: [], cashFlowHistory: [],
       isBankrupt: false, negativeCashMonths: 0, screen: 'menu',
       panelOpen: { employees: true, features: false, server: false, finance: false },
       panelMinimized: { employees: false, features: false, server: false, finance: false },

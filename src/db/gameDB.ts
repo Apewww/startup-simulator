@@ -1,6 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 import type { Employee, ComponentResource, PlatformFeature, ServerRack, Plot, RentedServer, ServerNode } from '../types';
-import type { GameSpeed, GameScreen } from '../store/gameStore';
+import type { GameSpeed, GameScreen, MonthlySnapshot } from '../store/gameStore';
 
 export interface GameSave {
   id: number;
@@ -23,6 +23,7 @@ export interface GameSave {
   isBankrupt: boolean;
   negativeCashMonths: number;
   screen: GameScreen;
+  cashFlowHistory: MonthlySnapshot[];
 }
 
 export class GameDB extends Dexie {

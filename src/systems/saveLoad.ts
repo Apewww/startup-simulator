@@ -24,6 +24,7 @@ export async function saveGame(): Promise<void> {
     isBankrupt: state.isBankrupt,
     negativeCashMonths: state.negativeCashMonths,
     screen: state.screen,
+    cashFlowHistory: state.cashFlowHistory,
   });
 }
 
@@ -49,8 +50,8 @@ export async function loadGame(): Promise<boolean> {
     selectedProduct: save.selectedProduct,
     isBankrupt: save.isBankrupt,
     negativeCashMonths: save.negativeCashMonths,
-    // Fallback ke 'playing' untuk save lama yang belum punya field screen
     screen: save.screen ?? 'playing',
+    cashFlowHistory: save.cashFlowHistory ?? [],
   });
 
   return true;

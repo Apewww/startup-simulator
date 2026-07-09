@@ -1,8 +1,10 @@
-import { DollarSign, TrendingUp, TrendingDown, Users, Server } from 'lucide-react';
+import { useState } from 'react';
+import { DollarSign, TrendingUp, TrendingDown, Users, Server, BarChart3 } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import { getTrafficStats } from '../systems/traffic';
 import { calcMonthlyServerCost } from '../systems/server';
 import { calculateRevenue } from '../systems/monetization';
+import { CashFlowChart } from './CashFlowChart';
 
 function formatCash(n: number): string {
   return `$${n.toLocaleString('en-US')}`;
@@ -19,7 +21,8 @@ function fmtStat(label: string, value: string, icon: React.ReactNode) {
 }
 
 export function FinancePanel() {
-  const { features, totalSalary, racks, rentedServers, month, cash, employees } = useGameStore();
+  const { features, totalSalary, racks, rentedServers, month, cash, employees, cashFlowHistory } = useGameStore();
+  const [chartOpen, setChartOpen] = useState(false);
   const trafficStats = getTrafficStats(features);
   const serverCost = (racks.length > 0 || rentedServers.length > 0) ? calcMonthlyServerCost(racks, rentedServers) : 0;
   const revenue = racks.length > 0 || features.some((f) => f.level > 0)
@@ -70,6 +73,22 @@ export function FinancePanel() {
             {fmtStat('Cash on Hand', formatCash(cash), <DollarSign className="w-3 h-3" />)}
             {fmtStat('Users', trafficStats.users.toLocaleString(), <Users className="w-3 h-3" />)}
             {fmtStat('RPS', trafficStats.rps.toLocaleString(), <Server className="w-3 h-3" />)}
+          </div>
+
+          <div className="pt-1 border-t border-border">
+            <button
+              onClick={() => setChartOpen(o => !o)}
+              className="flex items-center gap-1.5 text-[11px] font-semibold text-indigo hover:text-indigo/80 transition-colors cursor-pointer w-full py-1"
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              {chartOpen ? 'Hide Cash Flow' : 'Cash Flow Chart'}
+              <span className="text-[10px] text-ink-soft font-normal ml-auto">{cashFlowHistory.length}m data</span>
+            </button>
+            {chartOpen && (
+              <div className="mt-1">
+                <CashFlowChart />
+              </div>
+            )}
           </div>
         </>
       )}

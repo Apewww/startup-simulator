@@ -152,6 +152,6 @@ Server tidak dibeli langsung — pemain harus beli **rack** dulu, lalu pasang **
 
 - [x] Tuning balancing angka berdasarkan playtest sendiri (rujuk baseline di `03_GDD.md` bagian 7) ✅ V1.3
 - [x] Tambah lebih banyak varian fitur per produk ✅ V1.3 (+2 per produk)
-- [ ] Tambah grafik cash flow (pakai library chart ringan)
+- [x] Tambah grafik cash flow (inline SVG, zero deps) ✅ V1.3.1
 - [ ] Sistem investor/funding round sederhana
 - [x] Polish UI (transisi, animasi, empty state, micro-interactions) ✅ V1.3
