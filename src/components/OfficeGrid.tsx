@@ -1,5 +1,5 @@
 import { useGameStore } from '../store/gameStore';
-import { CharacterAvatar, roleColor } from './CharacterAvatar';
+import { roleColor } from './CharacterAvatar';
 
 const GRID_COLS = 8;
 const GRID_ROWS = 8;
@@ -74,8 +74,11 @@ export function OfficeGrid() {
                 </span>
                 {emp.currentTask && (
                   <div className="absolute bottom-1 left-2 right-2 h-1 bg-ink/10 rounded-full overflow-hidden">
-                    <div className="h-full bg-indigo rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+                    <div className="h-full bg-indigo rounded-full transition-all duration-300 ease-out" style={{ width: `${progress}%` }} />
                   </div>
+                )}
+                {emp.happiness < 15 && (
+                  <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red rounded-full animate-pulse" title="Resign risk!" />
                 )}
               </button>
             );

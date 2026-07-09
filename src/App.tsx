@@ -13,6 +13,7 @@ import { EmployeesPanel, employeesPanelMeta } from './components/EmployeesPanel'
 import { FeaturesPanel, featuresPanelMeta } from './components/FeaturesPanel';
 import { FinancePanel, financePanelMeta } from './components/FinancePanel';
 import { Server, Skull, CheckCircle, Info, AlertTriangle, XCircle } from 'lucide-react';
+import { getTrafficStats } from './systems/traffic';
 import { saveGame } from './systems/saveLoad';
 import { db } from './db/gameDB';
 
@@ -20,10 +21,19 @@ function formatCash(n: number): string {
   return `$${n.toLocaleString('en-US')}`;
 }
 
+function formatCompact(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return n.toString();
+}
+
 function GameOverScreen() {
   const cash = useGameStore((s) => s.cash);
   const month = useGameStore((s) => s.month);
   const employees = useGameStore((s) => s.employees);
+  const features = useGameStore((s) => s.features);
+  const racks = useGameStore((s) => s.racks);
+  const trafficStats = features.length > 0 ? getTrafficStats(features) : { users: 0, rps: 0, totalTraffic: 0 };
 
   const handleRestart = async () => {
     await db.saves.delete(1);
@@ -32,20 +42,36 @@ function GameOverScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-bg flex items-center justify-center">
+    <div className="min-h-screen bg-bg flex items-center justify-center p-4">
       <div className="card border-2 border-red p-10 max-w-lg text-center">
         <Skull className="w-16 h-16 mx-auto mb-4 text-red" strokeWidth={1.5} />
         <h1 className="text-3xl font-bold text-red mb-2">BANKRUPT</h1>
         <p className="text-ink-soft mb-6">Your startup has run out of funds.</p>
-        <div className="space-y-2 text-sm text-ink-soft mb-8">
-          <p>Survived: {month} months</p>
-          <p>Team size: {employees.length} employees</p>
-          <p>Final cash: {formatCash(cash)}</p>
-          {month === 0 && <p className="text-amber mt-2">Tip: Start with hiring, build features, then manage server costs!</p>}
+        <div className="grid grid-cols-2 gap-3 mb-8 text-sm">
+          <div className="bg-red-soft rounded-lg p-3">
+            <div className="text-[10px] text-red font-semibold uppercase tracking-wider">Survived</div>
+            <div className="text-lg font-bold text-red">{month} months</div>
+          </div>
+          <div className="bg-red-soft rounded-lg p-3">
+            <div className="text-[10px] text-red font-semibold uppercase tracking-wider">Team</div>
+            <div className="text-lg font-bold text-red">{employees.length} people</div>
+          </div>
+          <div className="bg-surface-2 rounded-lg p-3 border border-border">
+            <div className="text-[10px] text-ink-soft font-semibold uppercase tracking-wider">Peak Users</div>
+            <div className="text-lg font-bold text-ink">{formatCompact(trafficStats.users)}</div>
+          </div>
+          <div className="bg-surface-2 rounded-lg p-3 border border-border">
+            <div className="text-[10px] text-ink-soft font-semibold uppercase tracking-wider">Servers</div>
+            <div className="text-lg font-bold text-ink">{racks.length} racks</div>
+          </div>
+        </div>
+        <div className="text-xs text-ink-soft mb-6">
+          Final cash: {formatCash(cash)}
+          {employees.length === 0 && <p className="text-amber mt-2">Tip: Start with hiring, build features, then manage server costs!</p>}
         </div>
         <button
           onClick={handleRestart}
-          className="px-8 py-3 bg-indigo hover:bg-indigo/90 text-white font-semibold rounded-[10px] transition-colors cursor-pointer"
+          className="px-8 py-3 bg-indigo hover:bg-indigo/90 text-white font-semibold rounded-[10px] transition-all duration-200 hover:translate-y-[-1px] cursor-pointer"
         >
           Restart Game
         </button>

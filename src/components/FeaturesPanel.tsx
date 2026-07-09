@@ -1,4 +1,4 @@
-import { LayoutGrid } from 'lucide-react';
+import { LayoutGrid, Package } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import type { ComponentRequirement, PlatformFeature } from '../types';
 import { getProductDef } from '../data/products';
@@ -28,7 +28,7 @@ function FeatureCard({ feature }: { feature: PlatformFeature }) {
       <div className="flex justify-between items-center mb-1">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-ink">{feature.name}</span>
-          <span className="text-[10px] px-1.5 py-0.5 bg-surface-2 text-ink-soft border border-border rounded">{isBuilt ? `Lv.${feature.level}` : '🔒'}</span>
+          <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${isBuilt ? 'bg-indigo-soft text-indigo border border-indigo/20' : 'bg-surface-2 text-ink-soft border border-border'}`}>{isBuilt ? `Lv.${feature.level}` : 'LOCKED'}</span>
         </div>
         {isBuilt && <span className="text-[11px] text-ink-soft font-mono">{feature.trafficGenerated} traffic</span>}
       </div>
@@ -83,7 +83,11 @@ export function FeaturesPanel() {
       <div>
         <h3 className="text-[11px] font-semibold text-ink-soft uppercase tracking-wider mb-1.5">Inventory</h3>
         {resources.length === 0 ? (
-          <p className="text-ink-soft text-xs">No components produced yet.</p>
+          <div className="text-center py-4 text-ink-soft border border-dashed border-border rounded-lg">
+            <Package className="w-6 h-6 mx-auto mb-1 opacity-40" strokeWidth={1.5} />
+            <p className="text-xs">No components yet.</p>
+            <p className="text-[10px] mt-0.5">Assign tasks to employees to start production.</p>
+          </div>
         ) : (
           <div className="space-y-0.5">
             {resources.map((res) => (
@@ -99,7 +103,11 @@ export function FeaturesPanel() {
       <div>
         <h3 className="text-[11px] font-semibold text-ink-soft uppercase tracking-wider mb-1.5">{product?.name} — Features</h3>
         {features.length === 0 ? (
-          <p className="text-ink-soft text-xs">No features yet.</p>
+          <div className="text-center py-4 text-ink-soft border border-dashed border-border rounded-lg">
+            <LayoutGrid className="w-6 h-6 mx-auto mb-1 opacity-40" strokeWidth={1.5} />
+            <p className="text-xs">No features yet.</p>
+            <p className="text-[10px] mt-0.5">Build components and use them to create features!</p>
+          </div>
         ) : (
           <div>
             {features.map((f) => (

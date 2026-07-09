@@ -103,7 +103,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   tick: 0,
   isPaused: false,
   speed: 1,
-  cash: 10000,
+  cash: 15000,
   month: 0,
   employees: [],
   resources: [],
@@ -193,15 +193,15 @@ export const useGameStore = create<GameState>((set, get) => ({
         if (newCurrentTask !== null) {
           newHappiness -= 1;
         } else {
-          newHappiness -= 0.2;
+          newHappiness -= 0.1;
         }
         newHappiness = Math.max(0, Math.min(100, newHappiness));
 
         let newSpeed: number;
         if (newHappiness < 30) {
-          newSpeed = emp.level * 0.5;
+          newSpeed = emp.level * 0.6;
         } else if (newHappiness >= 80) {
-          newSpeed = emp.level * 1.2;
+          newSpeed = emp.level * 1.3;
         } else {
           newSpeed = emp.level;
         }
@@ -714,7 +714,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   restartGame: () => {
     set({
-      tick: 0, isPaused: false, speed: 1, cash: 10000, month: 0,
+      tick: 0, isPaused: false, speed: 1, cash: 15000, month: 0,
       employees: [], resources: [], features: [], racks: [], plots: [], rentedServers: [],
       totalSalary: 0, selectedProduct: null, devMode: false,
       inventoryNodes: [], activeView: { type: 'office' }, visitedPlots: [], gameLog: [],

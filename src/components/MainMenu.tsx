@@ -32,24 +32,24 @@ export function MainMenu() {
 
       <div className="flex flex-col gap-4 w-full max-w-sm">
         <button onClick={handleNewGame}
-          className="group flex items-center justify-between px-6 py-4 card-hover transition-colors cursor-pointer">
+          className="group flex items-center justify-between px-6 py-4 card-hover transition-all duration-200 cursor-pointer hover:translate-x-0.5">
           <span className="text-base font-semibold text-ink">New Game</span>
           <Play className="w-5 h-5 text-ink-soft group-hover:text-indigo transition-colors" />
         </button>
         <button onClick={handleLoadGame} disabled={!canLoad}
-          className={`group flex items-center justify-between px-6 py-4 border rounded-[10px] transition-colors ${
-            canLoad ? 'card hover:border-indigo cursor-pointer' : 'bg-surface-2 border-border opacity-50 cursor-not-allowed'}`}>
+          className={`group flex items-center justify-between px-6 py-4 border rounded-[10px] transition-all duration-200 ${
+            canLoad ? 'card hover:border-indigo hover:translate-x-0.5 cursor-pointer' : 'bg-surface-2 border-border opacity-50 cursor-not-allowed'}`}>
           <span className={`text-base font-semibold ${canLoad ? 'text-ink' : 'text-ink-soft'}`}>Load Game</span>
           <Loader className={`w-5 h-5 ${canLoad ? 'text-ink-soft group-hover:text-indigo transition-colors' : 'text-ink-soft'}`} />
         </button>
         <button onClick={handleQuit}
-          className="group flex items-center justify-between px-6 py-4 card-hover transition-colors cursor-pointer mt-2">
+          className="group flex items-center justify-between px-6 py-4 card-hover transition-all duration-200 cursor-pointer mt-2 hover:translate-x-0.5">
           <span className="text-base font-semibold text-ink">Keluar</span>
           <Power className="w-5 h-5 text-ink-soft group-hover:text-red transition-colors" />
         </button>
       </div>
 
-      <div className="absolute bottom-6 text-xs text-ink-soft font-mono">v1.2</div>
+      <div className="absolute bottom-6 text-xs text-ink-soft font-mono">v1.3</div>
     </div>
   );
 }

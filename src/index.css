@@ -91,3 +91,43 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Smooth transitions */
+.transition-smooth {
+  transition: all 200ms ease-out;
+}
+
+/* Badge utility */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 999px;
+}
+
+/* Button press effect (no layout shift) */
+.btn-press:active {
+  transform: scale(0.97);
+}
+
+/* Subtle hover lift */
+.hover-lift {
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+}
+.hover-lift:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(20, 30, 60, 0.1);
+}
+
+/* Stat change pulse */
+@keyframes statPulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
+.stat-change {
+  animation: statPulse 300ms ease-out;
+}

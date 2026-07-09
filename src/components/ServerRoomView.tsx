@@ -61,12 +61,14 @@ function InventoryPanel({ onClose }: { onClose: () => void }) {
 
   return (
     <div onPointerDown={bringToFront}
-      className={`fixed w-[280px] flex flex-col overflow-hidden rounded-xl border shadow-[0_12px_32px_-8px_rgba(20,30,60,0.15)] pointer-events-auto z-50 bg-surface
+      className={`flex flex-col overflow-hidden rounded-xl border shadow-[0_12px_32px_-8px_rgba(20,30,60,0.15)] pointer-events-auto z-50 bg-surface
         max-md:!left-0 max-md:!right-0 max-md:!bottom-0 max-md:!top-auto max-md:max-h-[85vh] max-md:rounded-b-none
-        ${maximized ? '!fixed !inset-4' : ''}`}
+        ${maximized
+          ? 'fixed right-0 top-[52px] bottom-10 w-[420px] z-50 rounded-none rounded-l-xl max-md:!inset-0 max-md:!w-auto max-md:rounded-none'
+          : 'fixed w-[280px]'}`}
       style={{ left: maximized ? undefined : pos.x, top: maximized ? undefined : pos.y, zIndex: z, borderColor: '#E3E7EE' }}>
-      <div onPointerDown={onPointerDownHeader}
-        className="flex items-center justify-between px-3 py-2 border-b cursor-grab active:cursor-grabbing select-none"
+      <div onPointerDown={maximized ? undefined : onPointerDownHeader}
+        className={`flex items-center justify-between px-3 py-2 border-b select-none ${maximized ? '' : 'cursor-grab active:cursor-grabbing'}`}
         style={{ borderColor: '#E3E7EE', backgroundColor: '#F8F9FB' }}>
         <span className="text-xs font-bold text-ink">INVENTORY</span>
         <div className="flex items-center gap-1 text-ink-soft">
@@ -76,7 +78,7 @@ function InventoryPanel({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
-      <div className="p-3 overflow-y-auto text-xs space-y-3" style={{ maxHeight: maximized ? 'calc(100% - 44px)' : 'clamp(300px, 55vh, 70vh)' }}>
+      <div className="p-3 overflow-y-auto text-xs space-y-3 flex-1" style={{ maxHeight: maximized ? 'calc(100% - 44px)' : 'clamp(300px, 55vh, 70vh)' }}>
         {unplacedRacks.length > 0 && (
           <div>
             <div className="text-[10px] font-semibold text-indigo mb-1">RACKS ({unplacedRacks.length})</div>

@@ -92,7 +92,7 @@ export function EmployeesPanel() {
           <button
             key={role}
             onClick={() => hireEmployee(role)}
-            className="flex items-center gap-1 px-3 py-1.5 bg-indigo hover:bg-indigo/90 text-white text-[11px] font-semibold rounded-lg transition-colors cursor-pointer"
+            className="flex items-center gap-1 px-3 py-1.5 bg-indigo hover:bg-indigo/90 text-white text-[11px] font-semibold rounded-lg transition-all duration-200 active:scale-[0.97] cursor-pointer"
           >
             <UserPlus className="w-3 h-3" />
             {role.replace('_', ' ')}
@@ -100,9 +100,13 @@ export function EmployeesPanel() {
         ))}
       </div>
       {employees.length === 0 ? (
-        <p className="text-ink-soft text-xs text-center py-4">No employees yet. Hire your first team member!</p>
+        <div className="text-center py-6 text-ink-soft border border-dashed border-border rounded-lg">
+          <Users className="w-8 h-8 mx-auto mb-2 opacity-40" strokeWidth={1.5} />
+          <p className="text-xs">No employees yet.</p>
+          <p className="text-[10px] mt-1">Hire your first team member to start producing components!</p>
+        </div>
       ) : (
-        <div>
+        <div className="space-y-1">
           {employees.map((emp) => (
             <EmployeeCard key={emp.id} employee={emp} />
           ))}
