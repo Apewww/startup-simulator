@@ -11,7 +11,7 @@ export function DevPanel() {
   const [cashAmount, setCashAmount] = useState('100000');
   const [resAmount, setResAmount] = useState('10');
 
-  if (!devMode) return null;
+  if (!import.meta.env.DEV || !devMode) return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-50 w-96 max-h-[80vh] overflow-y-auto bg-gray-950 border-2 border-yellow-500 rounded-lg shadow-2xl">

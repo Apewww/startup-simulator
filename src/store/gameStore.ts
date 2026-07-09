@@ -10,6 +10,9 @@ import { calculateRevenue } from '../systems/monetization';
 export type GameSpeed = 1 | 2 | 4;
 export const TICKS_PER_MONTH = 30;
 
+export type PanelId = 'employees' | 'features' | 'server' | 'finance';
+export type PanelOpenState = Record<PanelId, boolean>;
+
 interface GameState {
   tick: number;
   isPaused: boolean;
@@ -25,6 +28,10 @@ interface GameState {
   devMode: boolean;
   isBankrupt: boolean;
   negativeCashMonths: number;
+  panelOpen: PanelOpenState;
+  togglePanel: (id: PanelId) => void;
+  selectedEmployeeId: string | null;
+  focusEmployee: (id: string | null) => void;
   togglePause: () => void;
   setSpeed: (speed: GameSpeed) => void;
   incrementTick: () => void;
@@ -75,6 +82,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   devMode: false,
   isBankrupt: false,
   negativeCashMonths: 0,
+  panelOpen: { employees: true, features: false, server: false, finance: false },
+  selectedEmployeeId: null,
 
   togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
   setSpeed: (speed) => set({ speed }),
@@ -381,6 +390,15 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   toggleDevMode: () => set((state) => ({ devMode: !state.devMode })),
+
+  togglePanel: (id: PanelId) => set((state) => ({
+    panelOpen: { ...state.panelOpen, [id]: !state.panelOpen[id] },
+  })),
+
+  focusEmployee: (id) => set((state) => ({
+    selectedEmployeeId: id,
+    panelOpen: { ...state.panelOpen, employees: true },
+  })),
 
   addResources: (componentId: string, amount: number) => {
     set((state) => {
