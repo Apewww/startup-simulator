@@ -28,6 +28,9 @@ interface GameState {
   totalSalary: number;
   selectedProduct: string | null;
   devMode: boolean;
+  inventoryNodes: ServerNode[];
+  activeView: { type: 'office' } | { type: 'server', plotId: string };
+  gameLog: string[];
   isBankrupt: boolean;
   negativeCashMonths: number;
   panelOpen: PanelOpenState;
@@ -46,13 +49,19 @@ interface GameState {
   buildFeature: (featureId: string) => void;
   upgradeFeature: (featureId: string) => void;
   buyPlot: () => void;
-  buyRack: (tier: RackTier, plotId: string) => void;
-  buyNode: (rackId: string, typeId: NodeTypeId) => void;
+  buyRack: (tier: RackTier) => void;
+  placeRack: (rackId: string, plotId: string, x: number, y: number) => void;
+  moveRack: (rackId: string, x: number, y: number) => void;
+  unplaceRack: (rackId: string) => void;
+  buyNode: (typeId: NodeTypeId) => void;
+  placeNode: (nodeId: string, rackId: string, slotIndex: number) => void;
   sellNode: (rackId: string, slotIndex: number) => void;
   sellRack: (rackId: string) => void;
   rentServer: (type: RentalType) => void;
   cancelRental: (id: string) => void;
   toggleDevMode: () => void;
+  setActiveView: (view: { type: 'office' } | { type: 'server', plotId: string }) => void;
+  addLog: (msg: string) => void;
   addResources: (componentId: string, amount: number) => void;
   completeTask: (employeeId: string) => void;
   unlockAllFeatures: () => void;
@@ -89,6 +98,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   totalSalary: 0,
   selectedProduct: null,
   devMode: false,
+  inventoryNodes: [],
+  activeView: { type: 'office' },
+  gameLog: [],
   isBankrupt: false,
   negativeCashMonths: 0,
   panelOpen: { employees: true, features: false, server: false, finance: false },
@@ -194,16 +206,18 @@ export const useGameStore = create<GameState>((set, get) => ({
       })
       .filter((emp): emp is Employee => emp !== null);
 
+    const placedRacks = racks.filter(r => r.plotId !== null);
+    const unplacedRacks = racks.filter(r => r.plotId === null);
     const trafficStats = getTrafficStats(features);
-    const updatedRacks = calculateNodeLoads(racks, trafficStats.rps, state.rentedServers);
+    const updatedPlacedRacks = calculateNodeLoads(placedRacks, trafficStats.rps, state.rentedServers);
 
     let cashChange = 0;
     let newTotalSalary = state.totalSalary;
     let newNegativeCashMonths = state.negativeCashMonths;
     if (newMonth > oldMonth) {
       newTotalSalary = calcTotalSalary(newEmployees);
-      const serverCost = calcMonthlyServerCost(updatedRacks, state.rentedServers);
-      const revenue = calculateRevenue(trafficStats.users, features, updatedRacks);
+      const serverCost = calcMonthlyServerCost(updatedPlacedRacks, state.rentedServers);
+      const revenue = calculateRevenue(trafficStats.users, features, updatedPlacedRacks);
       cashChange = revenue.total - (newTotalSalary + serverCost);
 
       const cashAfter = state.cash + cashChange;
@@ -223,7 +237,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       totalSalary: newTotalSalary,
       employees: newEmployees,
       resources: newResources,
-      racks: updatedRacks,
+      racks: [...unplacedRacks, ...updatedPlacedRacks],
       negativeCashMonths: newNegativeCashMonths,
       isBankrupt,
     });
@@ -303,11 +317,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ resources: newResources, features: newFeatures });
   },
 
-  buyRack: (tier: RackTier, plotId: string) => {
+  buyRack: (tier: RackTier) => {
     const state = get();
     const def = getRackDef(tier);
-    const plot = state.plots.find(p => p.id === plotId);
-    if (!def || !plot) return;
+    if (!def) return;
     if (state.cash < def.price) return;
 
     rackCounter++;
@@ -318,7 +331,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       id: rackId,
       tier: def.tier,
       label: def.label,
-      plotId,
+      plotId: null,
+      gridX: 0,
+      gridY: 0,
+      gridW: def.gridW,
+      gridH: def.gridH,
       slots,
       maxSlots: def.maxSlots,
       coolingCapacity: def.coolingCapacity,
@@ -330,10 +347,71 @@ export const useGameStore = create<GameState>((set, get) => ({
       overheatTicks: 0,
     };
 
+    get().addLog(`Bought ${def.label} ($${def.price})`);
+    set({ cash: state.cash - def.price, racks: [...state.racks, newRack] });
+  },
+
+  placeRack: (rackId: string, plotId: string, x: number, y: number) => {
+    const state = get();
+    const rack = state.racks.find(r => r.id === rackId);
+    const plot = state.plots.find(p => p.id === plotId);
+    if (!rack || !plot) return;
+    if (x + rack.gridW > plot.gridCols || y + rack.gridH > plot.gridRows) return;
+
+    const collision = state.racks.some(r =>
+      r.id !== rackId && r.plotId === plotId &&
+      x < r.gridX + r.gridW && x + rack.gridW > r.gridX &&
+      y < r.gridY + r.gridH && y + rack.gridH > r.gridY
+    );
+    if (collision) return;
+
+    get().addLog(`Placed ${rack.label} at (${x},${y}) on plot ${plotId}`);
     set({
-      cash: state.cash - def.price,
-      racks: [...state.racks, newRack],
-      plots: state.plots.map(p => p.id === plotId ? { ...p, rackIds: [...p.rackIds, rackId] } : p),
+      racks: state.racks.map(r =>
+        r.id === rackId ? { ...r, plotId, gridX: x, gridY: y } : r
+      ),
+      plots: state.plots.map(p =>
+        p.id === plotId ? { ...p, rackIds: [...p.rackIds.filter(id => id !== rackId), rackId] } : p
+      ),
+    });
+  },
+
+  moveRack: (rackId: string, x: number, y: number) => {
+    const state = get();
+    const rack = state.racks.find(r => r.id === rackId);
+    if (!rack || rack.plotId === null) return;
+    const plot = state.plots.find(p => p.id === rack.plotId);
+    if (!plot) return;
+    if (x + rack.gridW > plot.gridCols || y + rack.gridH > plot.gridRows) return;
+
+    const collision = state.racks.some(r =>
+      r.id !== rackId && r.plotId === rack.plotId &&
+      x < r.gridX + r.gridW && x + rack.gridW > r.gridX &&
+      y < r.gridY + r.gridH && y + rack.gridH > r.gridY
+    );
+    if (collision) return;
+
+    get().addLog(`Moved ${rack.label} to (${x},${y})`);
+    set({
+      racks: state.racks.map(r =>
+        r.id === rackId ? { ...r, gridX: x, gridY: y } : r
+      ),
+    });
+  },
+
+  unplaceRack: (rackId: string) => {
+    const state = get();
+    const rack = state.racks.find(r => r.id === rackId);
+    if (!rack) return;
+    const plotId = rack.plotId;
+    get().addLog(`Removed ${rack.label} from grid`);
+    set({
+      racks: state.racks.map(r =>
+        r.id === rackId ? { ...r, plotId: null, gridX: 0, gridY: 0 } : r
+      ),
+      plots: state.plots.map(p =>
+        p.id === plotId ? { ...p, rackIds: p.rackIds.filter(id => id !== rackId) } : p
+      ),
     });
   },
 
@@ -349,22 +427,17 @@ export const useGameStore = create<GameState>((set, get) => ({
       price,
       monthlyCost,
       rackIds: [],
+      gridCols: 6,
+      gridRows: 8,
     };
     set({ cash: state.cash - price, plots: [...state.plots, newPlot] });
   },
 
-  buyNode: (rackId: string, typeId: NodeTypeId) => {
+  buyNode: (typeId: NodeTypeId) => {
     const state = get();
     const def = getNodeDef(typeId);
     if (!def) return;
     if (state.cash < def.price) return;
-
-    const rackIndex = state.racks.findIndex(r => r.id === rackId);
-    if (rackIndex === -1) return;
-
-    const rack = state.racks[rackIndex];
-    const emptySlot = rack.slots.find(s => s.node === null);
-    if (!emptySlot) return;
 
     nodeCounter++;
     const newNode: ServerNode = {
@@ -383,13 +456,30 @@ export const useGameStore = create<GameState>((set, get) => ({
       recoveryTicks: 0,
     };
 
-    const newRacks = state.racks.map((r, idx) => {
-      if (idx !== rackIndex) return r;
-      const newSlots = r.slots.map(s => s.index === emptySlot.index ? { ...s, node: newNode } : s);
-      return { ...r, slots: newSlots };
-    });
+    get().addLog(`Bought ${def.label} ($${def.price}) → inventory`);
+    set({ cash: state.cash - def.price, inventoryNodes: [...state.inventoryNodes, newNode] });
+  },
 
-    set({ cash: state.cash - def.price, racks: newRacks });
+  placeNode: (nodeId: string, rackId: string, slotIndex: number) => {
+    const state = get();
+    const nodeIndex = state.inventoryNodes.findIndex(n => n.id === nodeId);
+    if (nodeIndex === -1) return;
+    const node = state.inventoryNodes[nodeIndex];
+
+    const rack = state.racks.find(r => r.id === rackId);
+    if (!rack) return;
+    const slot = rack.slots.find(s => s.index === slotIndex);
+    if (!slot || slot.node !== null) return;
+
+    get().addLog(`Placed ${node.label} into ${rack.label} slot ${slotIndex + 1}`);
+    set({
+      inventoryNodes: state.inventoryNodes.filter(n => n.id !== nodeId),
+      racks: state.racks.map(r =>
+        r.id === rackId
+          ? { ...r, slots: r.slots.map(s => s.index === slotIndex ? { ...s, node } : s) }
+          : r
+      ),
+    });
   },
 
   sellNode: (rackId: string, slotIndex: number) => {
@@ -407,6 +497,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       return { ...r, slots: newSlots };
     });
 
+    const nodeName = state.racks[rackIndex].slots[slotIndex]?.node?.label || 'Node';
+    get().addLog(`Sold ${nodeName} from rack slot (refund $${refund})`);
     set({ cash: state.cash + refund, racks: newRacks });
   },
 
@@ -419,7 +511,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (hasNodes) return;
 
     const refund = Math.floor(rack.price * 0.5);
-    set({ cash: state.cash + refund, racks: state.racks.filter(r => r.id !== rackId) });
+    const newRacks = state.racks.filter(r => r.id !== rackId);
+    const newPlots = rack.plotId
+      ? state.plots.map(p => p.id === rack.plotId ? { ...p, rackIds: p.rackIds.filter(id => id !== rackId) } : p)
+      : state.plots;
+    get().addLog(`Sold ${rack.label} (refund $${refund})`);
+    set({ cash: state.cash + refund, racks: newRacks, plots: newPlots });
   },
 
   rentServer: (type: RentalType) => {
@@ -438,6 +535,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   toggleDevMode: () => set((state) => ({ devMode: !state.devMode })),
+  setActiveView: (view) => set({ activeView: view }),
+  addLog: (msg) => set((state) => ({ gameLog: [...state.gameLog.slice(-49), `[T${state.tick}] ${msg}`] })),
 
   togglePanel: (id: PanelId) => set((state) => ({
     panelOpen: { ...state.panelOpen, [id]: !state.panelOpen[id] },
@@ -536,6 +635,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       tick: 0, isPaused: false, speed: 1, cash: 10000, month: 0,
       employees: [], resources: [], features: [], racks: [], plots: [], rentedServers: [],
       totalSalary: 0, selectedProduct: null, devMode: false,
+      inventoryNodes: [], activeView: { type: 'office' }, gameLog: [],
       isBankrupt: false, negativeCashMonths: 0,
       panelOpen: { employees: true, features: false, server: false, finance: false },
       panelMinimized: { employees: false, features: false, server: false, finance: false },

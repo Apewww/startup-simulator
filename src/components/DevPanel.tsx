@@ -89,11 +89,8 @@ export function DevPanel() {
             <div className="flex flex-wrap gap-1">
               {RACK_TIERS.map(rack => (
                 <button key={rack.tier} onClick={() => {
-                  const s = useGameStore.getState();
-                  if (s.plots.length === 0) s.buyPlot();
-                  const plotId = useGameStore.getState().plots[0].id;
                   const prev = useGameStore.getState().cash;
-                  useGameStore.getState().buyRack(rack.tier, plotId);
+                  useGameStore.getState().buyRack(rack.tier);
                   if (useGameStore.getState().cash < prev) useGameStore.getState().addCash(rack.price);
                 }} className="px-2 py-1 bg-cyan-700 hover:bg-cyan-600 rounded text-xs">
                   {rack.label}

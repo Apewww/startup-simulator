@@ -1,8 +1,7 @@
-﻿import { useState } from 'react';
-import { Server, Cpu, Database, Zap, Router, Snowflake, HardDrive, Cloud, X } from 'lucide-react';
+﻿import { Server, Cpu, Database, Zap, Router, Snowflake, HardDrive, Cloud, X } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import { RACK_TIERS, NODE_DEFS } from '../data/servers';
-import type { RackTier, NodeTypeId, NodeCategory, RentalType } from '../types';
+import type { NodeCategory, RentalType } from '../types';
 
 const CATEGORY_ICON: Record<NodeCategory, typeof Cpu> = {
   web_server: Cpu,
@@ -41,16 +40,7 @@ function ShopCard({ title, sub, price, monthly, disabled, onClick, icon, accent 
 }
 
 export function ServerShop({ onClose }: { onClose: () => void }) {
-  const { plots, racks, cash, buyRack, buyNode, rentServer } = useGameStore();
-  const [pendingRack, setPendingRack] = useState<RackTier | null>(null);
-
-  const firstFreeRack = () => racks.find(r => r.slots.some(s => s.node === null));
-
-  const handleBuyNode = (typeId: NodeTypeId) => {
-    const rack = firstFreeRack();
-    if (!rack) return;
-    buyNode(rack.id, typeId);
-  };
+  const { cash, buyRack, buyNode, rentServer } = useGameStore();
 
   return (
     <div className="space-y-4">
@@ -59,40 +49,29 @@ export function ServerShop({ onClose }: { onClose: () => void }) {
         <button onClick={onClose} className="p-1 rounded hover:bg-white/10 text-gray-300 cursor-pointer"><X className="w-4 h-4" /></button>
       </div>
 
-      {/* Racks -> need a plot */}
+      {/* Racks */}
       <div>
-        <div className="text-xs text-gray-400 mb-2">Racks {plots.length === 0 && <span className="text-orange-400">(beli plot dulu)</span>}</div>
+        <div className="text-xs text-gray-400 mb-2">Racks (goes to inventory, drag to plot grid)</div>
         <div className="grid grid-cols-2 gap-2">
           {RACK_TIERS.map(def => (
             <ShopCard
               key={def.tier}
               title={def.label}
-              sub={`${def.maxSlots} slots · Cool ${def.coolingCapacity}`}
+              sub={`${def.maxSlots} slots · ${def.gridW}x${def.gridH} cells · Cool ${def.coolingCapacity}`}
               price={def.price}
               monthly={def.monthlyCost}
-              disabled={cash < def.price || plots.length === 0}
-              onClick={() => plots.length === 1 ? buyRack(def.tier, plots[0].id) : setPendingRack(def.tier)}
+              disabled={cash < def.price}
+              onClick={() => buyRack(def.tier)}
               icon={<Server className="w-4 h-4" />}
               accent="#7C3AED"
             />
           ))}
         </div>
-        {pendingRack && (
-          <div className="mt-2 p-2 rounded-lg border border-[#7C3AED]/40 bg-[#7C3AED]/10">
-            <div className="text-xs text-gray-300 mb-1">Pilih plot untuk {pendingRack}:</div>
-            <div className="flex flex-wrap gap-1.5">
-              {plots.map(p => (
-                <button key={p.id} onClick={() => { buyRack(pendingRack, p.id); setPendingRack(null); }}
-                  className="px-2 py-1 text-xs rounded bg-gray-700 hover:bg-gray-600 cursor-pointer">{p.label}</button>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Nodes -> first free rack */}
+      {/* Nodes -> inventory */}
       <div>
-        <div className="text-xs text-gray-400 mb-2">Nodes & Equipment {racks.length === 0 && <span className="text-orange-400">(butuh rack)</span>}</div>
+        <div className="text-xs text-gray-400 mb-2">Nodes & Equipment (goes to inventory, drag to rack slots)</div>
         <div className="grid grid-cols-2 gap-2">
           {NODE_DEFS.map(def => {
             const Icon = CATEGORY_ICON[def.category];
@@ -103,8 +82,8 @@ export function ServerShop({ onClose }: { onClose: () => void }) {
                 sub={def.description}
                 price={def.price}
                 monthly={def.monthlyCost}
-                disabled={cash < def.price || !firstFreeRack()}
-                onClick={() => handleBuyNode(def.typeId)}
+                disabled={cash < def.price}
+                onClick={() => buyNode(def.typeId)}
                 icon={<Icon className="w-4 h-4" />}
                 accent="#00FFFF"
               />

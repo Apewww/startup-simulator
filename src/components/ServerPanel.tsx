@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
-import { NODE_DEFS } from '../data/servers';
 import type { ServerRack, ServerNode } from '../types';
 import { ServerShop } from './ServerShop';
 import { LandMap } from './LandMap';
@@ -68,11 +67,7 @@ function NodeSlot({ node, rackId, slotIndex }: { node: ServerNode | null; rackId
 }
 
 export function RackCard({ rack }: { rack: ServerRack }) {
-  const [showBuyNode, setShowBuyNode] = useState(false);
-  const buyNode = useGameStore(s => s.buyNode);
   const sellRack = useGameStore(s => s.sellRack);
-  const cash = useGameStore(s => s.cash);
-  const hasNodes = rack.slots.some(s => s.node !== null);
 
   const coolingPct = rack.coolingCapacity > 0
     ? Math.round((rack.coolingUsed / rack.coolingCapacity) * 100)
@@ -105,44 +100,14 @@ export function RackCard({ rack }: { rack: ServerRack }) {
 
       <div className="flex gap-2">
         <button
-          onClick={() => setShowBuyNode(!showBuyNode)}
-          className="text-xs px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded"
-        >
-          {showBuyNode ? 'Cancel' : '+ Add Node'}
-        </button>
-        <button
           onClick={() => sellRack(rack.id)}
-          disabled={hasNodes}
-          className="text-xs px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded disabled:opacity-40"
-          title={hasNodes ? 'Remove all nodes first' : `Sell rack (refund $${Math.floor(rack.price * 0.5)})`}
+          disabled={rack.slots.some(s => s.node !== null)}
+          className="text-xs px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded disabled:opacity-40 cursor-pointer"
+          title={rack.slots.some(s => s.node !== null) ? 'Remove all nodes first' : `Sell rack (refund $${Math.floor(rack.price * 0.5)})`}
         >
           Sell Rack
         </button>
       </div>
-
-      {showBuyNode && (
-        <div className="mt-3 grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto">
-          {NODE_DEFS.filter(n => {
-            if (rack.slots.some(s => s.node?.typeId === 'router') && n.category === 'router') return false;
-            return true;
-          }).map(def => {
-            const canAfford = cash >= def.price;
-            const emptySlot = rack.slots.some(s => s.node === null);
-            return (
-              <button
-                key={def.typeId}
-                onClick={() => { buyNode(rack.id, def.typeId); setShowBuyNode(false); }}
-                disabled={!canAfford || !emptySlot}
-                className="text-xs text-left px-2 py-1.5 bg-gray-700 hover:bg-gray-600 rounded disabled:opacity-40 border border-gray-600"
-                title={def.description}
-              >
-                <div className="font-medium text-gray-200">{def.label}</div>
-                <div className="text-gray-400">${def.price} · {def.heat}h · {def.power}pw · ${def.monthlyCost}/mo</div>
-              </button>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }

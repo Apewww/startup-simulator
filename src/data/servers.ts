@@ -8,6 +8,8 @@ export const RACK_TIERS: RackDef[] = [
     coolingCapacity: 40,
     price: 200,
     monthlyCost: 20,
+    gridW: 1,
+    gridH: 2,
     description: 'Small rack untuk garasi startup. Cooling terbatas.',
   },
   {
@@ -17,6 +19,8 @@ export const RACK_TIERS: RackDef[] = [
     coolingCapacity: 80,
     price: 500,
     monthlyCost: 50,
+    gridW: 2,
+    gridH: 2,
     description: 'Rack standar dengan cooling lebih baik.',
   },
   {
@@ -26,6 +30,8 @@ export const RACK_TIERS: RackDef[] = [
     coolingCapacity: 150,
     price: 1200,
     monthlyCost: 100,
+    gridW: 2,
+    gridH: 3,
     description: 'Rack besar untuk data center dengan cooling premium.',
   },
 ];
