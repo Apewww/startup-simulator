@@ -1,4 +1,4 @@
-import { Play, Pause, Save, AlertTriangle, Handshake } from 'lucide-react';
+import { Play, Pause, Save, AlertTriangle, Handshake, Moon, Sun } from 'lucide-react';
 import { useGameStore, TICKS_PER_MONTH } from '../store/gameStore';
 import { getTrafficStats } from '../systems/traffic';
 
@@ -9,9 +9,11 @@ function formatCash(n: number): string {
 interface HudBarProps {
   onSave: () => void;
   saveMsg: string;
+  onToggleTheme: () => void;
+  darkMode: boolean;
 }
 
-export function HudBar({ onSave, saveMsg }: HudBarProps) {
+export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps) {
   const { tick, isPaused, speed, cash, month, features, togglePause, setSpeed, negativeCashMonths, pendingFunding } = useGameStore();
   const trafficStats = getTrafficStats(features);
   const bankruptWarning = negativeCashMonths > 0;
@@ -59,6 +61,9 @@ export function HudBar({ onSave, saveMsg }: HudBarProps) {
         ))}
       </div>
 
+      <button onClick={onToggleTheme} className="bg-surface text-ink-soft border border-border hover:bg-surface-2 transition-colors px-3 py-2 rounded-lg cursor-pointer font-sans" title={darkMode ? 'Light Mode' : 'Dark Mode'}>
+        {darkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+      </button>
       <button onClick={onSave} className="bg-ink text-white border-none px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer font-sans">
         <Save className="w-3.5 h-3.5 inline-block mr-1" /> Simpan
       </button>

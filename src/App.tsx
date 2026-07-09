@@ -127,7 +127,7 @@ function ToastContainer() {
 }
 
 function App() {
-  const { isPaused, speed, incrementTick, selectedProduct, devMode, toggleDevMode, isBankrupt, screen } = useGameStore();
+  const { isPaused, speed, incrementTick, selectedProduct, devMode, toggleDevMode, isBankrupt, screen, darkMode, toggleDarkMode } = useGameStore();
   const [saveMsg, setSaveMsg] = useState('');
 
   useEffect(() => {
@@ -157,8 +157,8 @@ function App() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-bg text-ink overflow-hidden">
-      <HudBar onSave={handleSave} saveMsg={saveMsg} />
+    <div className="flex flex-col h-screen bg-bg text-ink overflow-hidden" data-theme={darkMode ? 'dark' : undefined}>
+      <HudBar onSave={handleSave} saveMsg={saveMsg} onToggleTheme={toggleDarkMode} darkMode={darkMode} />
 
       <div className="flex flex-1 min-h-0">
         <Dock />

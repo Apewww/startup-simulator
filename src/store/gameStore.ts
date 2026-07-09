@@ -61,6 +61,8 @@ interface GameState {
   toggleMinimize: (id: PanelId) => void;
   setMaximizedPanel: (id: PanelId | null) => void;
   selectedEmployeeId: string | null;
+  darkMode: boolean;
+  toggleDarkMode: () => void;
   focusEmployee: (id: string | null) => void;
   togglePause: () => void;
   setSpeed: (speed: GameSpeed) => void;
@@ -140,6 +142,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   panelMinimized: { employees: false, features: false, server: false, finance: false },
   maximizedPanel: null,
   selectedEmployeeId: null,
+  darkMode: false,
   notifications: [],
   cashFlowHistory: [],
   fundingRounds: [],
@@ -148,6 +151,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   setScreen: (screen) => set({ screen }),
   togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
   setSpeed: (speed) => set({ speed }),
+  toggleDarkMode: () => set((state) => ({ darkMode: !state.darkMode })),
 
   hireEmployee: (role: EmployeeRole) => {
     const state = get();
@@ -825,6 +829,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       panelMinimized: { employees: false, features: false, server: false, finance: false },
       maximizedPanel: null,
       selectedEmployeeId: null,
+      darkMode: false,
       fundingRounds: [], pendingFunding: null,
     });
   },

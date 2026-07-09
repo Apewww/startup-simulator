@@ -55,7 +55,7 @@ function InventoryPanel({ onClose }: { onClose: () => void }) {
     e.dataTransfer.setData('application/node-id', nodeId);
     e.dataTransfer.effectAllowed = 'move';
   };
-  const handleNodeDragEnd = () => {};
+  const handleNodeDragEnd = () => { };
 
   if (minimized) return null;
 
@@ -66,10 +66,10 @@ function InventoryPanel({ onClose }: { onClose: () => void }) {
         ${maximized
           ? 'fixed right-0 top-[52px] bottom-10 w-[420px] z-50 rounded-none rounded-l-xl max-md:!inset-0 max-md:!w-auto max-md:rounded-none'
           : 'fixed w-[280px]'}`}
-      style={{ left: maximized ? undefined : pos.x, top: maximized ? undefined : pos.y, zIndex: z, borderColor: '#E3E7EE' }}>
+      style={{ left: maximized ? undefined : pos.x, top: maximized ? undefined : pos.y, zIndex: z, borderColor: 'var(--color-border)' }}>
       <div onPointerDown={maximized ? undefined : onPointerDownHeader}
         className={`flex items-center justify-between px-3 py-2 border-b select-none ${maximized ? '' : 'cursor-grab active:cursor-grabbing'}`}
-        style={{ borderColor: '#E3E7EE', backgroundColor: '#F8F9FB' }}>
+        style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface-2)' }}>
         <span className="text-xs font-bold text-ink">INVENTORY</span>
         <div className="flex items-center gap-1 text-ink-soft">
           <button onClick={() => setMinimized(true)} className="p-1 rounded hover:bg-ink/5 cursor-pointer"><Minus className="w-3 h-3" /></button>
@@ -178,11 +178,10 @@ function RackSlotView({ rackId, onClose }: { rackId: string; onClose: () => void
                   onDrop={(e) => handleSlotDrop(e, slot.index)}
                   onDragOver={(e) => handleSlotDragOver(e, slot.index)}
                   onDragLeave={handleSlotDragLeave}
-                  className={`border-2 rounded-lg min-h-[72px] transition-all duration-200 ${
-                    slot.node ? 'border-border bg-surface-2' :
-                    isDragOver ? 'border-indigo bg-indigo-soft' :
-                    'border-dashed border-border bg-surface-2/50'
-                  } ${justPlaced ? 'border-green shadow-[0_0_12px_rgba(23,163,102,0.2)]' : ''}`}>
+                  className={`border-2 rounded-lg min-h-[72px] transition-all duration-200 ${slot.node ? 'border-border bg-surface-2' :
+                      isDragOver ? 'border-indigo bg-indigo-soft' :
+                        'border-dashed border-border bg-surface-2/50'
+                    } ${justPlaced ? 'border-green shadow-[0_0_12px_rgba(23,163,102,0.2)]' : ''}`}>
                   {slot.node ? (
                     <div className="p-2">
                       <div className="flex items-start justify-between">
@@ -190,9 +189,8 @@ function RackSlotView({ rackId, onClose }: { rackId: string; onClose: () => void
                           <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CATEGORY_COLORS[slot.node.category] || '#666' }} />
                           <span className="text-xs font-semibold text-ink truncate">{slot.node.label}</span>
                           {slot.node.status !== 'active' && (
-                            <span className={`text-[9px] px-1 py-0.5 rounded ${
-                              slot.node.status === 'crashed' ? 'bg-red-soft text-red' : 'bg-amber-soft text-amber'
-                            }`}>{slot.node.status}</span>
+                            <span className={`text-[9px] px-1 py-0.5 rounded ${slot.node.status === 'crashed' ? 'bg-red-soft text-red' : 'bg-amber-soft text-amber'
+                              }`}>{slot.node.status}</span>
                           )}
                         </div>
                         <button onClick={() => unequipNode(rack.id, slot.index)}

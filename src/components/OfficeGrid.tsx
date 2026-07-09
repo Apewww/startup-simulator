@@ -20,6 +20,7 @@ function getDeskClass(task: string | null, happiness: number): string {
 export function OfficeGrid() {
   const employees = useGameStore((s) => s.employees);
   const focusEmployee = useGameStore((s) => s.focusEmployee);
+  const darkMode = useGameStore((s) => s.darkMode);
 
   const cells = Array.from({ length: TOTAL_CELLS }, (_, i) => ({
     index: i,
@@ -54,18 +55,24 @@ export function OfficeGrid() {
               ? Math.min(100, Math.round((emp.taskProgress / 20) * 100))
               : 0;
 
-            const avatarColor = deskClass === 'working' ? '#17A366' : deskClass === 'low' ? '#D1453B' : '#4F5EFF';
+            const bgColorWorking = darkMode ? 'bg-green/20' : 'bg-green-soft';
+            const borderColorWorking = darkMode ? 'border-green' : 'border-green';
+            const bgColorLow = darkMode ? 'bg-red/20' : 'bg-red-soft';
+            const borderColorLow = darkMode ? 'border-red' : 'border-red';
+            const bgColorIdle = darkMode ? 'bg-surface-2' : 'bg-surface-2';
+            const borderColorIdle = darkMode ? 'border-border' : 'border-border';
+
+            const avatarColor = deskClass === 'working' ? (darkMode ? '#34D399' : '#17A366') : deskClass === 'low' ? (darkMode ? '#F87171' : '#D1453B') : (darkMode ? '#94A3B8' : '#4F5EFF');
 
             return (
               <button
                 key={cell.index}
                 onClick={() => focusEmployee(emp.id)}
-                className={`aspect-square rounded-lg border flex flex-col items-center justify-center relative transition-colors cursor-pointer group ${
-                  deskClass === 'empty' ? 'border-dashed border-border bg-surface-2' :
-                  deskClass === 'working' ? 'border-green bg-green-soft' :
-                  deskClass === 'low' ? 'border-red bg-red-soft' :
-                  'border-border bg-surface-2'
-                }`}
+                className={`aspect-square rounded-lg border flex flex-col items-center justify-center relative transition-colors cursor-pointer group ${deskClass === 'empty' ? 'border-dashed border-border bg-surface-2' :
+                    deskClass === 'working' ? `${borderColorWorking} ${bgColorWorking}` :
+                      deskClass === 'low' ? `${borderColorLow} ${bgColorLow}` :
+                        `${borderColorIdle} ${bgColorIdle}`
+                  }`}
                 title={`${emp.name} (${emp.role.replace('_', ' ')}) - ${getStatusText(emp.currentTask)} - ${emp.happiness.toFixed(0)}% happiness`}
               >
                 <div className="w-[22px] h-[22px] rounded-md" style={{ backgroundColor: avatarColor, opacity: deskClass === 'idle' ? 0.55 : 1 }} />

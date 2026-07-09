@@ -94,14 +94,14 @@ export function FloatingPanel({ id, title, icon, children, index = 0 }: Floating
         left: isMaximized ? undefined : pos.x,
         top: isMaximized ? undefined : pos.y,
         zIndex: z,
-        borderColor: '#E3E7EE',
-        backgroundColor: '#FFFFFF',
+        borderColor: 'var(--color-border)',
+        backgroundColor: 'var(--color-surface)',
       }}
     >
       <div
         onPointerDown={onPointerDownHeader}
         className="flex items-center justify-between px-[14px] py-[11px] border-b cursor-grab active:cursor-grabbing select-none"
-        style={{ borderColor: '#E3E7EE', backgroundColor: '#F8F9FB' }}
+        style={{ borderColor: 'var(--color-border)', backgroundColor: 'var(--color-surface-2)' }}
       >
         <div className="flex items-center gap-2">
           {icon}
