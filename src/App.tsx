@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useGameStore, type Notification } from './store/gameStore';
+import { MainMenu } from './components/MainMenu';
 import { ProductSelect } from './components/ProductSelect';
 import { ServerPanel } from './components/ServerPanel';
 import { DevPanel } from './components/DevPanel';
@@ -12,7 +13,7 @@ import { EmployeesPanel, employeesPanelMeta } from './components/EmployeesPanel'
 import { FeaturesPanel, featuresPanelMeta } from './components/FeaturesPanel';
 import { FinancePanel, financePanelMeta } from './components/FinancePanel';
 import { Server, Skull, CheckCircle, Info, AlertTriangle, XCircle } from 'lucide-react';
-import { saveGame, loadGame } from './systems/saveLoad';
+import { saveGame } from './systems/saveLoad';
 import { db } from './db/gameDB';
 
 function formatCash(n: number): string {
@@ -105,7 +106,7 @@ function ToastContainer() {
 }
 
 function App() {
-  const { isPaused, speed, incrementTick, selectedProduct, devMode, toggleDevMode, isBankrupt } = useGameStore();
+  const { isPaused, speed, incrementTick, selectedProduct, devMode, toggleDevMode, isBankrupt, screen } = useGameStore();
   const [saveMsg, setSaveMsg] = useState('');
 
   useEffect(() => {
@@ -114,25 +115,11 @@ function App() {
     return () => clearInterval(interval);
   }, [isPaused, speed, incrementTick, selectedProduct, isBankrupt]);
 
-  useEffect(() => {
-    if (!selectedProduct) return;
-    const saved = localStorage.getItem('hasSave');
-    if (!saved) return;
-    setSaveMsg('Save file detected — click Load to continue');
-  }, [selectedProduct]);
-
   useAutosave(selectedProduct);
 
   const handleSave = useCallback(async () => {
     await saveGame();
-    localStorage.setItem('hasSave', '1');
     setSaveMsg('Game saved!');
-    setTimeout(() => setSaveMsg(''), 2000);
-  }, []);
-
-  const handleLoad = useCallback(async () => {
-    const ok = await loadGame();
-    setSaveMsg(ok ? 'Game loaded!' : 'No save file found');
     setTimeout(() => setSaveMsg(''), 2000);
   }, []);
 
@@ -140,13 +127,17 @@ function App() {
     return <GameOverScreen />;
   }
 
-  if (!selectedProduct) {
+  if (screen === 'menu') {
+    return <MainMenu />;
+  }
+
+  if (screen === 'select') {
     return <ProductSelect />;
   }
 
   return (
     <div className="scanlines flex flex-col h-screen bg-[#0A0E27] text-gray-100 overflow-hidden">
-      <HudBar onSave={handleSave} onLoad={handleLoad} saveMsg={saveMsg} />
+      <HudBar onSave={handleSave} saveMsg={saveMsg} />
 
       <div className="flex flex-1 min-h-0 relative">
         <Dock />

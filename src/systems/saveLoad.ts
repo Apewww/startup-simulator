@@ -14,10 +14,16 @@ export async function saveGame(): Promise<void> {
     resources: state.resources,
     features: state.features,
     racks: state.racks,
+    plots: state.plots,
+    rentedServers: state.rentedServers,
+    inventoryNodes: state.inventoryNodes,
+    activeView: state.activeView,
+    visitedPlots: state.visitedPlots,
     totalSalary: state.totalSalary,
     selectedProduct: state.selectedProduct,
     isBankrupt: state.isBankrupt,
     negativeCashMonths: state.negativeCashMonths,
+    screen: state.screen,
   });
 }
 
@@ -34,10 +40,17 @@ export async function loadGame(): Promise<boolean> {
     resources: save.resources,
     features: save.features,
     racks: save.racks,
+    plots: save.plots ?? [],
+    rentedServers: save.rentedServers ?? [],
+    inventoryNodes: save.inventoryNodes ?? [],
+    activeView: save.activeView ?? { type: 'office' },
+    visitedPlots: save.visitedPlots ?? [],
     totalSalary: save.totalSalary,
     selectedProduct: save.selectedProduct,
     isBankrupt: save.isBankrupt,
     negativeCashMonths: save.negativeCashMonths,
+    // Fallback ke 'playing' untuk save lama yang belum punya field screen
+    screen: save.screen ?? 'playing',
   });
 
   return true;

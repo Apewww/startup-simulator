@@ -12,6 +12,7 @@ export const TICKS_PER_MONTH = 30;
 
 export type PanelId = 'employees' | 'features' | 'server' | 'finance';
 export type PanelOpenState = Record<PanelId, boolean>;
+export type GameScreen = 'menu' | 'select' | 'playing';
 
 export interface Notification {
   id: string;
@@ -41,6 +42,8 @@ interface GameState {
   notifications: Notification[];
   isBankrupt: boolean;
   negativeCashMonths: number;
+  screen: GameScreen;
+  setScreen: (screen: GameScreen) => void;
   panelOpen: PanelOpenState;
   panelMinimized: PanelOpenState;
   togglePanel: (id: PanelId) => void;
@@ -64,6 +67,7 @@ interface GameState {
   buyNode: (typeId: NodeTypeId) => void;
   placeNode: (nodeId: string, rackId: string, slotIndex: number) => void;
   sellNode: (rackId: string, slotIndex: number) => void;
+  unequipNode: (rackId: string, slotIndex: number) => void;
   sellRack: (rackId: string) => void;
   rentServer: (type: RentalType) => void;
   cancelRental: (id: string) => void;
@@ -114,11 +118,13 @@ export const useGameStore = create<GameState>((set, get) => ({
   gameLog: [],
   isBankrupt: false,
   negativeCashMonths: 0,
+  screen: 'menu',
   panelOpen: { employees: true, features: false, server: false, finance: false },
   panelMinimized: { employees: false, features: false, server: false, finance: false },
   selectedEmployeeId: null,
   notifications: [],
 
+  setScreen: (screen) => set({ screen }),
   togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
   setSpeed: (speed) => set({ speed }),
 
@@ -265,7 +271,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       id: f.id, name: f.name, level: 0,
       requiredComponents: f.requiredComponents, trafficGenerated: 0,
     }));
-    set({ selectedProduct: productId, features });
+    set({ selectedProduct: productId, features, screen: 'playing' });
   },
 
   buildFeature: (featureId: string) => {
@@ -522,6 +528,25 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ cash: state.cash + refund, racks: newRacks });
   },
 
+  unequipNode: (rackId: string, slotIndex: number) => {
+    const state = get();
+    const rackIndex = state.racks.findIndex(r => r.id === rackId);
+    if (rackIndex === -1) return;
+
+    const node = state.racks[rackIndex].slots[slotIndex]?.node;
+    if (!node) return;
+
+    const newRacks = state.racks.map((r, idx) => {
+      if (idx !== rackIndex) return r;
+      const newSlots = r.slots.map(s => s.index === slotIndex ? { ...s, node: null } : s);
+      return { ...r, slots: newSlots };
+    });
+
+    get().addLog(`Unequipped ${node.label} from rack slot`);
+    get().addNotification(`Unequipped ${node.label}`, 'info');
+    set({ racks: newRacks, inventoryNodes: [...state.inventoryNodes, node] });
+  },
+
   sellRack: (rackId: string) => {
     const state = get();
     const rack = state.racks.find(r => r.id === rackId);
@@ -681,7 +706,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       employees: [], resources: [], features: [], racks: [], plots: [], rentedServers: [],
       totalSalary: 0, selectedProduct: null, devMode: false,
       inventoryNodes: [], activeView: { type: 'office' }, visitedPlots: [], gameLog: [],
-      isBankrupt: false, negativeCashMonths: 0,
+      isBankrupt: false, negativeCashMonths: 0, screen: 'menu',
       panelOpen: { employees: true, features: false, server: false, finance: false },
       panelMinimized: { employees: false, features: false, server: false, finance: false },
       selectedEmployeeId: null,

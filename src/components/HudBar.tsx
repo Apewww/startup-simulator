@@ -1,4 +1,4 @@
-import { Play, Pause, Save, FolderOpen, AlertTriangle } from 'lucide-react';
+import { Play, Pause, Save, AlertTriangle } from 'lucide-react';
 import { useGameStore, TICKS_PER_MONTH } from '../store/gameStore';
 import { getTrafficStats } from '../systems/traffic';
 import { calcMonthlyServerCost } from '../systems/server';
@@ -9,11 +9,10 @@ function formatCash(n: number): string {
 
 interface HudBarProps {
   onSave: () => void;
-  onLoad: () => void;
   saveMsg: string;
 }
 
-export function HudBar({ onSave, onLoad, saveMsg }: HudBarProps) {
+export function HudBar({ onSave, saveMsg }: HudBarProps) {
   const { tick, isPaused, speed, cash, month, racks, rentedServers, features, togglePause, setSpeed, negativeCashMonths } = useGameStore();
   const trafficStats = getTrafficStats(features);
   const serverCost = (racks.length > 0 || rentedServers.length > 0) ? calcMonthlyServerCost(racks, rentedServers) : 0;
@@ -60,9 +59,6 @@ export function HudBar({ onSave, onLoad, saveMsg }: HudBarProps) {
         <div className="w-px h-5 bg-gray-600 mx-1" />
         <button onClick={onSave} className="flex items-center gap-1 px-3 min-h-[40px] md:min-h-0 md:px-2.5 md:py-1.5 rounded text-sm md:text-xs bg-green-800 hover:bg-green-700 text-green-200 transition-colors cursor-pointer">
           <Save className="w-4 h-4 md:w-3.5 md:h-3.5" /> Save
-        </button>
-        <button onClick={onLoad} className="flex items-center gap-1 px-3 min-h-[40px] md:min-h-0 md:px-2.5 md:py-1.5 rounded text-sm md:text-xs bg-blue-800 hover:bg-blue-700 text-blue-200 transition-colors cursor-pointer">
-          <FolderOpen className="w-4 h-4 md:w-3.5 md:h-3.5" /> Load
         </button>
         {saveMsg && <span className="text-xs text-yellow-300 ml-1 animate-pulse w-full sm:w-auto mt-1 sm:mt-0">{saveMsg}</span>}
       </div>

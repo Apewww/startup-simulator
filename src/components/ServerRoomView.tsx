@@ -19,8 +19,6 @@ let zCounter = 100;
 function InventoryPanel({ onClose }: { onClose: () => void }) {
   const racks = useGameStore((s) => s.racks);
   const inventoryNodes = useGameStore((s) => s.inventoryNodes);
-  const buyRack = useGameStore((s) => s.buyRack);
-  const cash = useGameStore((s) => s.cash);
 
   const [minimized, setMinimized] = useState(false);
   const [maximized, setMaximized] = useState(false);
@@ -72,30 +70,6 @@ function InventoryPanel({ onClose }: { onClose: () => void }) {
 
   const body = (
     <div className="space-y-3">
-      {/* Cash */}
-      <div className="bg-gray-800/80 rounded-lg px-3 py-2 flex items-center justify-between">
-        <span className="text-[11px] text-gray-400">CASH</span>
-        <span className="text-sm font-bold text-yellow-400">${cash.toLocaleString()}</span>
-      </div>
-
-      {/* Buy Rack */}
-      <div>
-        <div className="text-[10px] font-['Space_Grotesk'] uppercase tracking-wider text-[#A78BFA] mb-1.5 flex items-center gap-1.5">
-          <span className="w-1 h-1 rounded-full bg-[#A78BFA]" />
-          BUY RACK
-        </div>
-        <div className="grid grid-cols-3 gap-1">
-          {RACK_TIERS.map(def => (
-            <button key={def.tier} onClick={() => buyRack(def.tier)} disabled={cash < def.price}
-              className="text-[10px] py-2.5 bg-[#7C3AED]/15 hover:bg-[#7C3AED]/30 border border-[#7C3AED]/25 rounded-lg text-center disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-all"
-              title={`${def.label} — $${def.price} · ${def.gridW}x${def.gridH} cells · ${def.maxSlots} slots`}>
-              <div className="font-semibold text-gray-200 text-[11px]">{def.label.split(' ')[0]}</div>
-              <div className="text-gray-400 font-mono text-[10px]">${def.price}</div>
-              <div className="text-gray-500 text-[8px]">{def.gridW}x{def.gridH} · {def.maxSlots}sl</div>
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* Unplaced Racks */}
       {unplacedRacks.length > 0 && (
@@ -223,7 +197,7 @@ function RackSlotView({ rackId, onClose }: { rackId: string; onClose: () => void
   const racks = useGameStore((s) => s.racks);
   const inventoryNodes = useGameStore((s) => s.inventoryNodes);
   const placeNode = useGameStore((s) => s.placeNode);
-  const sellNode = useGameStore((s) => s.sellNode);
+  const unequipNode = useGameStore((s) => s.unequipNode);
   const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
   const [placedSlot, setPlacedSlot] = useState<number | null>(null);
 
@@ -293,8 +267,8 @@ function RackSlotView({ rackId, onClose }: { rackId: string; onClose: () => void
                             }`}>{slot.node.status}</span>
                           )}
                         </div>
-                        <button onClick={() => sellNode(rack.id, slot.index)}
-                          className="text-[10px] text-red-400/60 hover:text-red-300 cursor-pointer shrink-0 ml-1">✕</button>
+                        <button onClick={() => unequipNode(rack.id, slot.index)}
+                          className="text-[10px] text-gray-400 hover:text-white cursor-pointer shrink-0 ml-1" title="Unequip node (return to inventory)">✕</button>
                       </div>
                       <div className="flex gap-3 mt-1.5 text-[10px] text-gray-500">
                         {slot.node.heat > 0 && <span>🔥 {slot.node.heat}</span>}
