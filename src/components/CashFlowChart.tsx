@@ -19,8 +19,8 @@ export function CashFlowChart() {
   const history = useGameStore((s) => s.cashFlowHistory);
   const [hovered, setHovered] = useState<MonthlySnapshot | null>(null);
 
-  const { bars, yMax, yMin, yLabels, chartW, chartH } = useMemo(() => {
-    if (history.length < 2) return { bars: [], yMax: 0, yMin: 0, yLabels: [], chartW: 0, chartH: 0 };
+  const { bars, yMax, yLabels, chartW, chartH } = useMemo(() => {
+    if (history.length < 2) return { bars: [], yMax: 0, yLabels: [], chartW: 0, chartH: 0 };
 
     const values = history.map(h => Math.max(h.revenue, h.expenses, Math.abs(h.net)));
     const maxVal = Math.max(...values, 100);
@@ -49,7 +49,7 @@ export function CashFlowChart() {
       return { x, barW, revH, expH, netH, isPos, snap };
     });
 
-    return { bars: rendered, yMax: paddedMax, yMin: 0, yLabels: labels, chartW: w, chartH: h };
+    return { bars: rendered, yMax: paddedMax, yLabels: labels, chartW: w, chartH: h };
   }, [history]);
 
   if (history.length < 2) {
@@ -61,7 +61,6 @@ export function CashFlowChart() {
     );
   }
 
-  const plotW = chartW - CHART_PADDING.left - CHART_PADDING.right;
   const plotH = chartH - CHART_PADDING.top - CHART_PADDING.bottom;
 
   return (

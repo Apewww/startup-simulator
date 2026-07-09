@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Employee, ComponentResource, PlatformFeature, ServerRack, Plot, RentedServer, ServerNode } from '../types';
+import type { Employee, ComponentResource, PlatformFeature, ServerRack, Plot, RentedServer, ServerNode, FundingRound } from '../types';
 import type { GameSpeed, GameScreen, MonthlySnapshot } from '../store/gameStore';
 
 export interface GameSave {
@@ -24,6 +24,8 @@ export interface GameSave {
   negativeCashMonths: number;
   screen: GameScreen;
   cashFlowHistory: MonthlySnapshot[];
+  fundingRounds: FundingRound[];
+  pendingFunding: FundingRound | null;
 }
 
 export class GameDB extends Dexie {
@@ -34,6 +36,7 @@ export class GameDB extends Dexie {
     this.version(1).stores({ saves: '++id, timestamp' });
     this.version(2).stores({ saves: '++id, timestamp' });
     this.version(3).stores({ saves: '++id, timestamp' });
+    this.version(4).stores({ saves: '++id, timestamp' });
   }
 }
 

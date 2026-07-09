@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType } from '../types';
+import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound } from '../types';
+import { calcFundingOffer } from '../types/employee';
 import { getComponentDef, COMPONENTS } from '../data/components';
 import { getProductDef } from '../data/products';
 import { getNodeDef, getRackDef } from '../data/servers';
@@ -70,6 +71,11 @@ interface GameState {
   selectProduct: (productId: string) => void;
   buildFeature: (featureId: string) => void;
   upgradeFeature: (featureId: string) => void;
+  fundingRounds: FundingRound[];
+  pendingFunding: FundingRound | null;
+  checkFundingEligibility: () => void;
+  acceptFunding: () => void;
+  declineFunding: () => void;
   buyPlot: () => void;
   buyRack: (tier: RackTier) => void;
   placeRack: (rackId: string, plotId: string, x: number, y: number) => void;
@@ -135,6 +141,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   maximizedPanel: null,
   selectedEmployeeId: null,
   notifications: [],
+  cashFlowHistory: [],
+  fundingRounds: [],
+  pendingFunding: null,
 
   setScreen: (screen) => set({ screen }),
   togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
@@ -240,7 +249,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     const placedRacks = racks.filter(r => r.plotId !== null);
     const unplacedRacks = racks.filter(r => r.plotId === null);
     const trafficStats = getTrafficStats(features);
-    const updatedPlacedRacks = calculateNodeLoads(placedRacks, trafficStats.rps, state.rentedServers);
+    const sysAdminLevel = employees
+      .filter(e => e.role === 'SysAdmin' && e.happiness >= 15)
+      .reduce((max, e) => Math.max(max, e.level), 0);
+    const updatedPlacedRacks = calculateNodeLoads(placedRacks, trafficStats.rps, state.rentedServers, sysAdminLevel);
 
     let cashChange = 0;
     let newTotalSalary = state.totalSalary;
@@ -271,6 +283,31 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const isBankrupt = newNegativeCashMonths >= 3;
 
+    let newPendingFunding = state.pendingFunding;
+    if (newMonth > oldMonth && !newPendingFunding) {
+      const traffic = getTrafficStats(state.features);
+      const revenue = calculateRevenue(traffic.users, state.features, updatedPlacedRacks);
+      const offer = calcFundingOffer(newMonth, traffic.users, revenue.total);
+      if (offer) {
+        const lastRound = state.fundingRounds[state.fundingRounds.length - 1];
+        const monthsSinceLast = lastRound ? newMonth - lastRound.month : newMonth;
+        if (monthsSinceLast >= 6) {
+          const round: FundingRound = {
+            id: `fund-${state.fundingRounds.length + 1}`,
+            round: state.fundingRounds.length + 1,
+            amount: offer.amount,
+            equityGiven: offer.equity,
+            accepted: false,
+            month: newMonth,
+          };
+          newPendingFunding = round;
+        }
+      }
+    }
+    if (newPendingFunding && newPendingFunding !== state.pendingFunding) {
+      get().addNotification(`Funding offer: $${newPendingFunding.amount} for ${newPendingFunding.equityGiven}% equity`, 'info');
+    }
+
     set({
       tick: newTick,
       month: newMonth,
@@ -281,10 +318,55 @@ export const useGameStore = create<GameState>((set, get) => ({
       racks: [...unplacedRacks, ...updatedPlacedRacks],
       negativeCashMonths: newNegativeCashMonths,
       isBankrupt,
+      pendingFunding: newPendingFunding,
     });
   },
 
   addCash: (amount) => set((state) => ({ cash: state.cash + amount })),
+
+  checkFundingEligibility: () => {
+    const state = get();
+    if (state.pendingFunding) return;
+    const lastRound = state.fundingRounds[state.fundingRounds.length - 1];
+    const monthsSinceLast = lastRound ? state.month - lastRound.month : state.month;
+    if (monthsSinceLast < 6) return;
+
+    const traffic = getTrafficStats(state.features);
+    const revenue = calculateRevenue(traffic.users, state.features, state.racks);
+    const offer = calcFundingOffer(state.month, traffic.users, revenue.total);
+    if (!offer) return;
+    const round: FundingRound = {
+      id: `fund-${state.fundingRounds.length + 1}`,
+      round: state.fundingRounds.length + 1,
+      amount: offer.amount,
+      equityGiven: offer.equity,
+      accepted: false,
+      month: state.month,
+    };
+    get().addNotification(`Funding offer: $${offer.amount} for ${offer.equity}% equity`, 'info');
+    set({ pendingFunding: round });
+  },
+
+  acceptFunding: () => {
+    const state = get();
+    if (!state.pendingFunding) return;
+    get().addCash(state.pendingFunding.amount);
+    get().addNotification(`Accepted funding! +$${state.pendingFunding.amount}`, 'success');
+    set({
+      fundingRounds: [...state.fundingRounds, { ...state.pendingFunding, accepted: true }],
+      pendingFunding: null,
+    });
+  },
+
+  declineFunding: () => {
+    const state = get();
+    if (!state.pendingFunding) return;
+    get().addNotification('Funding offer declined', 'info');
+    set({
+      fundingRounds: [...state.fundingRounds, { ...state.pendingFunding }],
+      pendingFunding: null,
+    });
+  },
 
   selectProduct: (productId: string) => {
     const product = getProductDef(productId);
@@ -736,12 +818,14 @@ export const useGameStore = create<GameState>((set, get) => ({
       tick: 0, isPaused: false, speed: 1, cash: 15000, month: 0,
       employees: [], resources: [], features: [], racks: [], plots: [], rentedServers: [],
       totalSalary: 0, selectedProduct: null, devMode: false,
-      inventoryNodes: [], activeView: { type: 'office' }, visitedPlots: [], gameLog: [], cashFlowHistory: [],
+      inventoryNodes: [], activeView: { type: 'office' }, visitedPlots: [], gameLog: [],
+      cashFlowHistory: [], notifications: [],
       isBankrupt: false, negativeCashMonths: 0, screen: 'menu',
       panelOpen: { employees: true, features: false, server: false, finance: false },
       panelMinimized: { employees: false, features: false, server: false, finance: false },
       maximizedPanel: null,
       selectedEmployeeId: null,
+      fundingRounds: [], pendingFunding: null,
     });
   },
 }));

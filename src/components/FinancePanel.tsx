@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { DollarSign, TrendingUp, TrendingDown, Users, Server, BarChart3 } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, Users, Server, BarChart3, Handshake } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import { getTrafficStats } from '../systems/traffic';
 import { calcMonthlyServerCost } from '../systems/server';
 import { calculateRevenue } from '../systems/monetization';
 import { CashFlowChart } from './CashFlowChart';
+import { FundingPanel } from './FundingPanel';
 
 function formatCash(n: number): string {
   return `$${n.toLocaleString('en-US')}`;
@@ -21,8 +22,9 @@ function fmtStat(label: string, value: string, icon: React.ReactNode) {
 }
 
 export function FinancePanel() {
-  const { features, totalSalary, racks, rentedServers, month, cash, employees, cashFlowHistory } = useGameStore();
+  const { features, totalSalary, racks, rentedServers, month, cash, employees, cashFlowHistory, pendingFunding, fundingRounds } = useGameStore();
   const [chartOpen, setChartOpen] = useState(false);
+  const [fundingOpen, setFundingOpen] = useState(false);
   const trafficStats = getTrafficStats(features);
   const serverCost = (racks.length > 0 || rentedServers.length > 0) ? calcMonthlyServerCost(racks, rentedServers) : 0;
   const revenue = racks.length > 0 || features.some((f) => f.level > 0)
@@ -75,7 +77,7 @@ export function FinancePanel() {
             {fmtStat('RPS', trafficStats.rps.toLocaleString(), <Server className="w-3 h-3" />)}
           </div>
 
-          <div className="pt-1 border-t border-border">
+          <div className="pt-1 border-t border-border space-y-0.5">
             <button
               onClick={() => setChartOpen(o => !o)}
               className="flex items-center gap-1.5 text-[11px] font-semibold text-indigo hover:text-indigo/80 transition-colors cursor-pointer w-full py-1"
@@ -87,6 +89,20 @@ export function FinancePanel() {
             {chartOpen && (
               <div className="mt-1">
                 <CashFlowChart />
+              </div>
+            )}
+            <button
+              onClick={() => setFundingOpen(o => !o)}
+              className="flex items-center gap-1.5 text-[11px] font-semibold text-indigo hover:text-indigo/80 transition-colors cursor-pointer w-full py-1 relative"
+            >
+              <Handshake className="w-3.5 h-3.5" />
+              {fundingOpen ? 'Hide Funding' : 'Funding'}
+              <span className="text-[10px] text-ink-soft font-normal ml-auto">{fundingRounds.length}r</span>
+              {pendingFunding && <span className="w-2 h-2 rounded-full bg-green animate-pulse ml-1" />}
+            </button>
+            {fundingOpen && (
+              <div className="mt-1">
+                <FundingPanel />
               </div>
             )}
           </div>

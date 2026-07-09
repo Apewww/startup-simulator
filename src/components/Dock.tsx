@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Users, LayoutGrid, Server, DollarSign, Monitor, HardDrive } from 'lucide-react';
+import { Users, LayoutGrid, Server, DollarSign } from 'lucide-react';
 import { useGameStore, type PanelId } from '../store/gameStore';
 
 export const DOCK_ITEMS: { id: PanelId; label: string; shortcut: string; Icon: typeof Users; accent: string }[] = [

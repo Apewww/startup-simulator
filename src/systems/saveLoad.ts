@@ -25,6 +25,8 @@ export async function saveGame(): Promise<void> {
     negativeCashMonths: state.negativeCashMonths,
     screen: state.screen,
     cashFlowHistory: state.cashFlowHistory,
+    fundingRounds: state.fundingRounds,
+    pendingFunding: state.pendingFunding,
   });
 }
 
@@ -52,6 +54,8 @@ export async function loadGame(): Promise<boolean> {
     negativeCashMonths: save.negativeCashMonths,
     screen: save.screen ?? 'playing',
     cashFlowHistory: save.cashFlowHistory ?? [],
+    fundingRounds: save.fundingRounds ?? [],
+    pendingFunding: save.pendingFunding ?? null,
   });
 
   return true;

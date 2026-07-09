@@ -12,3 +12,27 @@ export interface Employee {
   taskProgress: number;
   resignTicks: number;
 }
+
+export interface FundingRound {
+  id: string;
+  round: number;
+  amount: number;
+  equityGiven: number;
+  accepted: boolean;
+  month: number;
+}
+
+export function calcSysAdminEffect(level: number): { recoveryBonus: number; crashReduction: number } {
+  return {
+    recoveryBonus: 1 + level * 0.5,
+    crashReduction: 1 - level * 0.08,
+  };
+}
+
+export function calcFundingOffer(month: number, users: number, revenue: number): { amount: number; equity: number } | null {
+  const score = users * 0.1 + revenue * 0.05 + month * 20;
+  if (score < 500) return null;
+  const amount = Math.round(score * 12);
+  const equity = Math.max(5, Math.min(40, Math.round(40 - score / 200)));
+  return { amount, equity };
+}

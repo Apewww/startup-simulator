@@ -88,7 +88,7 @@ Server tidak dibeli langsung — pemain harus beli **rack** dulu, lalu pasang **
 - [x] Hitung total heat vs cooling capacity per rack → deteksi overheat
 - [x] Trigger crash saat overheat berkepanjangan (≥5 tick overheat → 5% chance crash per tick)
 - [x] Tambah biaya bulanan server ke monthly billing (salary + server cost dipotong bersamaan)
-- [ ] Efek SysAdmin: mempercepat recovery, kurangi chance crash *(di task terpisah)*
+- [x] Efek SysAdmin: mempercepat recovery, kurangi chance crash ✅ V1.3.2
 
 #### 2.4.4 UI Server Panel
 - [x] Panel utama: daftar rack dengan status (online/overheat/cooling used / total cooling)
@@ -98,8 +98,8 @@ Server tidak dibeli langsung — pemain harus beli **rack** dulu, lalu pasang **
 - [x] Detail node: kapasitas, heat, power, biaya
 
 #### 2.4.5 Test & Verifikasi
-- [ ] Test: beli rack → beli node → RPS masuk → load terlihat → overheat → crash *(manual)*
-- [ ] Test: cooling fan bisa menunda/mencegah overheat *(manual)*
+- [x] Test: beli rack → beli node → RPS masuk → load terlihat → overheat → crash *(manual)* ✅ V1.3.2
+- [x] Test: cooling fan bisa menunda/mencegah overheat *(manual)* ✅ V1.3.2
 - [x] Test: biaya bulanan server terpotong dari cash *(di store incrementTick)*
 
 ### 2.5 Sistem Monetisasi ✅
@@ -153,5 +153,5 @@ Server tidak dibeli langsung — pemain harus beli **rack** dulu, lalu pasang **
 - [x] Tuning balancing angka berdasarkan playtest sendiri (rujuk baseline di `03_GDD.md` bagian 7) ✅ V1.3
 - [x] Tambah lebih banyak varian fitur per produk ✅ V1.3 (+2 per produk)
 - [x] Tambah grafik cash flow (inline SVG, zero deps) ✅ V1.3.1
-- [ ] Sistem investor/funding round sederhana
+- [x] Sistem investor/funding round sederhana ✅ V1.3.2
 - [x] Polish UI (transisi, animasi, empty state, micro-interactions) ✅ V1.3

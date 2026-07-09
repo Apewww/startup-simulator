@@ -72,7 +72,7 @@ function getRackBaseCooling(tier: string): number {
   }
 }
 
-export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, rentedServers: RentedServer[] = []): ServerRack[] {
+export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, rentedServers: RentedServer[] = [], sysAdminLevel: number = 0): ServerRack[] {
   const stats = calcServerStats(racks, rentedServers);
   const rpsAfterCache = Math.max(0, incomingRPS - stats.totalCacheOffload);
   const totalWeb = stats.totalWebCapacity + stats.rentedCapacity;
@@ -92,8 +92,14 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
       let newRecoveryTicks = node.recoveryTicks;
 
       if (node.status === 'crashed') {
-        newCrashTicks = 0;
-        return { ...slot, node: { ...node, load: 0, crashTicks: newCrashTicks, recoveryTicks: newRecoveryTicks } };
+        const recoveryThreshold = Math.max(3, 10 - sysAdminLevel * 2);
+        newRecoveryTicks += 1;
+        if (newRecoveryTicks >= recoveryThreshold) {
+          newStatus = 'active';
+          newLoad = 0;
+          newRecoveryTicks = 0;
+        }
+        return { ...slot, node: { ...node, load: newLoad, status: newStatus, crashTicks: newCrashTicks, recoveryTicks: newRecoveryTicks } };
       }
 
       if (node.status === 'offline') {
@@ -160,10 +166,11 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
     const isOverheating = rackHeat > rackCooling;
     const newOverheatTicks = isOverheating ? rack.overheatTicks + 1 : 0;
 
+    const crashChance = Math.max(0.01, 0.05 - sysAdminLevel * 0.008);
     if (isOverheating && newOverheatTicks >= 5) {
       newSlots.forEach(slot => {
         if (slot.node && slot.node.status !== 'crashed' && slot.node.status !== 'offline' && slot.node.heat > 0) {
-          if (Math.random() < 0.05) {
+          if (Math.random() < crashChance) {
             slot.node.status = 'crashed';
             slot.node.load = 0;
             slot.node.crashTicks = 0;

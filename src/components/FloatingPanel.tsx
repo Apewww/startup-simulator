@@ -13,7 +13,7 @@ interface FloatingPanelProps {
   index?: number;
 }
 
-export function FloatingPanel({ id, title, icon, children, accent = '#4F5EFF', index = 0 }: FloatingPanelProps) {
+export function FloatingPanel({ id, title, icon, children, index = 0 }: FloatingPanelProps) {
   const open = useGameStore((s) => s.panelOpen[id]);
   const minimized = useGameStore((s) => s.panelMinimized[id]);
   const maximizedPanel = useGameStore((s) => s.maximizedPanel);

@@ -1,7 +1,6 @@
-import { Play, Pause, Save, AlertTriangle } from 'lucide-react';
+import { Play, Pause, Save, AlertTriangle, Handshake } from 'lucide-react';
 import { useGameStore, TICKS_PER_MONTH } from '../store/gameStore';
 import { getTrafficStats } from '../systems/traffic';
-import { calcMonthlyServerCost } from '../systems/server';
 
 function formatCash(n: number): string {
   return `$${n.toLocaleString('en-US')}`;
@@ -13,9 +12,8 @@ interface HudBarProps {
 }
 
 export function HudBar({ onSave, saveMsg }: HudBarProps) {
-  const { tick, isPaused, speed, cash, month, racks, rentedServers, features, togglePause, setSpeed, negativeCashMonths } = useGameStore();
+  const { tick, isPaused, speed, cash, month, features, togglePause, setSpeed, negativeCashMonths, pendingFunding } = useGameStore();
   const trafficStats = getTrafficStats(features);
-  const serverCost = (racks.length > 0 || rentedServers.length > 0) ? calcMonthlyServerCost(racks, rentedServers) : 0;
   const bankruptWarning = negativeCashMonths > 0;
 
   return (
@@ -34,6 +32,16 @@ export function HudBar({ onSave, saveMsg }: HudBarProps) {
         <span className="flex items-center gap-1 text-red text-sm font-bold">
           <AlertTriangle className="w-4 h-4" /> BANKRUPT in {3 - negativeCashMonths}m
         </span>
+      )}
+
+      {pendingFunding && (
+        <button
+          onClick={() => useGameStore.getState().togglePanel('finance')}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-green-soft border border-green/30 rounded-lg text-green text-xs font-semibold animate-pulse cursor-pointer"
+        >
+          <Handshake className="w-3.5 h-3.5" />
+          Funding Offer
+        </button>
       )}
 
       <div className="flex-1" />

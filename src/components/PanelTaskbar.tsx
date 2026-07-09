@@ -13,7 +13,7 @@ export function PanelTaskbar() {
 
   return (
     <div className="h-10 bg-surface border-t border-border flex items-center gap-2 px-4 shrink-0">
-      {openItems.map(({ id, label, accent }) => {
+      {openItems.map(({ id, label }) => {
         const isMin = panelMinimized[id];
         return (
           <div
