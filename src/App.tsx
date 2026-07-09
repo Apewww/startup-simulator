@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useGameStore } from './store/gameStore';
+import { useGameStore, type Notification } from './store/gameStore';
 import { ProductSelect } from './components/ProductSelect';
 import { ServerPanel } from './components/ServerPanel';
 import { DevPanel } from './components/DevPanel';
@@ -11,7 +11,7 @@ import { FloatingPanel } from './components/FloatingPanel';
 import { EmployeesPanel, employeesPanelMeta } from './components/EmployeesPanel';
 import { FeaturesPanel, featuresPanelMeta } from './components/FeaturesPanel';
 import { FinancePanel, financePanelMeta } from './components/FinancePanel';
-import { Server, Skull } from 'lucide-react';
+import { Server, Skull, CheckCircle, Info, AlertTriangle, XCircle } from 'lucide-react';
 import { saveGame, loadGame } from './systems/saveLoad';
 import { db } from './db/gameDB';
 
@@ -62,6 +62,46 @@ function useAutosave(selectedProduct: string | null) {
     }, 60000);
     return () => clearInterval(interval);
   }, [selectedProduct]);
+}
+
+const TOAST_ICONS: Record<Notification['type'], typeof Info> = {
+  success: CheckCircle,
+  info: Info,
+  warning: AlertTriangle,
+  error: XCircle,
+};
+const TOAST_COLORS: Record<Notification['type'], string> = {
+  success: '#22C55E',
+  info: '#00FFFF',
+  warning: '#F97316',
+  error: '#EF4444',
+};
+
+function ToastContainer() {
+  const notifications = useGameStore((s) => s.notifications);
+  return (
+    <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none">
+      {notifications.map((n) => {
+        const Icon = TOAST_ICONS[n.type];
+        const color = TOAST_COLORS[n.type];
+        return (
+          <div
+            key={n.id}
+            className="pointer-events-auto flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-2xl animate-[slideInRight_220ms_ease-out]"
+            style={{
+              background: 'rgba(10,14,39,0.92)',
+              border: `1px solid ${color}55`,
+              boxShadow: `0 4px 20px ${color}30`,
+              minWidth: 220,
+            }}
+          >
+            <Icon className="w-4 h-4 shrink-0" style={{ color }} strokeWidth={2} />
+            <span className="text-xs font-['DM_Sans'] text-gray-200">{n.message}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function App() {
@@ -134,6 +174,8 @@ function App() {
       </div>
 
       <PanelTaskbar />
+
+      <ToastContainer />
 
       {import.meta.env.DEV && (
         <button

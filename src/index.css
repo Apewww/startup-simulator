@@ -93,17 +93,12 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* Custom scrollbar matching theme */
+/* Custom scrollbar — invisible but functional */
 .custom-scroll::-webkit-scrollbar {
-  width: 4px;
+  width: 0;
+  height: 0;
 }
-.custom-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-.custom-scroll::-webkit-scrollbar-thumb {
-  background: rgba(124, 58, 237, 0.3);
-  border-radius: 4px;
-}
-.custom-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(124, 58, 237, 0.5);
+.custom-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

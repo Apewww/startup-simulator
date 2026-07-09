@@ -20,7 +20,6 @@ function InventoryPanel({ onClose }: { onClose: () => void }) {
   const racks = useGameStore((s) => s.racks);
   const inventoryNodes = useGameStore((s) => s.inventoryNodes);
   const buyRack = useGameStore((s) => s.buyRack);
-  const buyNode = useGameStore((s) => s.buyNode);
   const cash = useGameStore((s) => s.cash);
 
   const [minimized, setMinimized] = useState(false);
@@ -88,11 +87,11 @@ function InventoryPanel({ onClose }: { onClose: () => void }) {
         <div className="grid grid-cols-3 gap-1">
           {RACK_TIERS.map(def => (
             <button key={def.tier} onClick={() => buyRack(def.tier)} disabled={cash < def.price}
-              className="text-[10px] py-2 bg-[#7C3AED]/15 hover:bg-[#7C3AED]/30 border border-[#7C3AED]/25 rounded text-center disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-all"
+              className="text-[10px] py-2.5 bg-[#7C3AED]/15 hover:bg-[#7C3AED]/30 border border-[#7C3AED]/25 rounded-lg text-center disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-all"
               title={`${def.label} — $${def.price} · ${def.gridW}x${def.gridH} cells · ${def.maxSlots} slots`}>
-              <div className="font-semibold text-gray-200 text-[10px]">{def.label.split(' ')[0]}</div>
-              <div className="text-gray-400 font-mono">${def.price}</div>
-              <div className="text-gray-500">{def.gridW}x{def.gridH}</div>
+              <div className="font-semibold text-gray-200 text-[11px]">{def.label.split(' ')[0]}</div>
+              <div className="text-gray-400 font-mono text-[10px]">${def.price}</div>
+              <div className="text-gray-500 text-[8px]">{def.gridW}x{def.gridH} · {def.maxSlots}sl</div>
             </button>
           ))}
         </div>
@@ -103,43 +102,42 @@ function InventoryPanel({ onClose }: { onClose: () => void }) {
         <div>
           <div className="text-[10px] font-['Space_Grotesk'] uppercase tracking-wider text-[#A78BFA] mb-1.5 flex items-center gap-1.5">
             <span className="w-1 h-1 rounded-full bg-[#A78BFA]" />
-            RACKS ({unplacedRacks.length})
+            RACKS ({unplacedRacks.length}) <span className="text-gray-500 font-normal normal-case">drag to grid</span>
           </div>
           <div className="space-y-1 max-h-28 overflow-y-auto custom-scroll pr-1">
-            {unplacedRacks.map(rack => (
-              <div key={rack.id} draggable
-                onDragStart={(e) => handleRackDragStart(e, rack.id)}
-                onDragEnd={handleRackDragEnd}
-                className="drag-item flex items-center gap-2 px-2.5 py-2 bg-gray-800/80 border border-gray-700/60 rounded text-xs text-gray-200 cursor-grab active:cursor-grabbing hover:border-[#A78BFA]/60 hover:bg-gray-800 transition-all group">
-                <GripVertical className="w-3 h-3 text-gray-600 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium truncate">{rack.label}</div>
-                  <div className="text-[9px] text-gray-500">{rack.gridW}x{rack.gridH} · {rack.maxSlots} slots · ${rack.monthlyCost}/mo</div>
+            {unplacedRacks.map(rack => {
+              const nodeCount = rack.slots.filter(s => s.node).length;
+              return (
+                <div key={rack.id} draggable
+                  onDragStart={(e) => handleRackDragStart(e, rack.id)}
+                  onDragEnd={handleRackDragEnd}
+                  className="drag-item flex items-center gap-2 px-2.5 py-2 bg-gray-800/80 border border-gray-600/60 rounded text-xs text-gray-200 cursor-grab active:cursor-grabbing hover:border-[#A78BFA]/60 hover:bg-gray-800 transition-all group">
+                  <GripVertical className="w-3 h-3 text-gray-600 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium truncate">{rack.label}</div>
+                    <div className="text-[9px] text-gray-500">{rack.gridW}x{rack.gridH} · {rack.maxSlots} slots · ${rack.monthlyCost}/mo</div>
+                    {nodeCount > 0 && <div className="text-[8px] text-cyan-400/70">{nodeCount} node(s) inside</div>}
+                  </div>
+                  <button onClick={(e) => { e.stopPropagation(); useGameStore.getState().sellRack(rack.id); }}
+                    className="text-[9px] px-1.5 py-0.5 bg-red-900/30 hover:bg-red-700/50 text-red-300 rounded transition-colors cursor-pointer shrink-0"
+                    title={`Sell rack (refund $${Math.floor(rack.price * 0.5)}${nodeCount > 0 ? ` + nodes refund` : ''})`}>
+                    Sell
+                  </button>
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); useGameStore.getState().sellRack(rack.id); }}
-                  className="text-[10px] text-red-400/50 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shrink-0">✕</button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
+      {unplacedRacks.length === 0 && (
+        <div className="text-[10px] text-gray-500 text-center border border-dashed border-gray-700/40 rounded-lg py-2">
+          No racks in inventory. Buy from Server Shop.
+        </div>
+      )}
 
-      {/* Buy Node */}
-      <div>
-        <div className="text-[10px] font-['Space_Grotesk'] uppercase tracking-wider text-cyan-400 mb-1.5 flex items-center gap-1.5">
-          <span className="w-1 h-1 rounded-full bg-cyan-400" />
-          BUY NODE
-        </div>
-        <div className="grid grid-cols-2 gap-1 max-h-32 overflow-y-auto custom-scroll pr-1">
-          {NODE_DEFS.map(def => (
-            <button key={def.typeId} onClick={() => buyNode(def.typeId)} disabled={cash < def.price}
-              className="text-[10px] text-left px-2 py-1.5 bg-gray-800/60 hover:bg-gray-700/80 border border-gray-700/40 rounded disabled:opacity-25 disabled:cursor-not-allowed cursor-pointer transition-all"
-              title={`${def.description}`}>
-              <div className="font-medium text-gray-200 truncate">{def.label}</div>
-              <div className="text-gray-400 font-mono">${def.price}</div>
-            </button>
-          ))}
-        </div>
+      {/* Hint to use Server Shop for nodes */}
+      <div className="text-[10px] text-center text-gray-400 border border-[#00FFFF]/20 bg-[#00FFFF]/5 rounded-lg py-2 px-3">
+        <span className="text-cyan-300 font-medium">Nodes</span> and <span className="text-[#A78BFA] font-medium">Racks</span> can also be bought from <span className="text-[#F97316] font-medium">Server Shop</span>
       </div>
 
       {/* Inventory Nodes */}
@@ -147,14 +145,14 @@ function InventoryPanel({ onClose }: { onClose: () => void }) {
         <div>
           <div className="text-[10px] font-['Space_Grotesk'] uppercase tracking-wider text-cyan-400 mb-1.5 flex items-center gap-1.5">
             <span className="w-1 h-1 rounded-full bg-cyan-400" />
-            NODES ({inventoryNodes.length})
+            NODES ({inventoryNodes.length}) <span className="text-gray-500 font-normal normal-case">drag to rack slot</span>
           </div>
           <div className="space-y-1 max-h-36 overflow-y-auto custom-scroll pr-1">
             {inventoryNodes.map(node => (
               <div key={node.id} draggable
                 onDragStart={(e) => handleNodeDragStart(e, node.id)}
                 onDragEnd={handleNodeDragEnd}
-                className="drag-item flex items-center gap-2 px-2.5 py-2 bg-gray-800/80 border border-gray-700/60 rounded text-xs text-gray-200 cursor-grab active:cursor-grabbing hover:border-cyan-500/60 hover:bg-gray-800 transition-all group">
+                className="drag-item flex items-center gap-2 px-2.5 py-2 bg-gray-800/80 border border-gray-600/60 rounded text-xs text-gray-200 cursor-grab active:cursor-grabbing hover:border-cyan-500/60 hover:bg-gray-800 transition-all group">
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CATEGORY_COLORS[node.category] || '#666' }} />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">{node.label}</div>
@@ -165,6 +163,11 @@ function InventoryPanel({ onClose }: { onClose: () => void }) {
               </div>
             ))}
           </div>
+        </div>
+      )}
+      {inventoryNodes.length === 0 && (
+        <div className="text-[10px] text-gray-500 text-center border border-dashed border-gray-700/40 rounded-lg py-2">
+          No nodes in inventory. Buy from Server Shop.
         </div>
       )}
     </div>
@@ -359,6 +362,7 @@ function PlotGrid() {
   const [dragOverPos, setDragOverPos] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [selectedRackId, setSelectedRackId] = useState<string | null>(null);
   const [showInventory, setShowInventory] = useState(false);
+  const [draggedRackId, setDraggedRackId] = useState<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
   if (activeView.type !== 'server') return null;
@@ -384,15 +388,21 @@ function PlotGrid() {
     );
   };
 
+  const getRackFromData = useCallback((e: React.DragEvent) => {
+    const id = e.dataTransfer.getData('application/rack-id');
+    return id ? racks.find(r => r.id === id) : null;
+  }, [racks]);
+
   const handleGridDragOver = (e: React.DragEvent) => {
-    if (!e.dataTransfer.types.includes('application/rack-id')) return;
+    if (!e.dataTransfer.types.includes('application/rack-id') &&
+        !e.dataTransfer.types.includes('text/plain')) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+    const rack = getRackFromData(e);
+    if (!rack) return;
+    if (draggedRackId !== rack.id) setDraggedRackId(rack.id);
     const pos = getGridPos(e.clientX, e.clientY);
     if (!pos) return;
-    const rackId = e.dataTransfer.getData('application/rack-id');
-    const rack = rackId ? racks.find(r => r.id === rackId) : null;
-    if (!rack) return;
     const w = rack.gridW, h = rack.gridH;
     if (pos.x + w > plot.gridCols || pos.y + h > plot.gridRows) return;
     setDragOverPos({ x: pos.x, y: pos.y, w, h });
@@ -407,35 +417,34 @@ function PlotGrid() {
   const handleGridDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOverPos(null);
-    const rackId = e.dataTransfer.getData('application/rack-id');
-    const rack = rackId ? racks.find(r => r.id === rackId) : null;
-    if (!rack || !rackId) return;
+    const rack = getRackFromData(e);
+    if (!rack) return;
     const pos = getGridPos(e.clientX, e.clientY);
     if (!pos) return;
     if (pos.x + rack.gridW > plot.gridCols || pos.y + rack.gridH > plot.gridRows) return;
-    if (checkCollision(pos.x, pos.y, rack.gridW, rack.gridH, rackId)) return;
+    if (checkCollision(pos.x, pos.y, rack.gridW, rack.gridH, rack.id)) return;
     if (rack.plotId === plot.id) {
-      moveRack(rackId, pos.x, pos.y);
+      moveRack(rack.id, pos.x, pos.y);
     } else {
-      placeRack(rackId, plot.id, pos.x, pos.y);
+      placeRack(rack.id, plot.id, pos.x, pos.y);
     }
   };
 
   const handleRackDragStart = (e: React.DragEvent, rack: ServerRack) => {
     e.dataTransfer.setData('application/rack-id', rack.id);
     e.dataTransfer.effectAllowed = 'move';
-    e.stopPropagation();
+    setDraggedRackId(rack.id);
   };
 
-  const handleRackDragEnd = () => setDragOverPos(null);
+  const handleRackDragEnd = () => { setDragOverPos(null); setDraggedRackId(null); };
 
   const isValidDrop = dragOverPos &&
     !checkCollision(dragOverPos.x, dragOverPos.y, dragOverPos.w, dragOverPos.h);
 
   return (
-    <>
+    <div className="flex flex-col items-center gap-3">
       {/* Toolbar */}
-      <div className="flex items-center justify-between w-full max-w-[432px]">
+      <div className="flex items-center justify-between w-[432px] max-w-full px-1">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-semibold text-gray-100">
             Server Room — <span className="text-[#A78BFA]">{activeView.plotId.toUpperCase()}</span>
@@ -449,98 +458,102 @@ function PlotGrid() {
             className="text-xs px-3 py-1.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded cursor-pointer transition-colors">
             {showInventory ? 'Close' : 'Inventory'}
           </button>
-          <button onClick={() => useGameStore.getState().setActiveView({ type: 'office' })}
-            className="text-xs px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded cursor-pointer transition-colors">
-            Back
+          <button onClick={() => useGameStore.getState().togglePanel('server')}
+            className="text-xs px-3 py-1.5 bg-[#F97316]/20 hover:bg-[#F97316]/40 text-orange-300 border border-[#F97316]/40 rounded cursor-pointer transition-colors"
+            title="Open Server Shop">
+            Shop
           </button>
         </div>
       </div>
 
-      {/* Grid */}
-      <div ref={gridRef}
-        className={`relative border-2 rounded-xl transition-colors duration-150 ${
-          dragOverPos ? 'border-cyan-500/60 bg-cyan-900/10' : 'border-[#7C3AED]/30 bg-gray-900/50'
-        }`}
-        style={{ width: plot.gridCols * CELL_SIZE, height: plot.gridRows * CELL_SIZE }}
-        onDrop={handleGridDrop}
-        onDragOver={handleGridDragOver}
-        onDragLeave={handleGridDragLeave}>
-        {Array.from({ length: plot.gridRows }, (_, row) =>
-          Array.from({ length: plot.gridCols }, (_, col) => (
-            <div key={`${row}-${col}`}
-              className="absolute border border-[#7C3AED]/5"
-              style={{ left: col * CELL_SIZE, top: row * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }} />
-          ))
-        )}
-        {Array.from({ length: plot.gridCols }, (_, i) => (
-          <div key={`cl${i}`} className="absolute -bottom-5 text-[9px] text-gray-600 font-mono text-center" style={{ left: i * CELL_SIZE, width: CELL_SIZE }}>{i}</div>
-        ))}
-        {Array.from({ length: plot.gridRows }, (_, i) => (
-          <div key={`rl${i}`} className="absolute -left-5 text-[9px] text-gray-600 font-mono leading-none" style={{ top: i * CELL_SIZE + 2, width: 16, textAlign: 'right' }}>{i}</div>
-        ))}
-
-        {/* Drop preview */}
-        {dragOverPos && (
-          <div className={`absolute border-2 rounded-lg z-10 transition-all duration-100 ${
-            isValidDrop ? 'border-cyan-400 bg-cyan-500/20' : 'border-red-500/60 bg-red-500/10'
+      {/* Grid wrapper with padding for axis labels */}
+      <div className="relative pl-5 pb-5">
+        <div ref={gridRef}
+          className={`relative border-2 rounded-xl transition-colors duration-150 ${
+            dragOverPos ? 'border-cyan-500/60 bg-cyan-900/10' : 'border-[#7C3AED]/30 bg-gray-900/50'
           }`}
-            style={{ left: dragOverPos.x * CELL_SIZE, top: dragOverPos.y * CELL_SIZE, width: dragOverPos.w * CELL_SIZE, height: dragOverPos.h * CELL_SIZE }} />
-        )}
+          style={{ width: plot.gridCols * CELL_SIZE, height: plot.gridRows * CELL_SIZE }}
+          onDrop={handleGridDrop}
+          onDragOver={handleGridDragOver}
+          onDragLeave={handleGridDragLeave}>
+          {Array.from({ length: plot.gridRows }, (_, row) =>
+            Array.from({ length: plot.gridCols }, (_, col) => (
+              <div key={`${row}-${col}`}
+                className="absolute border border-[#7C3AED]/5"
+                style={{ left: col * CELL_SIZE, top: row * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }} />
+            ))
+          )}
+          {Array.from({ length: plot.gridCols }, (_, i) => (
+            <div key={`cl${i}`} className="absolute -bottom-5 text-[9px] text-gray-600 font-mono text-center" style={{ left: i * CELL_SIZE, width: CELL_SIZE }}>{i}</div>
+          ))}
+          {Array.from({ length: plot.gridRows }, (_, i) => (
+            <div key={`rl${i}`} className="absolute -left-5 text-[9px] text-gray-600 font-mono leading-none" style={{ top: i * CELL_SIZE + 2, width: 16, textAlign: 'right' }}>{i}</div>
+          ))}
 
-        {/* Racks */}
-        {plotRacks.map(rack => {
-          const coolingPct = rack.coolingCapacity > 0 ? (rack.coolingUsed / rack.coolingCapacity) * 100 : 0;
-          const nodeCount = rack.slots.filter(s => s.node).length;
-          const allSlots = rack.slots.length;
-          return (
-            <div key={rack.id} draggable
-              onDragStart={(e) => handleRackDragStart(e, rack)}
-              onDragEnd={handleRackDragEnd}
-              onClick={() => setSelectedRackId(rack.id)}
-              className="absolute border-2 rounded-lg cursor-grab active:cursor-grabbing hover:border-[#A78BFA] transition-all group"
-              style={{
-                left: rack.gridX * CELL_SIZE, top: rack.gridY * CELL_SIZE,
-                width: rack.gridW * CELL_SIZE, height: rack.gridH * CELL_SIZE,
-                borderColor: coolingPct > 90 ? '#EF4444' : nodeCount === 0 ? '#6B7280' : '#A78BFA',
-                backgroundColor: coolingPct > 90 ? 'rgba(239,68,68,0.15)' : nodeCount === 0 ? 'rgba(107,114,128,0.1)' : 'rgba(124,58,237,0.2)',
-              }}>
-              <div className="p-1.5 h-full flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-semibold text-gray-200 truncate">{rack.label}</span>
-                    <button onClick={(e) => { e.stopPropagation(); unplaceRack(rack.id); }}
-                      className="text-[9px] text-red-400/50 hover:text-red-300 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer ml-1">✕</button>
+          {/* Drop preview */}
+          {dragOverPos && (
+            <div className={`absolute border-2 rounded-lg z-10 transition-all duration-100 ${
+              isValidDrop ? 'border-cyan-400 bg-cyan-500/20' : 'border-red-500/60 bg-red-500/10'
+            }`}
+              style={{ left: dragOverPos.x * CELL_SIZE, top: dragOverPos.y * CELL_SIZE, width: dragOverPos.w * CELL_SIZE, height: dragOverPos.h * CELL_SIZE }} />
+          )}
+
+          {/* Racks */}
+          {plotRacks.map(rack => {
+            const coolingPct = rack.coolingCapacity > 0 ? (rack.coolingUsed / rack.coolingCapacity) * 100 : 0;
+            const nodeCount = rack.slots.filter(s => s.node).length;
+            const allSlots = rack.slots.length;
+            return (
+              <div key={rack.id} draggable
+                onDragStart={(e) => handleRackDragStart(e, rack)}
+                onDragEnd={handleRackDragEnd}
+                onClick={() => setSelectedRackId(rack.id)}
+                className="absolute border-2 rounded-lg cursor-grab active:cursor-grabbing hover:border-[#A78BFA] transition-all group"
+                style={{
+                  left: rack.gridX * CELL_SIZE, top: rack.gridY * CELL_SIZE,
+                  width: rack.gridW * CELL_SIZE, height: rack.gridH * CELL_SIZE,
+                  borderColor: coolingPct > 90 ? '#EF4444' : nodeCount === 0 ? '#6B7280' : '#A78BFA',
+                  backgroundColor: coolingPct > 90 ? 'rgba(239,68,68,0.15)' : nodeCount === 0 ? 'rgba(107,114,128,0.1)' : 'rgba(124,58,237,0.2)',
+                }}>
+                <div className="p-1.5 h-full flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[10px] font-semibold text-gray-200 truncate">{rack.label}</span>
+                      <button onClick={(e) => { e.stopPropagation(); unplaceRack(rack.id); }}
+                        className="text-[8px] px-1.5 py-0.5 bg-gray-700/50 hover:bg-gray-600 text-gray-300 rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer whitespace-nowrap"
+                        title="Remove from grid (back to inventory)">Unplace</button>
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-0.5 text-[8px]">
+                      <span className={nodeCount === 0 ? 'text-gray-600' : 'text-green-400'}>{nodeCount}/{allSlots}</span>
+                      <span className={coolingPct > 90 ? 'text-red-400' : 'text-cyan-400'}>{Math.round(coolingPct)}%</span>
+                      <span className="text-gray-500">{rack.powerDraw}pw</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 mt-0.5 text-[8px]">
-                    <span className={nodeCount === 0 ? 'text-gray-600' : 'text-green-400'}>{nodeCount}/{allSlots}</span>
-                    <span className={coolingPct > 90 ? 'text-red-400' : 'text-cyan-400'}>{Math.round(coolingPct)}%</span>
-                    <span className="text-gray-500">{rack.powerDraw}pw</span>
+                  <div className="flex justify-between items-end">
+                    <div className="flex gap-0.5">
+                      {rack.slots.slice(0, 4).map(s => (
+                        <span key={s.index} className={`w-1.5 h-1.5 rounded-sm ${s.node ? 'bg-green-500/70' : 'bg-gray-700'}`} />
+                      ))}
+                      {allSlots > 4 && <span className="text-[7px] text-gray-600">+{allSlots - 4}</span>}
+                    </div>
+                    <span className="text-[8px] text-gray-600 font-mono">({rack.gridX},{rack.gridY})</span>
                   </div>
-                </div>
-                <div className="flex justify-between items-end">
-                  <div className="flex gap-0.5">
-                    {rack.slots.slice(0, 4).map(s => (
-                      <span key={s.index} className={`w-1.5 h-1.5 rounded-sm ${s.node ? 'bg-green-500/70' : 'bg-gray-700'}`} />
-                    ))}
-                    {allSlots > 4 && <span className="text-[7px] text-gray-600">+{allSlots - 4}</span>}
-                  </div>
-                  <span className="text-[8px] text-gray-600 font-mono">({rack.gridX},{rack.gridY})</span>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
       {/* Stats bar */}
-      <div className="flex items-center gap-4 text-[10px] text-gray-500 bg-gray-800/50 px-3 py-1.5 rounded-lg w-full max-w-[432px]">
+      <div className="flex items-center gap-4 text-[10px] text-gray-500 bg-gray-800/50 px-3 py-1.5 rounded-lg w-[432px] max-w-full">
         <span>Placed: {plotRacks.length} racks</span>
         <span>Nodes: {plotRacks.reduce((s, r) => s + r.slots.filter(sl => sl.node).length, 0)}</span>
       </div>
 
       {selectedRackId && <RackSlotView rackId={selectedRackId} onClose={() => setSelectedRackId(null)} />}
       {showInventory && <InventoryPanel onClose={() => setShowInventory(false)} />}
-    </>
+    </div>
   );
 }
 
@@ -549,7 +562,7 @@ export function ServerRoomView() {
   if (activeView.type !== 'server') return null;
 
   return (
-    <div className="flex items-start justify-center p-4 h-full min-h-0">
+    <div className="flex items-start justify-center p-4 h-full min-h-0 overflow-auto">
       <PlotGrid />
     </div>
   );
