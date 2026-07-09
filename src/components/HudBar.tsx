@@ -14,9 +14,9 @@ interface HudBarProps {
 }
 
 export function HudBar({ onSave, onLoad, saveMsg }: HudBarProps) {
-  const { tick, isPaused, speed, cash, month, racks, features, togglePause, setSpeed, negativeCashMonths } = useGameStore();
+  const { tick, isPaused, speed, cash, month, racks, rentedServers, features, togglePause, setSpeed, negativeCashMonths } = useGameStore();
   const trafficStats = getTrafficStats(features);
-  const serverCost = racks.length > 0 ? calcMonthlyServerCost(racks) : 0;
+  const serverCost = (racks.length > 0 || rentedServers.length > 0) ? calcMonthlyServerCost(racks, rentedServers) : 0;
   const bankruptWarning = negativeCashMonths > 0;
 
   return (
@@ -29,7 +29,7 @@ export function HudBar({ onSave, onLoad, saveMsg }: HudBarProps) {
       <Stat label="USERS" value={trafficStats.users.toLocaleString()} color="#00FFFF" />
       <Stat label="RPS" value={trafficStats.rps.toLocaleString()} color="#FBBF24" />
       <Stat label="MONTH" value={String(month)} color="#E0E0E0" />
-      <Stat label="TICK" value={`${tick % TICKS_PER_MONTH}/${TICKS_PER_MONTH}`} color="#94A3B8" />
+      <Stat label="DAY" value={`${(tick % TICKS_PER_MONTH) + 1}/${TICKS_PER_MONTH}`} color="#A78BFA" />
       {serverCost > 0 && <Stat label="SERVER/mo" value={formatCash(serverCost)} color="#FB923C" />}
 
       {bankruptWarning && (

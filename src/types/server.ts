@@ -35,6 +35,7 @@ export interface ServerRack {
   id: string;
   tier: RackTier;
   label: string;
+  plotId: string;
   slots: RackSlot[];
   maxSlots: number;
   coolingCapacity: number;
@@ -44,6 +45,26 @@ export interface ServerRack {
   monthlyCost: number;
   isOverheating: boolean;
   overheatTicks: number;
+}
+
+export interface Plot {
+  id: string;
+  label: string;
+  price: number;
+  monthlyCost: number;
+  rackIds: string[];
+}
+
+export type RentalType = 'vps' | 'dedicated' | 'cloud';
+
+export interface RentedServer {
+  id: string;
+  type: RentalType;
+  label: string;
+  capacityRps: number;
+  storage: number;
+  monthlyCost: number;
+  uptime: number;
 }
 
 export interface NodeDef {

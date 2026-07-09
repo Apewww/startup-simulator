@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
-import { RACK_TIERS, NODE_DEFS } from '../data/servers';
-import type { RackTier, ServerRack, ServerNode } from '../types';
+import { NODE_DEFS } from '../data/servers';
+import type { ServerRack, ServerNode } from '../types';
+import { ServerShop } from './ServerShop';
+import { LandMap } from './LandMap';
 
 function NodeSlot({ node, rackId, slotIndex }: { node: ServerNode | null; rackId: string; slotIndex: number }) {
   const sellNode = useGameStore(s => s.sellNode);
@@ -65,7 +67,7 @@ function NodeSlot({ node, rackId, slotIndex }: { node: ServerNode | null; rackId
   );
 }
 
-function RackCard({ rack }: { rack: ServerRack }) {
+export function RackCard({ rack }: { rack: ServerRack }) {
   const [showBuyNode, setShowBuyNode] = useState(false);
   const buyNode = useGameStore(s => s.buyNode);
   const sellRack = useGameStore(s => s.sellRack);
@@ -146,58 +148,53 @@ function RackCard({ rack }: { rack: ServerRack }) {
 }
 
 export function ServerPanel() {
-  const racks = useGameStore(s => s.racks);
-  const buyRack = useGameStore(s => s.buyRack);
-  const cash = useGameStore(s => s.cash);
-  const [showBuyRack, setShowBuyRack] = useState(false);
+  const rentedServers = useGameStore(s => s.rentedServers);
+  const cancelRental = useGameStore(s => s.cancelRental);
+  const [shopOpen, setShopOpen] = useState(false);
 
   return (
-    <div className="bg-gray-850 rounded-lg">
-      <div className="flex justify-between items-center mb-4">
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold text-gray-100">Server Infrastructure</h2>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400">{racks.length} rack{racks.length !== 1 ? 's' : ''}</span>
-          <button
-            onClick={() => setShowBuyRack(!showBuyRack)}
-            className="text-xs px-3 py-1.5 bg-green-700 hover:bg-green-600 text-white rounded"
-          >
-            {showBuyRack ? 'Cancel' : '+ Buy Rack'}
-          </button>
-        </div>
+        <button
+          onClick={() => setShopOpen(o => !o)}
+          className="text-xs px-3 py-1.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded cursor-pointer"
+        >
+          {shopOpen ? 'Close Shop' : '🛒 Shop'}
+        </button>
       </div>
 
-      {showBuyRack && (
-        <div className="mb-4 grid grid-cols-3 gap-3">
-          {RACK_TIERS.map(def => {
-            const canAfford = cash >= def.price;
-            return (
-              <button
-                key={def.tier}
-                onClick={() => { buyRack(def.tier as RackTier); setShowBuyRack(false); }}
-                disabled={!canAfford}
-                className="text-left p-3 bg-gray-700 hover:bg-gray-600 rounded border border-gray-600 disabled:opacity-40"
-              >
-                <div className="font-semibold text-gray-200">{def.label}</div>
-                <div className="text-xs text-gray-400">{def.maxSlots} slots · Cooling {def.coolingCapacity}</div>
-                <div className="text-xs text-gray-400">${def.price} · ${def.monthlyCost}/mo</div>
-                <div className="text-xs text-gray-500 mt-1">{def.description}</div>
-              </button>
-            );
-          })}
-        </div>
+      {shopOpen ? (
+        <ServerShop onClose={() => setShopOpen(false)} />
+      ) : (
+        <LandMap />
       )}
 
-      {racks.length === 0 ? (
-        <div className="text-center text-gray-500 py-8 border border-dashed border-gray-700 rounded">
-          No server racks. Buy one to start hosting your platform.
+      {/* Rented external servers */}
+      <div>
+        <div className="text-xs font-['Space_Grotesk'] uppercase tracking-wider text-gray-400 mb-2">
+          Rented (External) · {rentedServers.length}
         </div>
-      ) : (
-        <div className="space-y-4">
-          {racks.map(rack => (
-            <RackCard key={rack.id} rack={rack} />
-          ))}
-        </div>
-      )}
+        {rentedServers.length === 0 ? (
+          <div className="text-xs text-gray-500 border border-dashed border-gray-700 rounded p-3">
+            No external servers. Rent VPS/Dedicated/Cloud from the Shop — no cooling or crash risk.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {rentedServers.map(r => (
+              <div key={r.id} className="flex items-center justify-between rounded-lg border border-[#F97316]/40 bg-gray-800/50 px-3 py-2">
+                <div>
+                  <span className="text-sm font-medium text-gray-200">{r.label}</span>
+                  <span className="text-xs text-gray-400 ml-2">{r.capacityRps} RPS · {r.storage} st · SLA {Math.round(r.uptime * 100)}%</span>
+                </div>
+                <button onClick={() => cancelRental(r.id)} className="text-xs text-red-400 hover:text-red-300 cursor-pointer">
+                  Cancel
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

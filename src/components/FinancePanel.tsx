@@ -9,9 +9,9 @@ function formatCash(n: number): string {
 }
 
 export function FinancePanel() {
-  const { features, totalSalary, racks, month } = useGameStore();
+  const { features, totalSalary, racks, rentedServers, month } = useGameStore();
   const trafficStats = getTrafficStats(features);
-  const serverCost = racks.length > 0 ? calcMonthlyServerCost(racks) : 0;
+  const serverCost = (racks.length > 0 || rentedServers.length > 0) ? calcMonthlyServerCost(racks, rentedServers) : 0;
   const revenue = racks.length > 0 || features.some((f) => f.level > 0)
     ? calculateRevenue(trafficStats.users, features, racks)
     : { ads: 0, subscription: 0, total: 0, hasSubscription: false, uptimePenalty: 1 };

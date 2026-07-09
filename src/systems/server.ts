@@ -1,4 +1,4 @@
-import type { ServerRack } from '../types';
+import type { ServerRack, RentedServer } from '../types';
 import { getNodeDef } from '../data/servers';
 
 export interface ServerStats {
@@ -9,9 +9,10 @@ export interface ServerStats {
   totalPowerDraw: number;
   totalMonthlyCost: number;
   activeWebCount: number;
+  rentedCapacity: number;
 }
 
-export function calcServerStats(racks: ServerRack[]): ServerStats {
+export function calcServerStats(racks: ServerRack[], rentedServers: RentedServer[] = []): ServerStats {
   let totalWebCapacity = 0;
   let totalCacheOffload = 0;
   let totalDbCapacity = 0;
@@ -19,6 +20,12 @@ export function calcServerStats(racks: ServerRack[]): ServerStats {
   let totalPowerDraw = 0;
   let totalMonthlyCost = 0;
   let activeWebCount = 0;
+  let rentedCapacity = 0;
+
+  for (const r of rentedServers) {
+    rentedCapacity += r.capacityRps;
+    totalMonthlyCost += r.monthlyCost;
+  }
 
   for (const rack of racks) {
     totalMonthlyCost += rack.monthlyCost;
@@ -53,7 +60,7 @@ export function calcServerStats(racks: ServerRack[]): ServerStats {
     rack.coolingCapacity = getRackBaseCooling(rack.tier) + rackCoolingFromNodes;
   }
 
-  return { totalWebCapacity, totalCacheOffload, totalDbCapacity, totalCoolingProvided, totalPowerDraw, totalMonthlyCost, activeWebCount };
+  return { totalWebCapacity, totalCacheOffload, totalDbCapacity, totalCoolingProvided, totalPowerDraw, totalMonthlyCost, activeWebCount, rentedCapacity };
 }
 
 function getRackBaseCooling(tier: string): number {
@@ -65,9 +72,11 @@ function getRackBaseCooling(tier: string): number {
   }
 }
 
-export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number): ServerRack[] {
-  const stats = calcServerStats(racks);
+export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, rentedServers: RentedServer[] = []): ServerRack[] {
+  const stats = calcServerStats(racks, rentedServers);
   const rpsAfterCache = Math.max(0, incomingRPS - stats.totalCacheOffload);
+  const totalWeb = stats.totalWebCapacity + stats.rentedCapacity;
+  const ownedRPS = totalWeb > 0 ? rpsAfterCache * (stats.totalWebCapacity / totalWeb) : rpsAfterCache;
 
   return racks.map(rack => {
     let rackHeat = 0;
@@ -105,7 +114,7 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number): Se
           ).length;
         }, 0));
 
-        const rpsPerServer = activeCount > 0 ? rpsAfterCache / activeCount : 0;
+        const rpsPerServer = activeCount > 0 ? ownedRPS / activeCount : 0;
         newLoad = node.capacity > 0 ? (rpsPerServer / node.capacity) * 100 : 0;
 
         if (newLoad >= 100) {
@@ -177,7 +186,7 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number): Se
   });
 }
 
-export function calcMonthlyServerCost(racks: ServerRack[]): number {
+export function calcMonthlyServerCost(racks: ServerRack[], rentedServers: RentedServer[] = []): number {
   let total = 0;
   for (const rack of racks) {
     total += rack.monthlyCost;
@@ -187,6 +196,9 @@ export function calcMonthlyServerCost(racks: ServerRack[]): number {
         total += slot.node.power * 2;
       }
     }
+  }
+  for (const r of rentedServers) {
+    total += r.monthlyCost;
   }
   return total;
 }

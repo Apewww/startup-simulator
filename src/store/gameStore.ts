@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode } from '../types';
+import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType } from '../types';
 import { getComponentDef, COMPONENTS } from '../data/components';
 import { getProductDef } from '../data/products';
 import { getNodeDef, getRackDef } from '../data/servers';
@@ -23,13 +23,17 @@ interface GameState {
   resources: ComponentResource[];
   features: PlatformFeature[];
   racks: ServerRack[];
+  plots: Plot[];
+  rentedServers: RentedServer[];
   totalSalary: number;
   selectedProduct: string | null;
   devMode: boolean;
   isBankrupt: boolean;
   negativeCashMonths: number;
   panelOpen: PanelOpenState;
+  panelMinimized: PanelOpenState;
   togglePanel: (id: PanelId) => void;
+  toggleMinimize: (id: PanelId) => void;
   selectedEmployeeId: string | null;
   focusEmployee: (id: string | null) => void;
   togglePause: () => void;
@@ -41,10 +45,13 @@ interface GameState {
   selectProduct: (productId: string) => void;
   buildFeature: (featureId: string) => void;
   upgradeFeature: (featureId: string) => void;
-  buyRack: (tier: RackTier) => void;
+  buyPlot: () => void;
+  buyRack: (tier: RackTier, plotId: string) => void;
   buyNode: (rackId: string, typeId: NodeTypeId) => void;
   sellNode: (rackId: string, slotIndex: number) => void;
   sellRack: (rackId: string) => void;
+  rentServer: (type: RentalType) => void;
+  cancelRental: (id: string) => void;
   toggleDevMode: () => void;
   addResources: (componentId: string, amount: number) => void;
   completeTask: (employeeId: string) => void;
@@ -77,12 +84,15 @@ export const useGameStore = create<GameState>((set, get) => ({
   resources: [],
   features: [],
   racks: [],
+  plots: [],
+  rentedServers: [],
   totalSalary: 0,
   selectedProduct: null,
   devMode: false,
   isBankrupt: false,
   negativeCashMonths: 0,
   panelOpen: { employees: true, features: false, server: false, finance: false },
+  panelMinimized: { employees: false, features: false, server: false, finance: false },
   selectedEmployeeId: null,
 
   togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
@@ -185,14 +195,14 @@ export const useGameStore = create<GameState>((set, get) => ({
       .filter((emp): emp is Employee => emp !== null);
 
     const trafficStats = getTrafficStats(features);
-    const updatedRacks = calculateNodeLoads(racks, trafficStats.rps);
+    const updatedRacks = calculateNodeLoads(racks, trafficStats.rps, state.rentedServers);
 
     let cashChange = 0;
     let newTotalSalary = state.totalSalary;
     let newNegativeCashMonths = state.negativeCashMonths;
     if (newMonth > oldMonth) {
       newTotalSalary = calcTotalSalary(newEmployees);
-      const serverCost = calcMonthlyServerCost(updatedRacks);
+      const serverCost = calcMonthlyServerCost(updatedRacks, state.rentedServers);
       const revenue = calculateRevenue(trafficStats.users, features, updatedRacks);
       cashChange = revenue.total - (newTotalSalary + serverCost);
 
@@ -293,19 +303,22 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ resources: newResources, features: newFeatures });
   },
 
-  buyRack: (tier: RackTier) => {
+  buyRack: (tier: RackTier, plotId: string) => {
     const state = get();
     const def = getRackDef(tier);
-    if (!def) return;
+    const plot = state.plots.find(p => p.id === plotId);
+    if (!def || !plot) return;
     if (state.cash < def.price) return;
 
     rackCounter++;
     const slots = Array.from({ length: def.maxSlots }, (_, i) => ({ index: i, node: null }));
+    const rackId = `rack-${rackCounter}`;
 
     const newRack: ServerRack = {
-      id: `rack-${rackCounter}`,
+      id: rackId,
       tier: def.tier,
       label: def.label,
+      plotId,
       slots,
       maxSlots: def.maxSlots,
       coolingCapacity: def.coolingCapacity,
@@ -317,7 +330,27 @@ export const useGameStore = create<GameState>((set, get) => ({
       overheatTicks: 0,
     };
 
-    set({ cash: state.cash - def.price, racks: [...state.racks, newRack] });
+    set({
+      cash: state.cash - def.price,
+      racks: [...state.racks, newRack],
+      plots: state.plots.map(p => p.id === plotId ? { ...p, rackIds: [...p.rackIds, rackId] } : p),
+    });
+  },
+
+  buyPlot: () => {
+    const state = get();
+    const price = 1500;
+    const monthlyCost = 50;
+    if (state.cash < price) return;
+    const plotId = `plot-${state.plots.length + 1}`;
+    const newPlot: Plot = {
+      id: plotId,
+      label: `Plot ${String.fromCharCode(64 + state.plots.length + 1)}`,
+      price,
+      monthlyCost,
+      rackIds: [],
+    };
+    set({ cash: state.cash - price, plots: [...state.plots, newPlot] });
   },
 
   buyNode: (rackId: string, typeId: NodeTypeId) => {
@@ -389,10 +422,30 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ cash: state.cash + refund, racks: state.racks.filter(r => r.id !== rackId) });
   },
 
+  rentServer: (type: RentalType) => {
+    const state = get();
+    const defs: Record<RentalType, Omit<RentedServer, 'id'>> = {
+      vps: { type: 'vps', label: 'VPS', capacityRps: 150, storage: 50, monthlyCost: 40, uptime: 0.99 },
+      dedicated: { type: 'dedicated', label: 'Dedicated', capacityRps: 600, storage: 200, monthlyCost: 180, uptime: 0.999 },
+      cloud: { type: 'cloud', label: 'Cloud Instance', capacityRps: 1000, storage: 500, monthlyCost: 300, uptime: 0.995 },
+    };
+    const def = defs[type];
+    set({ rentedServers: [...state.rentedServers, { id: `rent-${state.rentedServers.length + 1}`, ...def }] });
+  },
+
+  cancelRental: (id: string) => {
+    set((state) => ({ rentedServers: state.rentedServers.filter(r => r.id !== id) }));
+  },
+
   toggleDevMode: () => set((state) => ({ devMode: !state.devMode })),
 
   togglePanel: (id: PanelId) => set((state) => ({
     panelOpen: { ...state.panelOpen, [id]: !state.panelOpen[id] },
+    panelMinimized: { ...state.panelMinimized, [id]: false },
+  })),
+
+  toggleMinimize: (id: PanelId) => set((state) => ({
+    panelMinimized: { ...state.panelMinimized, [id]: !state.panelMinimized[id] },
   })),
 
   focusEmployee: (id) => set((state) => ({
@@ -481,9 +534,12 @@ export const useGameStore = create<GameState>((set, get) => ({
   restartGame: () => {
     set({
       tick: 0, isPaused: false, speed: 1, cash: 10000, month: 0,
-      employees: [], resources: [], features: [], racks: [],
+      employees: [], resources: [], features: [], racks: [], plots: [], rentedServers: [],
       totalSalary: 0, selectedProduct: null, devMode: false,
       isBankrupt: false, negativeCashMonths: 0,
+      panelOpen: { employees: true, features: false, server: false, finance: false },
+      panelMinimized: { employees: false, features: false, server: false, finance: false },
+      selectedEmployeeId: null,
     });
   },
 }));

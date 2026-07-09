@@ -6,6 +6,7 @@ import { DevPanel } from './components/DevPanel';
 import { HudBar } from './components/HudBar';
 import { Dock } from './components/Dock';
 import { MainViewport } from './components/MainViewport';
+import { PanelTaskbar } from './components/PanelTaskbar';
 import { FloatingPanel } from './components/FloatingPanel';
 import { EmployeesPanel, employeesPanelMeta } from './components/EmployeesPanel';
 import { FeaturesPanel, featuresPanelMeta } from './components/FeaturesPanel';
@@ -69,7 +70,7 @@ function App() {
 
   useEffect(() => {
     if (isPaused || !selectedProduct || isBankrupt) return;
-    const interval = setInterval(incrementTick, 1000 / speed);
+    const interval = setInterval(incrementTick, 2000 / speed);
     return () => clearInterval(interval);
   }, [isPaused, speed, incrementTick, selectedProduct, isBankrupt]);
 
@@ -107,34 +108,37 @@ function App() {
     <div className="scanlines flex flex-col h-screen bg-[#0A0E27] text-gray-100 overflow-hidden">
       <HudBar onSave={handleSave} onLoad={handleLoad} saveMsg={saveMsg} />
 
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1 min-h-0 relative">
         <Dock />
 
         <MainViewport />
 
-        <aside className="hidden md:flex md:flex-col w-[360px] shrink-0 overflow-y-auto p-3 space-y-3 bg-[rgba(5,8,20,0.6)] border-l-2 border-[#7C3AED]/40">
-          <FloatingPanel id="employees" title={employeesPanelMeta.title} icon={employeesPanelMeta.icon} accent={employeesPanelMeta.accent}>
+        {/* Floating window layer */}
+        <div className="fixed inset-0 z-30 pointer-events-none">
+          <FloatingPanel id="employees" index={0} title={employeesPanelMeta.title} icon={employeesPanelMeta.icon} accent={employeesPanelMeta.accent}>
             <EmployeesPanel />
           </FloatingPanel>
 
-          <FloatingPanel id="features" title={featuresPanelMeta.title} icon={featuresPanelMeta.icon} accent={featuresPanelMeta.accent}>
+          <FloatingPanel id="features" index={1} title={featuresPanelMeta.title} icon={featuresPanelMeta.icon} accent={featuresPanelMeta.accent}>
             <FeaturesPanel />
           </FloatingPanel>
 
-          <FloatingPanel id="server" title="Server" icon={<Server className="w-4 h-4 text-[#00FFFF]" />} accent="#00FFFF">
+          <FloatingPanel id="server" index={2} title="Server" icon={<Server className="w-4 h-4 text-[#00FFFF]" />} accent="#00FFFF">
             <ServerPanel />
           </FloatingPanel>
 
-          <FloatingPanel id="finance" title={financePanelMeta.title} icon={financePanelMeta.icon} accent={financePanelMeta.accent}>
+          <FloatingPanel id="finance" index={3} title={financePanelMeta.title} icon={financePanelMeta.icon} accent={financePanelMeta.accent}>
             <FinancePanel />
           </FloatingPanel>
-        </aside>
+        </div>
       </div>
+
+      <PanelTaskbar />
 
       {import.meta.env.DEV && (
         <button
           onClick={toggleDevMode}
-          className={`fixed bottom-20 md:bottom-4 left-4 z-40 px-3 py-1.5 rounded text-xs font-mono transition-colors cursor-pointer ${devMode ? 'bg-yellow-600 text-black' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+          className={`fixed bottom-24 md:bottom-4 left-4 z-40 px-3 py-1.5 rounded text-xs font-mono transition-colors cursor-pointer ${devMode ? 'bg-yellow-600 text-black' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
         >
           {devMode ? 'DEV ON' : 'DEV'}
         </button>
