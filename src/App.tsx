@@ -32,12 +32,12 @@ function GameOverScreen() {
   };
 
   return (
-    <div className="scanlines min-h-screen bg-[#0A0E27] flex items-center justify-center">
-      <div className="bg-gray-800 rounded-xl border-2 border-red-500 p-10 max-w-lg text-center shadow-xl">
-        <Skull className="w-16 h-16 mx-auto mb-4 text-red-400" strokeWidth={1.5} />
-        <h1 className="text-3xl font-bold text-red-400 mb-2 neon-glow">BANKRUPT</h1>
-        <p className="text-gray-400 mb-6">Your startup has run out of funds.</p>
-        <div className="space-y-2 text-sm text-gray-400 mb-8">
+    <div className="min-h-screen bg-bg-base flex items-center justify-center">
+      <div className="flat-card border-2 border-danger p-10 max-w-lg text-center">
+        <Skull className="w-16 h-16 mx-auto mb-4 text-danger" strokeWidth={1.5} />
+        <h1 className="text-3xl font-bold text-danger mb-2">BANKRUPT</h1>
+        <p className="text-text-secondary mb-6">Your startup has run out of funds.</p>
+        <div className="space-y-2 text-sm text-text-secondary mb-8">
           <p>Survived: {month} months</p>
           <p>Team size: {employees.length} employees</p>
           <p>Final cash: {formatCash(cash)}</p>
@@ -45,7 +45,7 @@ function GameOverScreen() {
         </div>
         <button
           onClick={handleRestart}
-          className="px-8 py-3 bg-blue-600 hover:bg-blue-500 rounded-lg text-lg font-semibold transition-colors cursor-pointer"
+          className="px-8 py-3 bg-primary hover:bg-steel text-white font-semibold transition-colors cursor-pointer"
         >
           Restart Game
         </button>
@@ -73,9 +73,9 @@ const TOAST_ICONS: Record<Notification['type'], typeof Info> = {
 };
 const TOAST_COLORS: Record<Notification['type'], string> = {
   success: '#22C55E',
-  info: '#00FFFF',
-  warning: '#F97316',
-  error: '#EF4444',
+  info: '#2563EB',
+  warning: '#D97706',
+  error: '#DC2626',
 };
 
 function ToastContainer() {
@@ -88,16 +88,11 @@ function ToastContainer() {
         return (
           <div
             key={n.id}
-            className="pointer-events-auto flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-2xl animate-[slideInRight_220ms_ease-out]"
-            style={{
-              background: 'rgba(10,14,39,0.92)',
-              border: `1px solid ${color}55`,
-              boxShadow: `0 4px 20px ${color}30`,
-              minWidth: 220,
-            }}
+            className="pointer-events-auto flex items-center gap-2.5 px-4 py-2.5 border-2 bg-bg-card shadow-lg animate-[slideInRight_180ms_ease-out]"
+            style={{ borderColor: color, minWidth: 220 }}
           >
             <Icon className="w-4 h-4 shrink-0" style={{ color }} strokeWidth={2} />
-            <span className="text-xs font-['DM_Sans'] text-gray-200">{n.message}</span>
+            <span className="text-xs text-text-primary">{n.message}</span>
           </div>
         );
       })}
@@ -136,7 +131,7 @@ function App() {
   }
 
   return (
-    <div className="scanlines flex flex-col h-screen bg-[#0A0E27] text-gray-100 overflow-hidden">
+    <div className="flex flex-col h-screen bg-bg-base text-text-primary overflow-hidden">
       <HudBar onSave={handleSave} saveMsg={saveMsg} />
 
       <div className="flex flex-1 min-h-0 relative">
@@ -154,7 +149,7 @@ function App() {
             <FeaturesPanel />
           </FloatingPanel>
 
-          <FloatingPanel id="server" index={2} title="Server" icon={<Server className="w-4 h-4 text-[#00FFFF]" />} accent="#00FFFF">
+          <FloatingPanel id="server" index={2} title="Server" icon={<Server className="w-4 h-4 text-steel" />} accent="#2563EB">
             <ServerPanel />
           </FloatingPanel>
 
@@ -171,7 +166,7 @@ function App() {
       {import.meta.env.DEV && (
         <button
           onClick={toggleDevMode}
-          className={`fixed bottom-24 md:bottom-4 left-4 z-40 px-3 py-1.5 rounded text-xs font-mono transition-colors cursor-pointer ${devMode ? 'bg-yellow-600 text-black' : 'bg-gray-700 text-gray-400 hover:bg-gray-600'}`}
+          className={`fixed bottom-24 md:bottom-4 left-4 z-40 px-3 py-1.5 text-xs font-mono transition-colors cursor-pointer ${devMode ? 'bg-yellow-600 text-black' : 'bg-bg-hover text-text-secondary hover:bg-bg-card'}`}
         >
           {devMode ? 'DEV ON' : 'DEV'}
         </button>

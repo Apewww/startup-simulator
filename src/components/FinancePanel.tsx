@@ -21,18 +21,18 @@ export function FinancePanel() {
 
   return (
     <div className="space-y-3 text-sm">
-      <div className="text-gray-500 text-xs font-['Share_Tech_Mono]">MONTHLY @ M{month + 1}</div>
+      <div className="text-text-muted text-xs font-mono">MONTHLY @ M{month + 1}</div>
       {!hasData ? (
-        <p className="text-gray-500 text-sm">No financial activity yet.</p>
+        <p className="text-text-muted text-sm">No financial activity yet.</p>
       ) : (
         <>
-          <Row label="Income" value={formatCash(revenue.total)} color="#4ADE80" />
+          <Row label="Income" value={formatCash(revenue.total)} color="#22C55E" />
           {revenue.ads > 0 && <Row label="  ↳ Ads" value={formatCash(revenue.ads)} color="#22C55E" />}
           {revenue.subscription > 0 && <Row label="  ↳ Subscription" value={formatCash(revenue.subscription)} color="#22C55E" />}
-          {revenue.uptimePenalty < 1 && <p className="text-red-400 text-xs">-50% crash penalty applied</p>}
-          <Row label="Payroll" value={`-${formatCash(totalSalary)}`} color="#F87171" />
-          {serverCost > 0 && <Row label="Server" value={`-${formatCash(serverCost)}`} color="#F87171" />}
-          <div className={`mt-2 pt-2 border-t border-gray-700 font-semibold font-['Share_Tech_Mono] ${net >= 0 ? 'text-green-300' : 'text-red-300'}`}>
+          {revenue.uptimePenalty < 1 && <p className="text-danger text-xs">-50% crash penalty applied</p>}
+          <Row label="Payroll" value={`-${formatCash(totalSalary)}`} color="#DC2626" />
+          {serverCost > 0 && <Row label="Server" value={`-${formatCash(serverCost)}`} color="#DC2626" />}
+          <div className={`mt-2 pt-2 border-t-2 border-border font-semibold font-mono ${net >= 0 ? 'text-profit' : 'text-danger'}`}>
             NET: {formatCash(net)}
           </div>
         </>
@@ -50,4 +50,4 @@ function Row({ label, value, color }: { label: string; value: string; color: str
   );
 }
 
-export const financePanelMeta = { title: 'Finance', icon: <DollarSign className="w-4 h-4 text-[#F97316]" />, accent: '#F97316' };
+export const financePanelMeta = { title: 'Finance', icon: <DollarSign className="w-4 h-4 text-profit" />, accent: '#16A34A' };

@@ -25,36 +25,36 @@ function EmployeeCard({ employee }: { employee: Employee }) {
   return (
     <div
       id={`empcard-${employee.id}`}
-      className={`bg-gray-800/70 rounded p-3 border transition-all duration-200 ${
-        isSelected ? 'border-[#7C3AED] ring-2 ring-[#7C3AED]/50 shadow-[0_0_12px_#7C3AED66]' : 'border-gray-700'
+      className={`bg-bg-card border-2 transition-colors p-3 ${
+        isSelected ? 'border-primary' : 'border-border'
       }`}
     >
       <div className="flex justify-between items-start mb-2">
         <div>
-          <span className="font-semibold text-white">{employee.name}</span>
-          <span className="ml-2 text-xs px-2 py-0.5 bg-gray-700 rounded text-gray-300">{employee.role.replace('_', ' ')}</span>
-          <span className="ml-2 text-xs text-gray-400">Lv.{employee.level}</span>
-          <span className="ml-2 text-xs font-mono" style={{ color: employee.happiness > 60 ? '#4ade80' : employee.happiness > 30 ? '#fbbf24' : '#ef4444' }}>
+          <span className="font-semibold text-text-primary">{employee.name}</span>
+          <span className="ml-2 text-xs px-2 py-0.5 bg-bg-surface border border-border text-text-secondary">{employee.role.replace('_', ' ')}</span>
+          <span className="ml-2 text-xs text-text-muted">Lv.{employee.level}</span>
+          <span className="ml-2 text-xs font-mono" style={{ color: employee.happiness > 60 ? '#22C55E' : employee.happiness > 30 ? '#D97706' : '#DC2626' }}>
             {employee.happiness.toFixed(0)}%
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">{employee.speed.toFixed(1)}x</span>
-          <span className="text-sm text-gray-400">{formatCash(employee.salary)}/mo</span>
+          <span className="text-xs text-text-muted">{employee.speed.toFixed(1)}x</span>
+          <span className="text-sm text-text-muted">{formatCash(employee.salary)}/mo</span>
           {employee.happiness < 15 && (
-            <span className="text-xs text-red-400 animate-pulse" title="At risk of resigning!">RESIGN</span>
+            <span className="text-xs text-danger" title="At risk of resigning!">RESIGN</span>
           )}
         </div>
       </div>
 
       {employee.currentTask ? (
         <div className="mt-2">
-          <div className="flex justify-between text-xs text-gray-400 mb-1">
+          <div className="flex justify-between text-xs text-text-muted mb-1">
             <span>{employee.currentTask.replace(/_/g, ' ')}</span>
             <span>{Math.min(100, Math.round((employee.taskProgress / 20) * 100))}%</span>
           </div>
-          <div className="w-full bg-gray-700 rounded h-2">
-            <div className="bg-blue-500 h-2 rounded transition-all duration-300" style={{ width: `${Math.min(100, (employee.taskProgress / 20) * 100)}%` }} />
+          <div className="w-full bg-bg-base h-2">
+            <div className="bg-primary h-2 transition-all duration-300" style={{ width: `${Math.min(100, (employee.taskProgress / 20) * 100)}%` }} />
           </div>
         </div>
       ) : (
@@ -64,13 +64,13 @@ function EmployeeCard({ employee }: { employee: Employee }) {
               <button
                 key={comp.id}
                 onClick={() => assignTask(employee.id, comp.id)}
-                className="text-xs px-2 py-1 bg-gray-700 hover:bg-blue-700 rounded transition-colors cursor-pointer"
+                className="text-xs px-2 py-1 bg-bg-hover hover:bg-primary hover:text-white border border-border transition-colors cursor-pointer"
               >
                 {comp.name}
               </button>
             ))
           ) : (
-            <span className="text-xs text-gray-500">No components available</span>
+            <span className="text-xs text-text-muted">No components available</span>
           )}
         </div>
       )}
@@ -88,14 +88,14 @@ export function EmployeesPanel() {
           <button
             key={role}
             onClick={() => hireEmployee(role)}
-            className="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-600 rounded text-sm transition-colors cursor-pointer"
+            className="px-3 py-1.5 bg-primary hover:bg-steel text-white transition-colors cursor-pointer"
           >
             Hire {role.replace('_', ' ')}
           </button>
         ))}
       </div>
       {employees.length === 0 ? (
-        <p className="text-gray-500 text-sm">No employees yet. Hire your first team member!</p>
+        <p className="text-text-muted text-sm">No employees yet. Hire your first team member!</p>
       ) : (
         <div className="space-y-2">
           {employees.map((emp) => (
@@ -107,4 +107,4 @@ export function EmployeesPanel() {
   );
 }
 
-export const employeesPanelMeta = { title: 'Employees', icon: <Users className="w-4 h-4 text-[#3B82F6]" />, accent: '#3B82F6' };
+export const employeesPanelMeta = { title: 'Employees', icon: <Users className="w-4 h-4 text-steel" />, accent: '#2563EB' };

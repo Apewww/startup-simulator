@@ -9,33 +9,33 @@ function NodeSlot({ node, rackId, slotIndex }: { node: ServerNode | null; rackId
 
   if (!node) {
     return (
-      <div className="border border-dashed border-gray-600 rounded p-2 text-center text-gray-500 text-xs">
+      <div className="border-2 border-dashed border-border p-2 text-center text-text-muted text-xs">
         Empty Slot
       </div>
     );
   }
 
-  const loadColor = node.load > 90 ? 'bg-red-500' : node.load > 70 ? 'bg-yellow-500' : 'bg-green-500';
+  const loadColor = node.load > 90 ? 'bg-danger' : node.load > 70 ? 'bg-orange-500' : 'bg-profit';
   const statusColors: Record<string, string> = {
-    active: 'text-green-400',
-    overloaded: 'text-yellow-400',
+    active: 'text-profit',
+    overloaded: 'text-orange-400',
     overheating: 'text-orange-400',
-    crashed: 'text-red-400',
-    offline: 'text-gray-500',
+    crashed: 'text-danger',
+    offline: 'text-text-muted',
   };
 
   return (
-    <div className="border border-gray-600 rounded p-2 bg-gray-750">
-      <div className="flex justify-between items-start mb-1">
+    <div className="border-2 border-border bg-bg-card">
+      <div className="flex justify-between items-start mb-1 p-2">
         <div>
-          <span className="text-sm font-medium text-gray-200">{node.label}</span>
+          <span className="text-sm font-medium text-text-primary">{node.label}</span>
           <span className={`text-xs ml-2 ${statusColors[node.status]}`}>
             {node.status}
           </span>
         </div>
         <button
           onClick={() => sellNode(rackId, slotIndex)}
-          className="text-xs text-red-400 hover:text-red-300"
+          className="text-xs text-danger hover:text-danger/80"
           title={`Sell (refund $${Math.floor(node.price * 0.5)})`}
         >
           sell
@@ -43,21 +43,21 @@ function NodeSlot({ node, rackId, slotIndex }: { node: ServerNode | null; rackId
       </div>
 
       {node.category === 'web_server' || node.category === 'database' ? (
-        <div className="mt-1">
-          <div className="flex justify-between text-xs text-gray-400">
+        <div className="mt-1 px-2 pb-2">
+          <div className="flex justify-between text-xs text-text-muted">
             <span>Load</span>
             <span>{node.load}%</span>
           </div>
-          <div className="w-full bg-gray-700 rounded h-2 mt-0.5">
+          <div className="w-full bg-bg-base h-2 mt-0.5">
             <div
-              className={`h-2 rounded transition-all ${loadColor}`}
+              className={`h-2 transition-all ${loadColor}`}
               style={{ width: `${Math.min(node.load, 100)}%` }}
             />
           </div>
         </div>
       ) : null}
 
-      <div className="flex gap-2 mt-1 text-xs text-gray-500">
+      <div className="flex gap-2 mt-1 text-xs text-text-muted px-2 pb-2">
         {node.heat > 0 && <span>Heat: {node.heat}</span>}
         <span>Power: {node.power}</span>
         <span>$ {node.monthlyCost}/mo</span>
@@ -72,22 +72,22 @@ export function RackCard({ rack }: { rack: ServerRack }) {
   const coolingPct = rack.coolingCapacity > 0
     ? Math.round((rack.coolingUsed / rack.coolingCapacity) * 100)
     : 0;
-  const coolingColor = coolingPct > 90 ? 'text-red-400' : coolingPct > 70 ? 'text-yellow-400' : 'text-cyan-400';
+  const coolingColor = coolingPct > 90 ? 'text-danger' : coolingPct > 70 ? 'text-orange-400' : 'text-steel';
 
   return (
-    <div className={`border rounded-lg p-4 ${rack.isOverheating ? 'border-red-500 bg-red-900/20' : 'border-gray-700 bg-gray-800'}`}>
+    <div className={`border-2 p-4 ${rack.isOverheating ? 'border-danger bg-danger/10' : 'border-border bg-bg-card'}`}>
       <div className="flex justify-between items-center mb-3">
         <div>
-          <h3 className="text-lg font-semibold text-gray-100">{rack.label}</h3>
-          <span className="text-xs text-gray-400">{rack.tier} · {rack.maxSlots} slots</span>
+          <h3 className="text-lg font-semibold text-text-primary">{rack.label}</h3>
+          <span className="text-xs text-text-muted">{rack.tier} · {rack.maxSlots} slots</span>
         </div>
         <div className="flex items-center gap-3 text-sm">
           <span className={coolingColor}>
             Cooling: {rack.coolingUsed}/{rack.coolingCapacity}
           </span>
-          <span className="text-gray-400">{rack.powerDraw}pw</span>
+          <span className="text-text-muted">{rack.powerDraw}pw</span>
           {rack.isOverheating && (
-            <span className="text-red-400 font-bold animate-pulse">OVERHEAT!</span>
+            <span className="text-danger font-bold">OVERHEAT!</span>
           )}
         </div>
       </div>
@@ -102,7 +102,7 @@ export function RackCard({ rack }: { rack: ServerRack }) {
         <button
           onClick={() => sellRack(rack.id)}
           disabled={rack.slots.some(s => s.node !== null)}
-          className="text-xs px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded disabled:opacity-40 cursor-pointer"
+          className="text-xs px-3 py-1.5 bg-bg-hover hover:bg-bg-card text-text-secondary border border-border disabled:opacity-40 cursor-pointer"
           title={rack.slots.some(s => s.node !== null) ? 'Remove all nodes first' : `Sell rack (refund $${Math.floor(rack.price * 0.5)})`}
         >
           Sell Rack
@@ -120,12 +120,12 @@ export function ServerPanel() {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-bold text-gray-100">Server Infrastructure</h2>
+        <h2 className="text-xl font-bold text-text-primary">Server Infrastructure</h2>
         <button
           onClick={() => setShopOpen(o => !o)}
-          className="text-xs px-3 py-1.5 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded cursor-pointer"
+          className="text-xs px-3 py-1.5 bg-primary hover:bg-steel text-white transition-colors cursor-pointer"
         >
-          {shopOpen ? 'Close Shop' : '🛒 Shop'}
+          {shopOpen ? 'Close Shop' : 'Shop'}
         </button>
       </div>
 
@@ -137,22 +137,22 @@ export function ServerPanel() {
 
       {/* Rented external servers */}
       <div>
-        <div className="text-xs font-['Space_Grotesk'] uppercase tracking-wider text-gray-400 mb-2">
+        <div className="text-xs font-semibold uppercase tracking-wider text-text-muted mb-2">
           Rented (External) · {rentedServers.length}
         </div>
         {rentedServers.length === 0 ? (
-          <div className="text-xs text-gray-500 border border-dashed border-gray-700 rounded p-3">
+          <div className="text-xs text-text-muted border-2 border-dashed border-border p-3">
             No external servers. Rent VPS/Dedicated/Cloud from the Shop — no cooling or crash risk.
           </div>
         ) : (
           <div className="space-y-2">
             {rentedServers.map(r => (
-              <div key={r.id} className="flex items-center justify-between rounded-lg border border-[#F97316]/40 bg-gray-800/50 px-3 py-2">
+              <div key={r.id} className="flex items-center justify-between border-2 border-profit/40 bg-bg-card px-3 py-2">
                 <div>
-                  <span className="text-sm font-medium text-gray-200">{r.label}</span>
-                  <span className="text-xs text-gray-400 ml-2">{r.capacityRps} RPS · {r.storage} st · SLA {Math.round(r.uptime * 100)}%</span>
+                  <span className="text-sm font-medium text-text-primary">{r.label}</span>
+                  <span className="text-xs text-text-muted ml-2">{r.capacityRps} RPS · {r.storage} st · SLA {Math.round(r.uptime * 100)}%</span>
                 </div>
-                <button onClick={() => cancelRental(r.id)} className="text-xs text-red-400 hover:text-red-300 cursor-pointer">
+                <button onClick={() => cancelRental(r.id)} className="text-xs text-danger hover:text-danger/80 cursor-pointer">
                   Cancel
                 </button>
               </div>

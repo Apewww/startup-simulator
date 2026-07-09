@@ -25,15 +25,15 @@ function ShopCard({ title, sub, price, monthly, disabled, onClick, icon, accent 
     <button
       onClick={onClick}
       disabled={disabled}
-      className="text-left p-3 rounded-xl border bg-gray-800/70 hover:bg-gray-700/70 border-gray-700 hover:border-[#7C3AED] transition-all disabled:opacity-40 cursor-pointer"
+      className="text-left p-3 border-2 border-border bg-bg-card hover:bg-bg-hover hover:border-primary transition-colors disabled:opacity-40 cursor-pointer"
     >
       <div className="flex items-center gap-2 mb-1">
         <span style={{ color: accent }}>{icon}</span>
-        <span className="font-semibold text-sm text-gray-100">{title}</span>
+        <span className="font-semibold text-sm text-text-primary">{title}</span>
       </div>
-      <div className="text-[11px] text-gray-400 leading-snug">{sub}</div>
+      <div className="text-[11px] text-text-secondary leading-snug">{sub}</div>
       <div className="text-xs mt-1.5" style={{ color: accent }}>
-        ${price}{monthly !== undefined && <span className="text-gray-400"> · ${monthly}/mo</span>}
+        ${price}{monthly !== undefined && <span className="text-text-muted"> · ${monthly}/mo</span>}
       </div>
     </button>
   );
@@ -45,13 +45,13 @@ export function ServerShop({ onClose }: { onClose: () => void }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-['Space_Grotesk'] uppercase tracking-wider text-[#A78BFA]">Server Shop</h3>
-        <button onClick={onClose} className="p-1 rounded hover:bg-white/10 text-gray-300 cursor-pointer"><X className="w-4 h-4" /></button>
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-primary">Server Shop</h3>
+        <button onClick={onClose} className="p-1 bg-bg-hover hover:bg-danger hover:text-white text-text-secondary transition-colors cursor-pointer"><X className="w-4 h-4" /></button>
       </div>
 
       {/* Racks */}
       <div>
-        <div className="text-xs text-gray-400 mb-2">Racks (goes to inventory, drag to plot grid)</div>
+        <div className="text-xs text-text-muted mb-2">Racks (goes to inventory, drag to plot grid)</div>
         <div className="grid grid-cols-2 gap-2">
           {RACK_TIERS.map(def => (
             <ShopCard
@@ -63,7 +63,7 @@ export function ServerShop({ onClose }: { onClose: () => void }) {
               disabled={cash < def.price}
               onClick={() => buyRack(def.tier)}
               icon={<Server className="w-4 h-4" />}
-              accent="#7C3AED"
+              accent="#2563EB"
             />
           ))}
         </div>
@@ -71,7 +71,7 @@ export function ServerShop({ onClose }: { onClose: () => void }) {
 
       {/* Nodes -> inventory */}
       <div>
-        <div className="text-xs text-gray-400 mb-2">Nodes & Equipment (goes to inventory, drag to rack slots)</div>
+        <div className="text-xs text-text-muted mb-2">Nodes & Equipment (goes to inventory, drag to rack slots)</div>
         <div className="grid grid-cols-2 gap-2">
           {NODE_DEFS.map(def => {
             const Icon = CATEGORY_ICON[def.category];
@@ -85,7 +85,7 @@ export function ServerShop({ onClose }: { onClose: () => void }) {
                 disabled={cash < def.price}
                 onClick={() => buyNode(def.typeId)}
                 icon={<Icon className="w-4 h-4" />}
-                accent="#00FFFF"
+                accent="#2563EB"
               />
             );
           })}
@@ -94,7 +94,7 @@ export function ServerShop({ onClose }: { onClose: () => void }) {
 
       {/* Rental */}
       <div>
-        <div className="text-xs text-gray-400 mb-2">Cloud / Rental (no rack needed)</div>
+        <div className="text-xs text-text-muted mb-2">Cloud / Rental (no rack needed)</div>
         <div className="grid grid-cols-2 gap-2">
           {RENTALS.map(r => (
             <ShopCard
@@ -106,7 +106,7 @@ export function ServerShop({ onClose }: { onClose: () => void }) {
               disabled={false}
               onClick={() => rentServer(r.type)}
               icon={<Cloud className="w-4 h-4" />}
-              accent="#F97316"
+              accent="#16A34A"
             />
           ))}
         </div>
