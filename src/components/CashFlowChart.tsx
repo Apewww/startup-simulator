@@ -95,8 +95,20 @@ export function CashFlowChart() {
         {bars.map((bar) => {
           const revY = CHART_PADDING.top + plotH - bar.revH;
           const expY = CHART_PADDING.top + plotH - bar.expH;
+          const hitX = bar.x - BAR_GAP / 2;
+          const hitW = bar.barW + BAR_GAP;
           return (
             <g key={bar.snap.month}>
+              <rect
+                x={hitX}
+                y={CHART_PADDING.top}
+                width={hitW}
+                height={plotH}
+                fill="transparent"
+                className="cursor-pointer"
+                onMouseEnter={() => setHovered(bar.snap)}
+                onMouseLeave={() => setHovered(null)}
+              />
               <rect
                 x={bar.x}
                 y={revY}
@@ -106,10 +118,8 @@ export function CashFlowChart() {
                 stroke="#17A366"
                 strokeWidth={1}
                 rx={1}
-                className="transition-opacity duration-150"
+                className="transition-opacity duration-150 pointer-events-none"
                 style={{ opacity: hovered?.month === bar.snap.month ? 1 : 0.7 }}
-                onMouseEnter={() => setHovered(bar.snap)}
-                onMouseLeave={() => setHovered(null)}
               />
               <rect
                 x={bar.x}
@@ -120,16 +130,14 @@ export function CashFlowChart() {
                 stroke="#D1453B"
                 strokeWidth={1}
                 rx={1}
-                className="transition-opacity duration-150"
+                className="transition-opacity duration-150 pointer-events-none"
                 style={{ opacity: hovered?.month === bar.snap.month ? 1 : 0.7 }}
-                onMouseEnter={() => setHovered(bar.snap)}
-                onMouseLeave={() => setHovered(null)}
               />
               <text
                 x={bar.x + bar.barW / 2}
                 y={CHART_PADDING.top + plotH + 14}
                 textAnchor="middle"
-                className="text-[8px]"
+                className="text-[8px] pointer-events-none"
                 fill={hovered?.month === bar.snap.month ? '#1A2233' : '#667085'}
                 fontWeight={hovered?.month === bar.snap.month ? 600 : 400}
               >{`M${bar.snap.month}`}</text>
