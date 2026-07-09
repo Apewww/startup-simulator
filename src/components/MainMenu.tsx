@@ -12,68 +12,44 @@ export function MainMenu() {
     hasSavedGame().then(setCanLoad);
   }, []);
 
-  const handleNewGame = () => {
-    setScreen('select');
-  };
+  const handleNewGame = () => setScreen('select');
 
-  const handleLoadGame = async () => {
-    if (await loadGame()) {
-    }
-  };
+  const handleLoadGame = async () => { if (await loadGame()) {} };
 
   const handleQuit = () => {
-    try {
-      getCurrentWindow().close().catch(() => window.close());
-    } catch {
-      window.close();
-    }
+    try { getCurrentWindow().close().catch(() => window.close()); } catch { window.close(); }
   };
 
   return (
-    <div className="min-h-screen bg-bg-base flex flex-col items-center justify-center p-8 text-text-primary">
+    <div className="min-h-screen bg-bg flex flex-col items-center justify-center p-8 text-ink">
       <div className="text-center mb-16 space-y-4">
-        <h1 className="text-6xl font-bold tracking-tight text-text-primary">
-          Startup Simulator
-        </h1>
-        <p className="text-xl text-text-secondary font-light">Build your tech empire from scratch</p>
+        <div className="flex items-center justify-center gap-3 mb-2">
+          <span className="w-3 h-3 rounded-sm bg-indigo" />
+          <h1 className="text-5xl font-extrabold tracking-tight">Startup Simulator</h1>
+        </div>
+        <p className="text-lg text-ink-soft font-light">Build your tech empire from scratch</p>
       </div>
 
       <div className="flex flex-col gap-4 w-full max-w-sm">
-        <button
-          onClick={handleNewGame}
-          className="group flex items-center justify-between px-6 py-4 flat-card-hover transition-colors cursor-pointer"
-        >
-          <span className="text-lg font-medium text-text-primary">New Game</span>
-          <Play className="w-5 h-5 text-text-secondary group-hover:text-primary transition-colors" />
+        <button onClick={handleNewGame}
+          className="group flex items-center justify-between px-6 py-4 card-hover transition-colors cursor-pointer">
+          <span className="text-base font-semibold text-ink">New Game</span>
+          <Play className="w-5 h-5 text-ink-soft group-hover:text-indigo transition-colors" />
         </button>
-
-        <button
-          onClick={handleLoadGame}
-          disabled={!canLoad}
-          className={`group flex items-center justify-between px-6 py-4 border transition-colors ${
-            canLoad 
-              ? 'flat-card hover:border-steel cursor-pointer border-border hover:border-steel' 
-              : 'bg-bg-surface border-border opacity-50 cursor-not-allowed'
-          }`}
-        >
-          <span className={`text-lg font-medium ${canLoad ? 'text-text-primary' : 'text-text-muted'}`}>
-            Load Game
-          </span>
-          <Loader className={`w-5 h-5 ${canLoad ? 'text-text-secondary group-hover:text-steel transition-colors' : 'text-text-muted'}`} />
+        <button onClick={handleLoadGame} disabled={!canLoad}
+          className={`group flex items-center justify-between px-6 py-4 border rounded-[10px] transition-colors ${
+            canLoad ? 'card hover:border-indigo cursor-pointer' : 'bg-surface-2 border-border opacity-50 cursor-not-allowed'}`}>
+          <span className={`text-base font-semibold ${canLoad ? 'text-ink' : 'text-ink-soft'}`}>Load Game</span>
+          <Loader className={`w-5 h-5 ${canLoad ? 'text-ink-soft group-hover:text-indigo transition-colors' : 'text-ink-soft'}`} />
         </button>
-
-        <button
-          onClick={handleQuit}
-          className="group flex items-center justify-between px-6 py-4 flat-card-hover transition-colors cursor-pointer mt-4"
-        >
-          <span className="text-lg font-medium text-text-primary">Keluar</span>
-          <Power className="w-5 h-5 text-text-secondary group-hover:text-danger transition-colors" />
+        <button onClick={handleQuit}
+          className="group flex items-center justify-between px-6 py-4 card-hover transition-colors cursor-pointer mt-2">
+          <span className="text-base font-semibold text-ink">Keluar</span>
+          <Power className="w-5 h-5 text-ink-soft group-hover:text-red transition-colors" />
         </button>
       </div>
-      
-      <div className="absolute bottom-6 text-sm text-text-muted font-mono">
-        v1.1.4
-      </div>
+
+      <div className="absolute bottom-6 text-xs text-ink-soft font-mono">v1.2</div>
     </div>
   );
 }

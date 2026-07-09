@@ -24,26 +24,26 @@ function FeatureCard({ feature }: { feature: PlatformFeature }) {
   });
 
   return (
-    <div className="bg-bg-card border-2 border-border p-3">
-      <div className="flex justify-between items-start mb-2">
-        <div>
-          <span className="font-semibold text-text-primary">{feature.name}</span>
-          <span className="ml-2 text-xs px-2 py-0.5 bg-bg-surface border border-border text-text-secondary">Lv.{feature.level}</span>
+    <div className="py-2 border-b border-surface-2 last:border-b-0">
+      <div className="flex justify-between items-center mb-1">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-ink">{feature.name}</span>
+          <span className="text-[10px] px-1.5 py-0.5 bg-surface-2 text-ink-soft border border-border rounded">{isBuilt ? `Lv.${feature.level}` : '🔒'}</span>
         </div>
-        <span className="text-sm text-text-muted">{isBuilt ? `${feature.trafficGenerated} traffic` : 'Locked'}</span>
+        {isBuilt && <span className="text-[11px] text-ink-soft font-mono">{feature.trafficGenerated} traffic</span>}
       </div>
 
-      <div className="space-y-1 mb-3">
+      <div className="space-y-0.5 mb-1.5">
         {cost.map((req) => {
           const compDef = getComponentDef(req.componentId);
           const res = resources.find((r) => r.id === req.componentId);
           const have = res?.quantity || 0;
           const enough = have >= req.amount;
           return (
-            <div key={req.componentId} className="flex items-center gap-2 text-xs">
-              <span className={enough ? 'text-profit' : 'text-danger'}>{enough ? '✓' : '✗'}</span>
-              <span className="text-text-muted">{compDef?.name || req.componentId}</span>
-              <span className="font-mono text-text-muted">{have}/{req.amount}</span>
+            <div key={req.componentId} className="flex items-center gap-2 text-[11px]">
+              <span className={enough ? 'text-green' : 'text-red'}>{enough ? '✓' : '✗'}</span>
+              <span className="text-ink-soft">{compDef?.name || req.componentId}</span>
+              <span className="font-mono text-ink-soft">{have}/{req.amount}</span>
             </div>
           );
         })}
@@ -53,18 +53,18 @@ function FeatureCard({ feature }: { feature: PlatformFeature }) {
         <button
           onClick={() => upgradeFeature(feature.id)}
           disabled={!canAfford}
-          className={`text-xs px-3 py-1.5 border-2 transition-colors cursor-pointer ${
-            canAfford ? 'bg-orange-600 hover:bg-orange-500 text-white border-orange-500' : 'bg-bg-card text-text-muted border-border cursor-not-allowed'
+          className={`text-[11px] font-semibold px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+            canAfford ? 'bg-amber-soft text-amber border border-amber/30 hover:bg-amber hover:text-white' : 'bg-surface-2 text-ink-soft border border-border cursor-not-allowed'
           }`}
         >
-          Upgrade to Lv.{nextLevel}
+          Upgrade Lv.{nextLevel}
         </button>
       ) : (
         <button
           onClick={() => buildFeature(feature.id)}
           disabled={!canAfford}
-          className={`text-xs px-3 py-1.5 border-2 transition-colors cursor-pointer ${
-            canAfford ? 'bg-primary hover:bg-steel text-white border-primary' : 'bg-bg-card text-text-muted border-border cursor-not-allowed'
+          className={`text-[11px] font-semibold px-3 py-1 rounded-lg transition-colors cursor-pointer ${
+            canAfford ? 'bg-indigo text-white hover:bg-indigo/90' : 'bg-surface-2 text-ink-soft border border-border cursor-not-allowed'
           }`}
         >
           Build
@@ -79,17 +79,17 @@ export function FeaturesPanel() {
   const product = getProductDef(selectedProduct || '');
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div>
-        <h3 className="text-xs uppercase tracking-wider text-text-muted mb-2">Inventory</h3>
+        <h3 className="text-[11px] font-semibold text-ink-soft uppercase tracking-wider mb-1.5">Inventory</h3>
         {resources.length === 0 ? (
-          <p className="text-text-muted text-sm">No components produced yet.</p>
+          <p className="text-ink-soft text-xs">No components produced yet.</p>
         ) : (
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {resources.map((res) => (
-              <div key={res.id} className="flex justify-between text-sm">
-                <span className="text-text-secondary">{res.name}</span>
-                <span className="font-mono text-profit">{res.quantity}</span>
+              <div key={res.id} className="flex justify-between text-xs">
+                <span className="text-ink-soft">{res.name}</span>
+                <span className="font-mono text-green font-semibold">{res.quantity}</span>
               </div>
             ))}
           </div>
@@ -97,11 +97,11 @@ export function FeaturesPanel() {
       </div>
 
       <div>
-        <h3 className="text-xs uppercase tracking-wider text-text-muted mb-2">{product?.name} — Features</h3>
+        <h3 className="text-[11px] font-semibold text-ink-soft uppercase tracking-wider mb-1.5">{product?.name} — Features</h3>
         {features.length === 0 ? (
-          <p className="text-text-muted text-sm">No features yet.</p>
+          <p className="text-ink-soft text-xs">No features yet.</p>
         ) : (
-          <div className="space-y-2">
+          <div>
             {features.map((f) => (
               <FeatureCard key={f.id} feature={f} />
             ))}
@@ -112,4 +112,4 @@ export function FeaturesPanel() {
   );
 }
 
-export const featuresPanelMeta = { title: 'Features', icon: <LayoutGrid className="w-4 h-4 text-primary" />, accent: '#3B82F6' };
+export const featuresPanelMeta = { title: 'Fitur', icon: <LayoutGrid className="w-4 h-4 text-indigo" />, accent: '#4F5EFF' };

@@ -1,4 +1,4 @@
-﻿import { useRef, useState, type ReactNode } from 'react';
+﻿import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Minus, Maximize2, X } from 'lucide-react';
 import { useGameStore, type PanelId } from '../store/gameStore';
 
@@ -13,23 +13,57 @@ interface FloatingPanelProps {
   index?: number;
 }
 
-export function FloatingPanel({ id, title, icon, children, accent = '#2563EB', index = 0 }: FloatingPanelProps) {
+export function FloatingPanel({ id, title, icon, children, accent = '#4F5EFF', index = 0 }: FloatingPanelProps) {
   const open = useGameStore((s) => s.panelOpen[id]);
   const minimized = useGameStore((s) => s.panelMinimized[id]);
+  const maximizedPanel = useGameStore((s) => s.maximizedPanel);
   const togglePanel = useGameStore((s) => s.togglePanel);
   const toggleMinimize = useGameStore((s) => s.toggleMinimize);
+  const setMaximizedPanel = useGameStore((s) => s.setMaximizedPanel);
 
-  const [pos, setPos] = useState({ x: 24 + index * 28, y: 24 + index * 28 });
+  const isMaximized = maximizedPanel === id;
+
+  const randX = useRef(80 + Math.floor(Math.random() * (window.innerWidth - 420)));
+  const randY = useRef(80 + Math.floor(Math.random() * (window.innerHeight - 300)));
+  const [pos, setPos] = useState({ x: randX.current, y: randY.current });
   const [z, setZ] = useState(30 + index);
-  const [maximized, setMaximized] = useState(false);
   const drag = useRef<{ dx: number; dy: number } | null>(null);
 
-  if (!open || minimized) return null;
+  useEffect(() => {
+    if (maximizedPanel && !isMaximized && open && !minimized) {
+      const rightBoundary = window.innerWidth - 440;
+      if (pos.x >= rightBoundary) {
+        setPos({
+          x: 80 + Math.floor(Math.random() * Math.max(100, rightBoundary - 80 - 320)),
+          y: 80 + Math.floor(Math.random() * (window.innerHeight - 300)),
+        });
+      }
+    }
+  }, [maximizedPanel]);
+
+  if (!open || (minimized && !isMaximized)) return null;
 
   const bringToFront = () => setZ(++zCounter);
 
+  const handleMaximize = () => {
+    const { maximizedPanel: current } = useGameStore.getState();
+    if (current === id) {
+      useGameStore.setState({ maximizedPanel: null });
+      setPos({ x: window.innerWidth - 340 - index * 30, y: 90 + index * 30 });
+    } else {
+      if (current && current !== id) {
+        useGameStore.setState((s) => ({
+          panelMinimized: { ...s.panelMinimized, [current]: true },
+          maximizedPanel: id,
+        }));
+      } else {
+        setMaximizedPanel(id);
+      }
+    }
+  };
+
   const onPointerDownHeader = (e: React.PointerEvent) => {
-    if (window.matchMedia('(max-width: 767px)').matches) return;
+    if (window.matchMedia('(max-width: 767px)').matches || isMaximized) return;
     bringToFront();
     const startX = e.clientX;
     const startY = e.clientY;
@@ -53,43 +87,40 @@ export function FloatingPanel({ id, title, icon, children, accent = '#2563EB', i
   return (
     <div
       onPointerDown={bringToFront}
-      className={`absolute border-2 shadow-lg overflow-hidden panel-anim pointer-events-auto
-        max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:w-auto max-md:max-h-[85vh] max-md:rounded-t-2xl max-md:rounded-b-none
-        ${maximized ? 'fixed inset-4 z-50 max-md:inset-4' : ''}`}
+      className={`flex flex-col overflow-hidden rounded-xl shadow-[0_12px_32px_-8px_rgba(20,30,60,0.15)] pointer-events-auto border
+        max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:max-h-[85vh] max-md:rounded-t-2xl max-md:rounded-b-none
+        ${isMaximized ? 'fixed right-0 top-[52px] bottom-10 w-[420px] z-50 rounded-none rounded-l-xl max-md:inset-0 max-md:!w-auto max-md:rounded-none' : 'absolute w-[300px]'}`}
       style={{
-        left: maximized ? undefined : pos.x,
-        top: maximized ? undefined : pos.y,
-        width: maximized ? undefined : 'clamp(320px, 34vw, 440px)',
+        left: isMaximized ? undefined : pos.x,
+        top: isMaximized ? undefined : pos.y,
         zIndex: z,
-        borderColor: accent,
-        backgroundColor: '#23272E',
+        borderColor: '#E3E7EE',
+        backgroundColor: '#FFFFFF',
       }}
     >
       <div
         onPointerDown={onPointerDownHeader}
-        className="flex items-center justify-between px-4 py-2.5 border-b-2 cursor-grab active:cursor-grabbing select-none"
-        style={{ borderColor: accent, backgroundColor: `${accent}14` }}
+        className="flex items-center justify-between px-[14px] py-[11px] border-b cursor-grab active:cursor-grabbing select-none"
+        style={{ borderColor: '#E3E7EE', backgroundColor: '#F8F9FB' }}
       >
         <div className="flex items-center gap-2">
           {icon}
-          <span className="font-semibold text-sm tracking-wide" style={{ color: accent }}>
-            {title.toUpperCase()}
-          </span>
+          <span className="text-xs font-bold text-ink">{title}</span>
         </div>
-        <div className="flex items-center gap-1">
-          <button onClick={() => toggleMinimize(id)} className="p-1.5 bg-bg-card hover:bg-bg-hover text-text-secondary transition-colors cursor-pointer" title="Minimize">
-            <Minus className="w-4 h-4" />
+        <div className="flex items-center gap-1.5 text-ink-soft text-xs">
+          <button onClick={() => toggleMinimize(id)} className="p-1 rounded hover:bg-ink/5 transition-colors cursor-pointer" title="Minimize">
+            <Minus className="w-3.5 h-3.5" />
           </button>
-          <button onClick={() => setMaximized((m) => !m)} className="p-1.5 bg-bg-card hover:bg-bg-hover text-text-secondary transition-colors cursor-pointer" title="Maximize">
-            <Maximize2 className="w-4 h-4" />
+          <button onClick={handleMaximize} className="p-1 rounded hover:bg-ink/5 transition-colors cursor-pointer" title={isMaximized ? 'Restore' : 'Maximize'}>
+            <Maximize2 className="w-3.5 h-3.5" />
           </button>
-          <button onClick={() => togglePanel(id)} className="p-1.5 bg-bg-card hover:bg-danger hover:text-white text-text-secondary transition-colors cursor-pointer" title="Close">
-            <X className="w-4 h-4" />
+          <button onClick={() => togglePanel(id)} className="p-1 rounded hover:bg-red-soft hover:text-red transition-colors cursor-pointer" title="Close">
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      <div className="p-4 overflow-y-auto" style={{ maxHeight: maximized ? 'calc(100% - 48px)' : 'clamp(280px, 60vh, 70vh)' }}>
+      <div className="px-[14px] py-3 overflow-y-auto text-xs" style={{ maxHeight: isMaximized ? 'calc(100% - 48px)' : 'clamp(280px, 60vh, 70vh)' }}>
         {children}
       </div>
     </div>

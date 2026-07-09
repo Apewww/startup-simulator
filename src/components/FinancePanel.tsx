@@ -20,19 +20,18 @@ export function FinancePanel() {
   const hasData = totalSalary > 0 || serverCost > 0 || revenue.total > 0;
 
   return (
-    <div className="space-y-3 text-sm">
-      <div className="text-text-muted text-xs font-mono">MONTHLY @ M{month + 1}</div>
+    <div className="space-y-2 text-xs">
+      <div className="text-[11px] font-semibold text-ink-soft font-mono">BULAN {month + 1}</div>
       {!hasData ? (
-        <p className="text-text-muted text-sm">No financial activity yet.</p>
+        <p className="text-ink-soft text-xs">No financial activity yet.</p>
       ) : (
         <>
-          <Row label="Income" value={formatCash(revenue.total)} color="#22C55E" />
-          {revenue.ads > 0 && <Row label="  ↳ Ads" value={formatCash(revenue.ads)} color="#22C55E" />}
-          {revenue.subscription > 0 && <Row label="  ↳ Subscription" value={formatCash(revenue.subscription)} color="#22C55E" />}
-          {revenue.uptimePenalty < 1 && <p className="text-danger text-xs">-50% crash penalty applied</p>}
-          <Row label="Payroll" value={`-${formatCash(totalSalary)}`} color="#DC2626" />
-          {serverCost > 0 && <Row label="Server" value={`-${formatCash(serverCost)}`} color="#DC2626" />}
-          <div className={`mt-2 pt-2 border-t-2 border-border font-semibold font-mono ${net >= 0 ? 'text-profit' : 'text-danger'}`}>
+          <Row label="Ads Revenue" value={formatCash(revenue.ads)} color="green" />
+          {revenue.subscription > 0 && <Row label="Subscription" value={formatCash(revenue.subscription)} color="green" />}
+          {revenue.uptimePenalty < 1 && <p className="text-red text-[11px]">-50% crash penalty applied</p>}
+          <Row label="Payroll" value={`-${formatCash(totalSalary)}`} color="red" />
+          {serverCost > 0 && <Row label="Server Cost" value={`-${formatCash(serverCost)}`} color="red" />}
+          <div className={`pt-1.5 mt-1.5 border-t border-border font-bold font-mono text-xs ${net >= 0 ? 'text-green' : 'text-red'}`}>
             NET: {formatCash(net)}
           </div>
         </>
@@ -43,11 +42,11 @@ export function FinancePanel() {
 
 function Row({ label, value, color }: { label: string; value: string; color: string }) {
   return (
-    <div className="flex justify-between" style={{ color }}>
-      <span>{label}</span>
-      <span className="font-mono">{value}</span>
+    <div className="flex justify-between items-center py-1">
+      <span className="text-ink font-semibold">{label}</span>
+      <span className={`font-mono ${color === 'green' ? 'text-green' : 'text-red'}`}>{value}</span>
     </div>
   );
 }
 
-export const financePanelMeta = { title: 'Finance', icon: <DollarSign className="w-4 h-4 text-profit" />, accent: '#16A34A' };
+export const financePanelMeta = { title: 'Keuangan', icon: <DollarSign className="w-4 h-4 text-green" />, accent: '#17A366' };

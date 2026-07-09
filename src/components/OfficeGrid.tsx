@@ -10,11 +10,11 @@ function getStatusText(task: string | null): string {
   return task.replace(/_/g, ' ');
 }
 
-function getStatusColor(task: string | null, happiness: number): string {
-  if (happiness < 15) return 'border-danger bg-danger/10';
-  if (happiness < 30) return 'border-orange-600 bg-orange-900/20';
-  if (task) return 'border-primary bg-primary/10';
-  return 'border-profit bg-profit/10';
+function getDeskClass(task: string | null, happiness: number): string {
+  if (happiness < 15) return 'low';
+  if (happiness < 30) return 'idle';
+  if (task) return 'working';
+  return 'idle';
 }
 
 export function OfficeGrid() {
@@ -28,51 +28,55 @@ export function OfficeGrid() {
   }));
 
   return (
-    <div className="border-2 border-border bg-bg-surface">
-      <div className="px-4 py-3 border-b-2 border-border flex items-center gap-3">
-        <h2 className="text-lg font-semibold text-text-primary">Office Floor</h2>
-        <span className="text-xs text-text-muted">{employees.length} / {TOTAL_CELLS} desks</span>
+    <div className="card p-5 flex-1">
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h2 className="text-[18px] font-extrabold tracking-tight">Office Grid</h2>
+          <p className="text-xs text-ink-soft mt-0.5">{employees.length} / {TOTAL_CELLS} meja terisi</p>
+        </div>
       </div>
-      <div className="p-4 overflow-x-auto">
-        <div className="grid grid-cols-6 md:grid-cols-8 gap-2 mx-auto" style={{ maxWidth: 560 }}>
+
+      <div className="overflow-x-auto">
+        <div className="grid grid-cols-6 md:grid-cols-8 gap-2.5 mx-auto" style={{ maxWidth: 560 }}>
           {cells.map((cell) => {
             if (!cell.employee) {
               return (
                 <div
                   key={cell.index}
-                  className="aspect-square border-2 border-dashed border-border bg-bg-card/30"
+                  className="aspect-square rounded-lg bg-surface-2 border border-dashed border-border"
                 />
               );
             }
 
             const emp = cell.employee;
-            const statusColor = getStatusColor(emp.currentTask, emp.happiness);
+            const deskClass = getDeskClass(emp.currentTask, emp.happiness);
             const progress = emp.currentTask
               ? Math.min(100, Math.round((emp.taskProgress / 20) * 100))
               : 0;
+
+            const avatarColor = deskClass === 'working' ? '#17A366' : deskClass === 'low' ? '#D1453B' : '#4F5EFF';
 
             return (
               <button
                 key={cell.index}
                 onClick={() => focusEmployee(emp.id)}
-                className={`aspect-square border-2 flex flex-col items-center justify-center relative transition-colors cursor-pointer group ${statusColor}`}
+                className={`aspect-square rounded-lg border flex flex-col items-center justify-center relative transition-colors cursor-pointer group ${
+                  deskClass === 'empty' ? 'border-dashed border-border bg-surface-2' :
+                  deskClass === 'working' ? 'border-green bg-green-soft' :
+                  deskClass === 'low' ? 'border-red bg-red-soft' :
+                  'border-border bg-surface-2'
+                }`}
                 title={`${emp.name} (${emp.role.replace('_', ' ')}) - ${getStatusText(emp.currentTask)} - ${emp.happiness.toFixed(0)}% happiness`}
               >
-                <CharacterAvatar role={emp.role} size={22} />
-                <span className="text-[9px] leading-none mt-1 font-semibold" style={{ color: roleColor(emp.role) }}>
+                <div className="w-[22px] h-[22px] rounded-md" style={{ backgroundColor: avatarColor, opacity: deskClass === 'idle' ? 0.55 : 1 }} />
+                <span className="text-[9px] font-semibold mt-1 truncate max-w-full px-0.5" style={{ color: roleColor(emp.role) }}>
                   {emp.name}
                 </span>
                 {emp.currentTask && (
-                  <div className="absolute -bottom-1 left-1 right-1 h-1.5 bg-bg-base/60 overflow-hidden">
-                    <div
-                      className="h-full bg-steel transition-all duration-500"
-                      style={{ width: `${progress}%` }}
-                    />
+                  <div className="absolute bottom-1 left-2 right-2 h-1 bg-ink/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-indigo rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
                   </div>
                 )}
-                <div className="absolute -top-1 -right-1 w-2.5 h-2.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ backgroundColor: emp.happiness > 60 ? '#22C55E' : emp.happiness > 30 ? '#D97706' : '#DC2626' }}
-                />
               </button>
             );
           })}

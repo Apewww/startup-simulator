@@ -46,8 +46,10 @@ interface GameState {
   setScreen: (screen: GameScreen) => void;
   panelOpen: PanelOpenState;
   panelMinimized: PanelOpenState;
+  maximizedPanel: PanelId | null;
   togglePanel: (id: PanelId) => void;
   toggleMinimize: (id: PanelId) => void;
+  setMaximizedPanel: (id: PanelId | null) => void;
   selectedEmployeeId: string | null;
   focusEmployee: (id: string | null) => void;
   togglePause: () => void;
@@ -121,6 +123,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   screen: 'menu',
   panelOpen: { employees: true, features: false, server: false, finance: false },
   panelMinimized: { employees: false, features: false, server: false, finance: false },
+  maximizedPanel: null,
   selectedEmployeeId: null,
   notifications: [],
 
@@ -615,7 +618,16 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   toggleMinimize: (id: PanelId) => set((state) => ({
     panelMinimized: { ...state.panelMinimized, [id]: !state.panelMinimized[id] },
+    maximizedPanel: state.maximizedPanel === id ? null : state.maximizedPanel,
   })),
+
+  setMaximizedPanel: (id) => set((state) => {
+    const updates: Partial<GameState> = { maximizedPanel: id };
+    if (id && state.maximizedPanel && state.maximizedPanel !== id) {
+      updates.panelMinimized = { ...state.panelMinimized, [state.maximizedPanel]: true };
+    }
+    return updates;
+  }),
 
   focusEmployee: (id) => set((state) => ({
     selectedEmployeeId: id,
@@ -709,6 +721,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       isBankrupt: false, negativeCashMonths: 0, screen: 'menu',
       panelOpen: { employees: true, features: false, server: false, finance: false },
       panelMinimized: { employees: false, features: false, server: false, finance: false },
+      maximizedPanel: null,
       selectedEmployeeId: null,
     });
   },

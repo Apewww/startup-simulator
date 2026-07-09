@@ -32,20 +32,20 @@ function GameOverScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-bg-base flex items-center justify-center">
-      <div className="flat-card border-2 border-danger p-10 max-w-lg text-center">
-        <Skull className="w-16 h-16 mx-auto mb-4 text-danger" strokeWidth={1.5} />
-        <h1 className="text-3xl font-bold text-danger mb-2">BANKRUPT</h1>
-        <p className="text-text-secondary mb-6">Your startup has run out of funds.</p>
-        <div className="space-y-2 text-sm text-text-secondary mb-8">
+    <div className="min-h-screen bg-bg flex items-center justify-center">
+      <div className="card border-2 border-red p-10 max-w-lg text-center">
+        <Skull className="w-16 h-16 mx-auto mb-4 text-red" strokeWidth={1.5} />
+        <h1 className="text-3xl font-bold text-red mb-2">BANKRUPT</h1>
+        <p className="text-ink-soft mb-6">Your startup has run out of funds.</p>
+        <div className="space-y-2 text-sm text-ink-soft mb-8">
           <p>Survived: {month} months</p>
           <p>Team size: {employees.length} employees</p>
           <p>Final cash: {formatCash(cash)}</p>
-          {month === 0 && <p className="text-yellow-400 mt-2">Tip: Start with hiring, build features, then manage server costs!</p>}
+          {month === 0 && <p className="text-amber mt-2">Tip: Start with hiring, build features, then manage server costs!</p>}
         </div>
         <button
           onClick={handleRestart}
-          className="px-8 py-3 bg-primary hover:bg-steel text-white font-semibold transition-colors cursor-pointer"
+          className="px-8 py-3 bg-indigo hover:bg-indigo/90 text-white font-semibold rounded-[10px] transition-colors cursor-pointer"
         >
           Restart Game
         </button>
@@ -72,10 +72,10 @@ const TOAST_ICONS: Record<Notification['type'], typeof Info> = {
   error: XCircle,
 };
 const TOAST_COLORS: Record<Notification['type'], string> = {
-  success: '#22C55E',
-  info: '#2563EB',
-  warning: '#D97706',
-  error: '#DC2626',
+  success: '#17A366',
+  info: '#4F5EFF',
+  warning: '#B7791F',
+  error: '#D1453B',
 };
 
 function ToastContainer() {
@@ -88,11 +88,11 @@ function ToastContainer() {
         return (
           <div
             key={n.id}
-            className="pointer-events-auto flex items-center gap-2.5 px-4 py-2.5 border-2 bg-bg-card shadow-lg animate-[slideInRight_180ms_ease-out]"
+            className="pointer-events-auto flex items-center gap-2.5 px-4 py-2.5 border bg-surface shadow-[0_12px_32px_-8px_rgba(20,30,60,0.15)] rounded-[10px] animate-[slideInRight_180ms_ease-out]"
             style={{ borderColor: color, minWidth: 220 }}
           >
             <Icon className="w-4 h-4 shrink-0" style={{ color }} strokeWidth={2} />
-            <span className="text-xs text-text-primary">{n.message}</span>
+            <span className="text-xs text-ink">{n.message}</span>
           </div>
         );
       })}
@@ -131,29 +131,29 @@ function App() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-bg-base text-text-primary overflow-hidden">
+    <div className="flex flex-col h-screen bg-bg text-ink overflow-hidden">
       <HudBar onSave={handleSave} saveMsg={saveMsg} />
 
-      <div className="flex flex-1 min-h-0 relative">
+      <div className="flex flex-1 min-h-0">
         <Dock />
 
         <MainViewport />
 
         {/* Floating window layer */}
-        <div className="fixed inset-0 z-30 pointer-events-none">
-          <FloatingPanel id="employees" index={0} title={employeesPanelMeta.title} icon={employeesPanelMeta.icon} accent={employeesPanelMeta.accent}>
+        <div className="fixed inset-0 pointer-events-none">
+          <FloatingPanel id="employees" index={0} title={employeesPanelMeta.title} icon={employeesPanelMeta.icon} accent="#4F5EFF">
             <EmployeesPanel />
           </FloatingPanel>
 
-          <FloatingPanel id="features" index={1} title={featuresPanelMeta.title} icon={featuresPanelMeta.icon} accent={featuresPanelMeta.accent}>
+          <FloatingPanel id="features" index={1} title={featuresPanelMeta.title} icon={featuresPanelMeta.icon} accent="#4F5EFF">
             <FeaturesPanel />
           </FloatingPanel>
 
-          <FloatingPanel id="server" index={2} title="Server" icon={<Server className="w-4 h-4 text-steel" />} accent="#2563EB">
+          <FloatingPanel id="server" index={2} title="Server" icon={<Server className="w-4 h-4 text-indigo" />} accent="#4F5EFF">
             <ServerPanel />
           </FloatingPanel>
 
-          <FloatingPanel id="finance" index={3} title={financePanelMeta.title} icon={financePanelMeta.icon} accent={financePanelMeta.accent}>
+          <FloatingPanel id="finance" index={3} title={financePanelMeta.title} icon={financePanelMeta.icon} accent="#4F5EFF">
             <FinancePanel />
           </FloatingPanel>
         </div>
@@ -166,7 +166,7 @@ function App() {
       {import.meta.env.DEV && (
         <button
           onClick={toggleDevMode}
-          className={`fixed bottom-24 md:bottom-4 left-4 z-40 px-3 py-1.5 text-xs font-mono transition-colors cursor-pointer ${devMode ? 'bg-yellow-600 text-black' : 'bg-bg-hover text-text-secondary hover:bg-bg-card'}`}
+          className={`fixed bottom-24 md:bottom-4 left-4 z-40 px-3 py-1.5 text-xs font-mono transition-colors cursor-pointer rounded-[8px] ${devMode ? 'bg-amber text-white' : 'bg-surface text-ink-soft border border-border hover:bg-surface-2'}`}
         >
           {devMode ? 'DEV ON' : 'DEV'}
         </button>

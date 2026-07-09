@@ -12,32 +12,24 @@ export function PanelTaskbar() {
   if (openItems.length === 0) return null;
 
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-bg-surface border-t-2 border-border overflow-x-auto">
-      <span className="text-[10px] font-semibold text-text-muted uppercase tracking-widest hidden sm:inline">
-        Windows
-      </span>
+    <div className="h-10 bg-surface border-t border-border flex items-center gap-2 px-4 shrink-0">
       {openItems.map(({ id, label, accent }) => {
         const isMin = panelMinimized[id];
         return (
           <div
             key={id}
-            className="flex items-center gap-1 pl-3 pr-1.5 py-1 border-2 cursor-pointer transition-colors"
-            style={{
-              borderColor: isMin ? '#3D4149' : accent,
-              backgroundColor: isMin ? 'transparent' : `${accent}1A`,
-            }}
+            className={`flex items-center gap-1 px-3 py-[6px] rounded-lg border text-xs font-semibold cursor-pointer transition-colors ${
+              isMin
+                ? 'bg-surface-2 text-ink-soft border-border'
+                : 'bg-indigo-soft text-indigo border-transparent'
+            }`}
             onClick={() => toggleMinimize(id)}
             title={isMin ? 'Restore' : 'Minimize'}
           >
-            <span
-              className="text-xs font-semibold"
-              style={{ color: isMin ? '#9CA3AF' : accent }}
-            >
-              {label}
-            </span>
+            <span>{label}</span>
             <button
               onClick={(e) => { e.stopPropagation(); togglePanel(id); }}
-              className="p-0.5 bg-bg-card hover:bg-danger hover:text-white text-text-muted transition-colors cursor-pointer"
+              className="ml-1 rounded hover:bg-red-soft hover:text-red transition-colors cursor-pointer"
               title="Close"
             >
               <X className="w-3 h-3" />
