@@ -64,11 +64,11 @@ export interface Applicant {
 
 ### Fase Implementasi
 
-| Fase | Isi |
-|---|---|
-| **A** | Backend state + UI dock tab REKRUT + campaign sourcing |
-| **B** | Algoritma negosiasi + dialog simulasi interaktif |
-| **C** | Desk indexing otomatis + level lock pada processWorkforces() + visual lock 🔒 |
+| Fase | Isi | Status |
+|---|---|---|
+| **A** | Backend state + UI dock tab REKRUT + campaign sourcing | ✅ Selesai |
+| **B** | Algoritma negosiasi + dialog simulasi interaktif | ✅ Selesai |
+| **C** | Desk indexing otomatis + level lock pada processWorkforces() + visual lock 🔒 | ⏳ |
 
 ---
 
@@ -135,17 +135,29 @@ export interface Applicant {
 
 ## 4. Checklist
 
-- [ ] `SourcingCampaign` + `Applicant` types
-- [ ] Sourcing campaign (basic/pro/headhunter) dengan timer
-- [ ] Generate applicant random dengan atribut
-- [ ] UI panel rekrutmen + tab dock
-- [ ] Logika negosiasi gaji (mood-based)
+### Theme Fixes
+- [x] Fix `bg-ink text-white` di dark mode (HudBar Save button)
+- [x] Fix speed button group visibility di light theme
+
+### Fase A — Sourcing & Applicant
+- [x] `SourcingCampaign` + `Applicant` types
+- [x] Sourcing campaign (basic/pro/headhunter) dengan timer
+- [x] Generate applicant random dengan atribut (level, speed, salary, mood)
+- [x] UI panel rekrutmen + tab dock
+- [x] Save/load support + DB v5
+- [x] Hapus instant hire dari EmployeesPanel
+
+### Fase B — Negosiasi Gaji
+- [x] Logika negosiasi (mood-based: patient/stubborn/volatile)
+- [x] Batas ronde negosiasi
+- [x] UI input offer + tombol Tawar
+- [x] Response kandidat (hired/rejected/countered)
+- [x] Auto-hire ke employees saat deal
+
+### Fase C — Level Lock (TBD)
 - [ ] Level locking di `processWorkforces()`
 - [ ] Desk indexing otomatis saat hire
 - [ ] Visual lock 🔒 di task assign
-- [ ] Fix `bg-ink text-white` di dark mode (HudBar Save button)
-- [ ] Fix speed button group visibility di light theme
-- [ ] Save/load support + DB v5
 - [ ] Main Menu versi v1.3.3
 - [ ] Build sukses (typecheck + lint)
 

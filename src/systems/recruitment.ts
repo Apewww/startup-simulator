@@ -1,4 +1,4 @@
-import type { Applicant, EmployeeRole, SourcingCampaign } from '../types';
+import type { Applicant, ApplicantMood, EmployeeRole, Employee, SourcingCampaign } from '../types';
 
 const ROLES: EmployeeRole[] = ['Developer', 'Designer', 'Lead_Developer', 'SysAdmin'];
 
@@ -78,3 +78,77 @@ export const CAMPAIGN_DAYS: Record<SourcingCampaign['tier'], number> = {
   pro: 5,
   headhunter: 2,
 };
+
+const MAX_ROUNDS: Record<ApplicantMood, number> = {
+  patient: 4,
+  stubborn: 2,
+  volatile: 1,
+};
+
+const REJECT_CHANCE_BELOW_MIN: Record<ApplicantMood, number> = {
+  patient: 0,
+  stubborn: 0.4,
+  volatile: 0.7,
+};
+
+export interface NegotiationResult {
+  status: 'hired' | 'rejected' | 'countered';
+  message: string;
+  newExpectedSalary?: number;
+}
+
+export function negotiate(applicant: Applicant, offer: number): NegotiationResult {
+  if (applicant.negotiationRounds >= MAX_ROUNDS[applicant.mood]) {
+    return { status: 'rejected', message: 'Tired of negotiating. Goodbye.' };
+  }
+
+  if (offer >= applicant.expectedSalary) {
+    return { status: 'hired', message: 'Deal! When do I start?' };
+  }
+
+  if (offer < applicant.minAcceptableSalary) {
+    const rejectChance = REJECT_CHANCE_BELOW_MIN[applicant.mood];
+    if (Math.random() < rejectChance) {
+      return { status: 'rejected', message: 'That\'s insulting. I\'m out.' };
+    }
+    return { status: 'countered', message: 'Too low. My price stands.', newExpectedSalary: applicant.expectedSalary };
+  }
+
+  // Offer between min and expected → counter offer
+  let reduction: number;
+  switch (applicant.mood) {
+    case 'patient': reduction = 0.15; break;
+    case 'stubborn': reduction = 0.05; break;
+    case 'volatile': reduction = 0.08; break;
+  }
+  const newSalary = Math.round(applicant.expectedSalary * (1 - reduction));
+  const clamped = Math.max(newSalary, applicant.minAcceptableSalary);
+
+  if (clamped === applicant.minAcceptableSalary) {
+    return { status: 'hired', message: 'Fine, you win. I accept.', newExpectedSalary: clamped };
+  }
+  const moodMessages: Record<ApplicantMood, string> = {
+    patient: 'How about we meet in the middle?',
+    stubborn: 'I can come down a little. That\'s my final.',
+    volatile: 'Fine... I\'ll lower it a bit.',
+  };
+  return { status: 'countered', message: moodMessages[applicant.mood], newExpectedSalary: clamped };
+}
+
+let empCounter = 0;
+
+export function applicantToEmployee(applicant: Applicant): Employee {
+  empCounter++;
+  return {
+    id: `emp-hired-${Date.now()}-${empCounter}`,
+    name: applicant.name,
+    role: applicant.role,
+    level: applicant.level,
+    salary: applicant.expectedSalary,
+    happiness: 80,
+    speed: applicant.speed,
+    currentTask: null,
+    taskProgress: 0,
+    resignTicks: 0,
+  };
+}

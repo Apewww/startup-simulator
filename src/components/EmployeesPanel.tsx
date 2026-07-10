@@ -1,9 +1,7 @@
 import { useEffect } from 'react';
-import { Users, UserPlus } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { useGameStore, getComponentsByRole } from '../store/gameStore';
-import type { EmployeeRole, Employee } from '../types';
-
-const ROLES: EmployeeRole[] = ['Developer', 'Designer', 'Lead_Developer', 'SysAdmin'];
+import type { Employee } from '../types';
 
 function formatCash(n: number): string {
   return `$${n.toLocaleString('en-US')}`;
@@ -83,27 +81,15 @@ function EmployeeCard({ employee }: { employee: Employee }) {
 }
 
 export function EmployeesPanel() {
-  const { employees, hireEmployee } = useGameStore();
+  const employees = useGameStore((s) => s.employees);
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap gap-1.5">
-        {ROLES.map((role) => (
-          <button
-            key={role}
-            onClick={() => hireEmployee(role)}
-            className="flex items-center gap-1 px-3 py-1.5 bg-indigo hover:bg-indigo/90 text-white text-[11px] font-semibold rounded-lg transition-all duration-200 active:scale-[0.97] cursor-pointer"
-          >
-            <UserPlus className="w-3 h-3" />
-            {role.replace('_', ' ')}
-          </button>
-        ))}
-      </div>
       {employees.length === 0 ? (
         <div className="text-center py-6 text-ink-soft border border-dashed border-border rounded-lg">
           <Users className="w-8 h-8 mx-auto mb-2 opacity-40" strokeWidth={1.5} />
           <p className="text-xs">No employees yet.</p>
-          <p className="text-[10px] mt-1">Hire your first team member to start producing components!</p>
+          <p className="text-[10px] mt-1">Use the <span className="text-indigo font-semibold">Rekrutmen</span> panel to find and hire talent!</p>
         </div>
       ) : (
         <div className="space-y-1">

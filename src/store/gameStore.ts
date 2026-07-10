@@ -7,7 +7,7 @@ import { getNodeDef, getRackDef } from '../data/servers';
 import { calculateNodeLoads, calcMonthlyServerCost } from '../systems/server';
 import { getTrafficStats } from '../systems/traffic';
 import { calculateRevenue } from '../systems/monetization';
-import { generateApplicant, CAMPAIGN_COST, CAMPAIGN_DAYS } from '../systems/recruitment';
+import { generateApplicant, CAMPAIGN_COST, CAMPAIGN_DAYS, negotiate, applicantToEmployee } from '../systems/recruitment';
 
 export type GameSpeed = 1 | 2 | 4;
 export const TICKS_PER_MONTH = 30;
@@ -105,6 +105,7 @@ interface GameState {
   startSourcing: (tier: SourcingCampaign['tier']) => void;
   cancelSourcing: () => void;
   dismissApplicant: (id: string) => void;
+  negotiateSalary: (applicantId: string, offer: number) => void;
   restartGame: () => void;
 }
 
@@ -325,10 +326,14 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (newCampaign) {
       newCampaign = { ...newCampaign, daysLeft: newCampaign.daysLeft - 1 };
       if (newCampaign.daysLeft <= 0) {
-        const applicant = generateApplicant(newCampaign);
-        newApplicants.push(applicant);
+        const count = newCampaign.tier === 'basic' ? 1 : newCampaign.tier === 'pro' ? 2 + Math.floor(Math.random() * 2) : 3 + Math.floor(Math.random() * 3);
+        const batch: Applicant[] = [];
+        for (let i = 0; i < count; i++) {
+          batch.push(generateApplicant(newCampaign));
+        }
+        newApplicants.push(...batch);
         newCampaign = null;
-        get().addNotification(`New applicant: ${applicant.name} (${applicant.role.replace('_', ' ')})`, 'info');
+        get().addNotification(`${count} new applicant${count > 1 ? 's' : ''} arrived`, 'info');
       }
     }
 
@@ -412,6 +417,38 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   dismissApplicant: (id) => {
     set((state) => ({ applicants: state.applicants.filter(a => a.id !== id) }));
+  },
+
+  negotiateSalary: (applicantId, offer) => {
+    const state = get();
+    const idx = state.applicants.findIndex(a => a.id === applicantId);
+    if (idx === -1) return;
+    const app = state.applicants[idx];
+    const result = negotiate(app, offer);
+    const updated = { ...app, negotiationRounds: app.negotiationRounds + 1 };
+
+    if (result.status === 'hired') {
+      updated.expectedSalary = result.newExpectedSalary ?? offer;
+      updated.status = 'hired';
+      const emp = applicantToEmployee(updated);
+      const newApplicants = state.applicants.map((a, i) => i === idx ? updated : a);
+      const newEmployees = [...state.employees, emp];
+      get().addNotification(`Hired ${emp.name} (${emp.role.replace('_', ' ')}) — $${emp.salary.toLocaleString('en-US')}/mo`, 'success');
+      set({
+        applicants: newApplicants,
+        employees: newEmployees,
+        totalSalary: calcTotalSalary(newEmployees),
+      });
+    } else if (result.status === 'rejected') {
+      updated.status = 'rejected';
+      const newApplicants = state.applicants.map((a, i) => i === idx ? updated : a);
+      get().addNotification(`${app.name} rejected offer: ${result.message}`, 'warning');
+      set({ applicants: newApplicants });
+    } else {
+      updated.expectedSalary = result.newExpectedSalary ?? app.expectedSalary;
+      const newApplicants = state.applicants.map((a, i) => i === idx ? updated : a);
+      set({ applicants: newApplicants });
+    }
   },
 
   selectProduct: (productId: string) => {
