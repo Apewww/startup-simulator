@@ -48,14 +48,14 @@ export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps
 
       <div className="flex-1" />
 
-      <div className="flex gap-1 bg-surface-2 border border-border rounded-lg p-[3px]">
+      <div className="flex gap-1 bg-surface-2 border border-ink/10 rounded-lg p-[3px] shadow-sm">
         <button onClick={togglePause}
-          className={`border-none bg-transparent px-[10px] py-[5px] text-xs font-semibold rounded-md cursor-pointer font-sans ${isPaused ? 'bg-indigo text-white' : 'text-ink-soft'}`}>
+          className={`border-none px-[10px] py-[5px] text-xs font-semibold rounded-md cursor-pointer font-sans transition-colors ${isPaused ? 'bg-indigo text-white' : 'text-ink bg-transparent hover:bg-ink/[0.06]'}`}>
           {isPaused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
         </button>
         {([1, 2, 4] as const).map((s) => (
           <button key={s} onClick={() => setSpeed(s)}
-            className={`border-none bg-transparent px-[10px] py-[5px] text-xs font-semibold rounded-md cursor-pointer font-sans ${speed === s ? 'bg-indigo text-white' : 'text-ink-soft'}`}>
+            className={`border-none px-[10px] py-[5px] text-xs font-semibold rounded-md cursor-pointer font-sans transition-colors ${speed === s ? 'bg-indigo text-white' : 'text-ink bg-transparent hover:bg-ink/[0.06]'}`}>
             {s}x
           </button>
         ))}
@@ -64,7 +64,7 @@ export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps
       <button onClick={onToggleTheme} className="bg-surface text-ink-soft border border-border hover:bg-surface-2 transition-colors px-3 py-2 rounded-lg cursor-pointer font-sans" title={darkMode ? 'Light Mode' : 'Dark Mode'}>
         {darkMode ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
       </button>
-      <button onClick={onSave} className="bg-ink text-white border-none px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer font-sans">
+      <button onClick={onSave} className="bg-indigo text-white border-none px-4 py-2 rounded-lg text-xs font-semibold cursor-pointer font-sans">
         <Save className="w-3.5 h-3.5 inline-block mr-1" /> Simpan
       </button>
       {saveMsg && <span className="text-xs text-green ml-1">{saveMsg}</span>}

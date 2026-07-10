@@ -49,7 +49,7 @@ export function MainMenu() {
         </button>
       </div>
 
-      <div className="absolute bottom-6 text-xs text-ink-soft font-mono">v1.3.2</div>
+      <div className="absolute bottom-6 text-xs text-ink-soft font-mono">v1.3.3</div>
     </div>
   );
 }
