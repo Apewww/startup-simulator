@@ -5,5 +5,6 @@ export type {
   ServerRack, RackSlot, RackTier, RackDef,
   Plot, RentedServer, RentalType,
 } from './server';
-export type { PlatformFeature, ComponentRequirement } from './feature';
+export type { PlatformFeature, ComponentRequirement, FeatureGroup } from './feature';
+export type { GameEvent, EventType, EventEffects } from './event';
 export type { Company } from './company';

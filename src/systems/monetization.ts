@@ -26,10 +26,18 @@ export function calculateSubscriptionRevenue(users: number, features: PlatformFe
   return Math.round(users * 2);
 }
 
-export function calculateRevenue(users: number, features: PlatformFeature[], racks: ServerRack[]): RevenueBreakdown {
+export function calculateRevenue(
+  users: number,
+  features: PlatformFeature[],
+  racks: ServerRack[],
+  cohesionMult: number = 1,
+  synergyRevenueBonus: number = 0,
+): RevenueBreakdown {
   const penalty = hasCrashedNodes(racks) ? 0.5 : 1.0;
-  const ads = Math.round((users / 100) * 2 * penalty);
+  const effectiveUsers = Math.round(users * cohesionMult);
+  const ads = Math.round((effectiveUsers / 100) * 2 * penalty);
   const hasSubscription = hasActivePaymentGateway(features);
-  const subscription = hasSubscription ? Math.round(users * 2) : 0;
+  const subBase = hasSubscription ? Math.round(effectiveUsers * 2) : 0;
+  const subscription = Math.round(subBase * (1 + synergyRevenueBonus));
   return { ads, subscription, total: ads + subscription, hasSubscription, uptimePenalty: penalty };
 }

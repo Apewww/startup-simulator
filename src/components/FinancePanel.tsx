@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { DollarSign, TrendingUp, TrendingDown, Users, Server, BarChart3, Handshake } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
-import { getTrafficStats } from '../systems/traffic';
+import { getPlatformStats } from '../systems/platform';
 import { calcMonthlyServerCost } from '../systems/server';
 import { calculateRevenue } from '../systems/monetization';
 import { CashFlowChart } from './CashFlowChart';
@@ -22,13 +22,13 @@ function fmtStat(label: string, value: string, icon: React.ReactNode) {
 }
 
 export function FinancePanel() {
-  const { features, totalSalary, racks, rentedServers, month, cash, employees, cashFlowHistory, pendingFunding, fundingRounds } = useGameStore();
+  const { features, totalSalary, racks, rentedServers, month, cash, employees, cashFlowHistory, pendingFunding, fundingRounds, currentUsers, events, selectedProduct } = useGameStore();
   const [chartOpen, setChartOpen] = useState(false);
   const [fundingOpen, setFundingOpen] = useState(false);
-  const trafficStats = getTrafficStats(features);
+  const platformStats = getPlatformStats(features, events, selectedProduct);
   const serverCost = (racks.length > 0 || rentedServers.length > 0) ? calcMonthlyServerCost(racks, rentedServers) : 0;
   const revenue = racks.length > 0 || features.some((f) => f.level > 0)
-    ? calculateRevenue(trafficStats.users, features, racks)
+    ? calculateRevenue(currentUsers, features, racks)
     : { ads: 0, subscription: 0, total: 0, hasSubscription: false, uptimePenalty: 1 };
 
   const net = revenue.total - totalSalary - serverCost;
@@ -73,8 +73,10 @@ export function FinancePanel() {
 
           <div className="pt-2 border-t border-border space-y-1">
             {fmtStat('Cash on Hand', formatCash(cash), <DollarSign className="w-3 h-3" />)}
-            {fmtStat('Users', trafficStats.users.toLocaleString(), <Users className="w-3 h-3" />)}
-            {fmtStat('RPS', trafficStats.rps.toLocaleString(), <Server className="w-3 h-3" />)}
+            {fmtStat('Current Users', currentUsers.toLocaleString(), <Users className="w-3 h-3" />)}
+            {fmtStat('Target Users', platformStats.targetUsers.toLocaleString(), <TrendingUp className="w-3 h-3" />)}
+            {fmtStat('Effective RPS', platformStats.effectiveRps.toLocaleString(), <Server className="w-3 h-3" />)}
+            {fmtStat('Platform Health', `${Math.round(platformStats.cohesionScore * 100)}%`, <BarChart3 className="w-3 h-3" />)}
           </div>
 
           <div className="pt-1 border-t border-border space-y-0.5">

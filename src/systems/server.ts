@@ -1,5 +1,10 @@
-import type { ServerRack, RentedServer } from '../types';
+import type { ServerRack, RentedServer, ServerNode } from '../types';
 import { getNodeDef } from '../data/servers';
+
+const SCALE_CAPS = [1, 1.5, 2, 2.5, 3];
+const SCALE_HEAT = [1, 2, 3.5, 5.5, 8];
+const SCALE_POWER = [1, 1.5, 2, 3, 4.5];
+const SCALE_COST = [1, 1.2, 1.5, 2, 3];
 
 export interface ServerStats {
   totalWebCapacity: number;
@@ -10,6 +15,33 @@ export interface ServerStats {
   totalMonthlyCost: number;
   activeWebCount: number;
   rentedCapacity: number;
+}
+
+export interface NodeLoadResult {
+  racks: ServerRack[];
+  rentedServers: RentedServer[];
+}
+
+function getScaleMultipliers(scaleLevel: number): { cap: number; heat: number; power: number; cost: number } {
+  const idx = Math.min(Math.max(scaleLevel - 1, 0), 4);
+  return { cap: SCALE_CAPS[idx], heat: SCALE_HEAT[idx], power: SCALE_POWER[idx], cost: SCALE_COST[idx] };
+}
+
+export function applyNodeScaling(node: ServerNode): {
+  effectiveCapacity: number;
+  effectiveHeat: number;
+  effectivePower: number;
+  effectiveMonthlyCost: number;
+} {
+  const def = getNodeDef(node.typeId);
+  if (!def) return { effectiveCapacity: 0, effectiveHeat: 0, effectivePower: 0, effectiveMonthlyCost: 0 };
+  const s = getScaleMultipliers(node.scaleLevel);
+  return {
+    effectiveCapacity: Math.round(def.capacity * s.cap),
+    effectiveHeat: Math.round(def.heat * s.heat),
+    effectivePower: Math.round(def.power * s.power),
+    effectiveMonthlyCost: Math.round(def.monthlyCost * s.cost),
+  };
 }
 
 export function calcServerStats(racks: ServerRack[], rentedServers: RentedServer[] = []): ServerStats {
@@ -33,30 +65,39 @@ export function calcServerStats(racks: ServerRack[], rentedServers: RentedServer
       const node = slot.node;
       if (!node || node.status === 'offline' || node.status === 'crashed') continue;
 
-      totalMonthlyCost += node.monthlyCost;
-      totalPowerDraw += node.power;
+      const scaled = applyNodeScaling(node);
+
+      if (node.category === 'cooling') {
+        totalCoolingProvided += node.capacity;
+      }
+
+      if (node.category !== 'security' && node.category !== 'router') {
+        totalMonthlyCost += scaled.effectiveMonthlyCost;
+        totalPowerDraw += scaled.effectivePower;
+      } else {
+        totalMonthlyCost += node.monthlyCost;
+        totalPowerDraw += node.power;
+      }
 
       if (node.category === 'web_server') {
-        if (node.status === 'active') {
-          totalWebCapacity += node.capacity;
+        if (node.status === 'active' || node.status === 'overloaded') {
+          totalWebCapacity += scaled.effectiveCapacity;
           activeWebCount++;
         }
       } else if (node.category === 'caching') {
         if (node.status === 'active') {
-          totalCacheOffload += node.capacity;
+          totalCacheOffload += scaled.effectiveCapacity;
         }
       } else if (node.category === 'database') {
         if (node.status === 'active') {
-          totalDbCapacity += node.capacity;
+          totalDbCapacity += scaled.effectiveCapacity;
         }
-      } else if (node.category === 'cooling') {
-        totalCoolingProvided += node.capacity;
       }
     }
 
     const rackCoolingFromNodes = rack.slots
       .filter(s => s.node?.category === 'cooling' && s.node?.status !== 'crashed')
-      .reduce((sum, s) => sum + (s.node?.capacity ?? 0), 0);
+      .reduce((sum, s) => sum + s.node!.capacity, 0);
     rack.coolingCapacity = getRackBaseCooling(rack.tier) + rackCoolingFromNodes;
   }
 
@@ -72,13 +113,20 @@ function getRackBaseCooling(tier: string): number {
   }
 }
 
-export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, rentedServers: RentedServer[] = [], sysAdminLevel: number = 0): ServerRack[] {
+export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, rentedServers: RentedServer[] = [], sysAdminLevel: number = 0): NodeLoadResult {
   const stats = calcServerStats(racks, rentedServers);
   const rpsAfterCache = Math.max(0, incomingRPS - stats.totalCacheOffload);
   const totalWeb = stats.totalWebCapacity + stats.rentedCapacity;
   const ownedRPS = totalWeb > 0 ? rpsAfterCache * (stats.totalWebCapacity / totalWeb) : rpsAfterCache;
+  const rentedRPS = totalWeb > 0 ? rpsAfterCache * (stats.rentedCapacity / totalWeb) : 0;
 
-  return racks.map(rack => {
+  const updatedRented = rentedServers.map(r => {
+    if (r.capacityRps <= 0) return { ...r, load: 0 };
+    const load = Math.round((rentedRPS / r.capacityRps) * 100);
+    return { ...r, load: Math.max(0, Math.min(200, load)) };
+  });
+
+  const updatedRacks: ServerRack[] = racks.map(rack => {
     let rackHeat = 0;
     let rackCooling = rack.coolingCapacity;
 
@@ -87,9 +135,11 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
       if (!node) return slot;
 
       let newLoad = node.load;
-      let newStatus = node.status;
+      let newStatus = node.status as typeof node.status;
       let newCrashTicks = node.crashTicks;
       let newRecoveryTicks = node.recoveryTicks;
+
+      const scaled = applyNodeScaling(node);
 
       if (node.status === 'crashed') {
         const recoveryThreshold = Math.max(3, 10 - sysAdminLevel * 2);
@@ -111,14 +161,11 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
       }
 
       if (node.category === 'web_server') {
-        const activeCount = Math.max(1, racks.reduce((c, r) => {
-          const def = getNodeDef(node.typeId);
-          if (!def) return c;
-          return c + r.slots.filter(s =>
+        const activeCount = Math.max(1, racks.reduce((c, r) =>
+          c + r.slots.filter(s =>
             s.node?.category === 'web_server' &&
-            s.node?.status === 'active'
-          ).length;
-        }, 0));
+            (s.node?.status === 'active' || s.node?.status === 'overloaded')
+          ).length, 0));
 
         const rpsPerServer = activeCount > 0 ? ownedRPS / activeCount : 0;
         newLoad = node.capacity > 0 ? (rpsPerServer / node.capacity) * 100 : 0;
@@ -154,11 +201,11 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
         }
       }
 
-      if (node.category === 'caching' || node.category === 'storage' || node.category === 'cooling') {
+      if (node.category === 'caching' || node.category === 'storage' || node.category === 'cooling' || node.category === 'security') {
         newLoad = (node.status === 'active') ? 50 : 0;
       }
 
-      rackHeat += node.heat;
+      rackHeat += scaled.effectiveHeat;
 
       return { ...slot, node: { ...node, load: Math.round(newLoad), status: newStatus, crashTicks: newCrashTicks, recoveryTicks: newRecoveryTicks } };
     });
@@ -186,11 +233,13 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
       slots: newSlots,
       coolingUsed: rackHeat,
       coolingCapacity: rackCooling,
-      powerDraw: newSlots.reduce((sum, s) => sum + (s.node?.power ?? 0), 0),
+      powerDraw: newSlots.reduce((sum, s) => sum + (s.node ? applyNodeScaling(s.node).effectivePower : 0), 0),
       isOverheating,
       overheatTicks: newOverheatTicks,
     };
   });
+
+  return { racks: updatedRacks, rentedServers: updatedRented };
 }
 
 export function calcMonthlyServerCost(racks: ServerRack[], rentedServers: RentedServer[] = []): number {
@@ -198,7 +247,12 @@ export function calcMonthlyServerCost(racks: ServerRack[], rentedServers: Rented
   for (const rack of racks) {
     total += rack.monthlyCost;
     for (const slot of rack.slots) {
-      if (slot.node) {
+      if (!slot.node) continue;
+      const scaled = applyNodeScaling(slot.node);
+      if (slot.node.category !== 'security' && slot.node.category !== 'router') {
+        total += scaled.effectiveMonthlyCost;
+        total += scaled.effectivePower * 2;
+      } else {
         total += slot.node.monthlyCost;
         total += slot.node.power * 2;
       }

@@ -1,4 +1,4 @@
-﻿import { Plus, MapPin, ExternalLink } from 'lucide-react';
+﻿import { Plus, MapPin, ExternalLink, Minimize2 } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 
 export function LandMap() {
@@ -42,6 +42,14 @@ export function LandMap() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[9px] text-ink-soft">{plotRacks.length} racks · {totalNodes} nodes</span>
+                    {plotRacks.length > 0 && (
+                      <button
+                        onClick={() => useGameStore.getState().unplaceAllRacks(plot.id)}
+                        className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1 bg-red-soft text-red border border-red/30 rounded-lg hover:bg-red hover:text-white transition-colors cursor-pointer"
+                      >
+                        <Minimize2 className="w-3 h-3" />
+                      </button>
+                    )}
                     <button
                       onClick={() => setActiveView({ type: 'server', plotId: plot.id })}
                       className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1 bg-indigo hover:bg-indigo/90 text-white rounded-lg transition-colors cursor-pointer"

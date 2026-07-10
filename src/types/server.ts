@@ -3,10 +3,13 @@ export type NodeTypeId =
   | 'db_t1' | 'db_t2'
   | 'cache_t1' | 'cache_t2'
   | 'router'
-  | 'cooling_fan' | 'industrial_fan'
-  | 'storage';
+  | 'cooling_fan' | 'industrial_fan' | 'liquid_cooling'
+  | 'storage'
+  | 'firewall_t1' | 'firewall_t2'
+  | 'rate_limiter'
+  | 'load_balancer';
 
-export type NodeCategory = 'web_server' | 'database' | 'caching' | 'router' | 'cooling' | 'storage';
+export type NodeCategory = 'web_server' | 'database' | 'caching' | 'router' | 'cooling' | 'storage' | 'security';
 
 export interface ServerNode {
   id: string;
@@ -22,6 +25,7 @@ export interface ServerNode {
   load: number;
   crashTicks: number;
   recoveryTicks: number;
+  scaleLevel: number;
 }
 
 export type RackTier = 'basic' | 'advanced' | 'enterprise';
@@ -71,6 +75,7 @@ export interface RentedServer {
   storage: number;
   monthlyCost: number;
   uptime: number;
+  load: number;
 }
 
 export interface NodeDef {

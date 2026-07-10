@@ -3,9 +3,11 @@ import { useGameStore } from '../store/gameStore';
 import type { ServerRack, ServerNode } from '../types';
 import { ServerShop } from './ServerShop';
 import { LandMap } from './LandMap';
+import { Plus, Minus } from 'lucide-react';
 
 function NodeSlot({ node, rackId, slotIndex }: { node: ServerNode | null; rackId: string; slotIndex: number }) {
   const sellNode = useGameStore(s => s.sellNode);
+  const setNodeScale = useGameStore(s => s.setNodeScale);
 
   if (!node) {
     return (
@@ -25,7 +27,7 @@ function NodeSlot({ node, rackId, slotIndex }: { node: ServerNode | null; rackId
   };
 
   return (
-    <div className="border border-border rounded-lg bg-surface-2 p-2">
+    <div className="border border-border rounded-lg bg-surface-2 p-2 group">
       <div className="flex justify-between items-start mb-1">
         <div className="flex items-center gap-1">
           <span className="text-xs font-semibold text-ink">{node.label}</span>
@@ -56,16 +58,40 @@ function NodeSlot({ node, rackId, slotIndex }: { node: ServerNode | null; rackId
         <span>Power: {node.power}</span>
         <span>$ {node.monthlyCost}/mo</span>
       </div>
+
+      {(node.category === 'web_server' || node.category === 'database' || node.category === 'caching') && (
+        <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-border opacity-0 group-hover:opacity-100 transition-opacity">
+          <span className="text-[9px] text-ink-soft">Scale {node.scaleLevel}/5</span>
+          <div className="flex gap-1">
+            <button
+              onClick={() => setNodeScale(rackId, slotIndex, -1)}
+              disabled={node.scaleLevel <= 1}
+              className="p-0.5 rounded bg-surface-2 border border-border hover:bg-ink/5 disabled:opacity-30 cursor-pointer"
+            >
+              <Minus className="w-2.5 h-2.5 text-ink-soft" />
+            </button>
+            <button
+              onClick={() => setNodeScale(rackId, slotIndex, 1)}
+              disabled={node.scaleLevel >= 5}
+              className="p-0.5 rounded bg-surface-2 border border-border hover:bg-ink/5 disabled:opacity-30 cursor-pointer"
+            >
+              <Plus className="w-2.5 h-2.5 text-ink-soft" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 export function RackCard({ rack }: { rack: ServerRack }) {
   const sellRack = useGameStore(s => s.sellRack);
+  const clearRack = useGameStore(s => s.clearRack);
 
   const coolingPct = rack.coolingCapacity > 0
     ? Math.round((rack.coolingUsed / rack.coolingCapacity) * 100)
     : 0;
+  const hasNodes = rack.slots.some(s => s.node !== null);
 
   return (
     <div className={`card p-4 ${rack.isOverheating ? 'border-red bg-red-soft' : ''}`}>
@@ -89,14 +115,24 @@ export function RackCard({ rack }: { rack: ServerRack }) {
         ))}
       </div>
 
-      <button
-        onClick={() => sellRack(rack.id)}
-        disabled={rack.slots.some(s => s.node !== null)}
-        className="text-[11px] font-semibold px-3 py-1.5 bg-surface-2 hover:bg-red-soft hover:text-red border border-border rounded-lg disabled:opacity-40 transition-colors cursor-pointer"
-        title={rack.slots.some(s => s.node !== null) ? 'Remove all nodes first' : `Sell rack (refund $${Math.floor(rack.price * 0.5)})`}
-      >
-        Sell Rack
-      </button>
+      <div className="flex gap-2">
+        {hasNodes && (
+          <button
+            onClick={() => clearRack(rack.id)}
+            className="text-[11px] font-semibold px-3 py-1.5 bg-surface-2 hover:bg-amber-soft hover:text-amber border border-border rounded-lg transition-colors cursor-pointer"
+          >
+            Clear Nodes
+          </button>
+        )}
+        <button
+          onClick={() => sellRack(rack.id)}
+          disabled={hasNodes && rack.plotId !== null}
+          className="text-[11px] font-semibold px-3 py-1.5 bg-surface-2 hover:bg-red-soft hover:text-red border border-border rounded-lg disabled:opacity-40 transition-colors cursor-pointer"
+          title={hasNodes && rack.plotId !== null ? 'Clear nodes first' : `Sell rack (refund $${Math.floor(rack.price * 0.5)})`}
+        >
+          Sell
+        </button>
+      </div>
     </div>
   );
 }
@@ -108,13 +144,13 @@ export function ServerPanel() {
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center gap-2">
         <h2 className="text-sm font-bold text-ink">Server Infrastructure</h2>
         <button
           onClick={() => setShopOpen(o => !o)}
           className="text-[11px] font-semibold px-3 py-1.5 bg-indigo hover:bg-indigo/90 text-white rounded-lg transition-colors cursor-pointer"
         >
-          {shopOpen ? 'Close Shop' : 'Shop'}
+          {shopOpen ? 'Close' : 'Shop'}
         </button>
       </div>
 
@@ -133,17 +169,28 @@ export function ServerPanel() {
           </div>
         ) : (
           <div className="space-y-1.5">
-            {rentedServers.map(r => (
-              <div key={r.id} className="flex items-center justify-between card px-3 py-2">
-                <div>
-                  <span className="text-xs font-semibold text-ink">{r.label}</span>
-                  <span className="text-[11px] text-ink-soft ml-2">{r.capacityRps} RPS · {r.storage} st · {Math.round(r.uptime * 100)}%</span>
+            {rentedServers.map(r => {
+              const loadColor = r.load > 90 ? 'bg-red' : r.load > 70 ? 'bg-amber' : 'bg-green';
+              return (
+                <div key={r.id} className="card px-3 py-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <div>
+                      <span className="text-xs font-semibold text-ink">{r.label}</span>
+                      <span className="text-[11px] text-ink-soft ml-2">{r.capacityRps} RPS · {r.storage} st · {Math.round(r.uptime * 100)}%</span>
+                    </div>
+                    <button onClick={() => cancelRental(r.id)} className="text-[11px] text-red hover:text-red/80 font-semibold cursor-pointer">
+                      Cancel
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 bg-border rounded h-1.5">
+                      <div className={`h-1.5 rounded transition-all ${loadColor}`} style={{ width: `${Math.min(r.load, 100)}%` }} />
+                    </div>
+                    <span className={`text-[10px] font-mono ${r.load > 90 ? 'text-red' : 'text-ink-soft'}`}>{r.load}%</span>
+                  </div>
                 </div>
-                <button onClick={() => cancelRental(r.id)} className="text-[11px] text-red hover:text-red/80 font-semibold cursor-pointer">
-                  Cancel
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

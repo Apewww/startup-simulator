@@ -5,6 +5,7 @@ import { ProductSelect } from './components/ProductSelect';
 import { PlayerSetup } from './components/PlayerSetup';
 import { ServerPanel } from './components/ServerPanel';
 import { DevPanel } from './components/DevPanel';
+import { EventBanner } from './components/EventBanner';
 import { HudBar } from './components/HudBar';
 import { Dock } from './components/Dock';
 import { MainViewport } from './components/MainViewport';
@@ -15,7 +16,6 @@ import { FeaturesPanel, featuresPanelMeta } from './components/FeaturesPanel';
 import { FinancePanel, financePanelMeta } from './components/FinancePanel';
 import { RecruitmentPanel, recruitmentPanelMeta } from './components/RecruitmentPanel';
 import { Server, Skull, CheckCircle, Info, AlertTriangle, XCircle } from 'lucide-react';
-import { getTrafficStats } from './systems/traffic';
 import { saveGame } from './systems/saveLoad';
 import { db } from './db/gameDB';
 
@@ -33,9 +33,8 @@ function GameOverScreen() {
   const cash = useGameStore((s) => s.cash);
   const month = useGameStore((s) => s.month);
   const employees = useGameStore((s) => s.employees);
-  const features = useGameStore((s) => s.features);
   const racks = useGameStore((s) => s.racks);
-  const trafficStats = features.length > 0 ? getTrafficStats(features) : { users: 0, rps: 0, totalTraffic: 0 };
+  const currentUsers = useGameStore((s) => s.currentUsers);
 
   const handleRestart = async () => {
     await db.saves.delete(1);
@@ -59,8 +58,8 @@ function GameOverScreen() {
             <div className="text-lg font-bold text-red">{employees.length} people</div>
           </div>
           <div className="bg-surface-2 rounded-lg p-3 border border-border">
-            <div className="text-[10px] text-ink-soft font-semibold uppercase tracking-wider">Peak Users</div>
-            <div className="text-lg font-bold text-ink">{formatCompact(trafficStats.users)}</div>
+            <div className="text-[10px] text-ink-soft font-semibold uppercase tracking-wider">Users</div>
+            <div className="text-lg font-bold text-ink">{formatCompact(currentUsers)}</div>
           </div>
           <div className="bg-surface-2 rounded-lg p-3 border border-border">
             <div className="text-[10px] text-ink-soft font-semibold uppercase tracking-wider">Servers</div>
@@ -214,6 +213,7 @@ function App() {
         </button>
       )}
       <DevPanel />
+      <EventBanner />
     </div>
   );
 }

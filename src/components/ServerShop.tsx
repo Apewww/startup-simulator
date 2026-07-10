@@ -1,4 +1,4 @@
-﻿import { Server, Cpu, Database, Zap, Router, Snowflake, HardDrive, Cloud, X } from 'lucide-react';
+﻿import { Server, Cpu, Database, Zap, Router, Snowflake, HardDrive, Shield, Cloud, X } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import { RACK_TIERS, NODE_DEFS } from '../data/servers';
 import type { NodeCategory, RentalType } from '../types';
@@ -10,6 +10,7 @@ const CATEGORY_ICON: Record<NodeCategory, typeof Cpu> = {
   router: Router,
   cooling: Snowflake,
   storage: HardDrive,
+  security: Shield,
 };
 
 const RENTALS: { type: RentalType; label: string; capacity: number; storage: number; cost: number; note: string }[] = [

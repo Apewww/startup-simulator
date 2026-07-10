@@ -1,12 +1,10 @@
 import { Handshake, TrendingUp, Banknote } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
-import { getTrafficStats } from '../systems/traffic';
 import { calculateRevenue } from '../systems/monetization';
 
 export function FundingPanel() {
-  const { fundingRounds, pendingFunding, acceptFunding, declineFunding, features, month } = useGameStore();
-  const traffic = getTrafficStats(features);
-  const revenue = features.length > 0 ? calculateRevenue(traffic.users, features, []) : { total: 0 };
+  const { fundingRounds, pendingFunding, acceptFunding, declineFunding, features, month, currentUsers } = useGameStore();
+  const revenue = features.length > 0 ? calculateRevenue(currentUsers, features, []) : { total: 0 };
 
   return (
     <div className="space-y-3">
@@ -54,7 +52,7 @@ export function FundingPanel() {
         <div className="space-y-1 text-[11px]">
           <div className="flex justify-between">
             <span className="text-ink-soft">Users</span>
-            <span className="font-mono text-ink">{traffic.users.toLocaleString()}</span>
+            <span className="font-mono text-ink">{currentUsers.toLocaleString()}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-ink-soft">Revenue</span>

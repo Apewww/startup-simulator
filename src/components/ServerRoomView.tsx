@@ -11,6 +11,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   router: '#8B5CF6',
   cooling: '#4F5EFF',
   storage: '#EC4899',
+  security: '#D1453B',
 };
 
 let zCounter = 100;
@@ -18,6 +19,7 @@ let zCounter = 100;
 function InventoryPanel({ onClose }: { onClose: () => void }) {
   const racks = useGameStore((s) => s.racks);
   const inventoryNodes = useGameStore((s) => s.inventoryNodes);
+  const activeView = useGameStore((s) => s.activeView);
   const [minimized, setMinimized] = useState(false);
   const [maximized, setMaximized] = useState(false);
   const [pos, setPos] = useState({ x: Math.max(0, window.innerWidth - 380), y: 80 });
@@ -87,7 +89,9 @@ function InventoryPanel({ onClose }: { onClose: () => void }) {
                 <div key={rack.id} draggable
                   onDragStart={(e) => handleRackDragStart(e, rack.id)}
                   onDragEnd={handleRackDragEnd}
-                  className="drag-item flex items-center gap-2 px-2 py-1.5 bg-surface-2 border border-border rounded-lg cursor-grab active:cursor-grabbing hover:border-indigo transition-colors">
+                  onClick={() => { if (activeView.type === 'server') useGameStore.getState().autoPlaceRack(rack.id, activeView.plotId); }}
+                  className="drag-item flex items-center gap-2 px-2 py-1.5 bg-surface-2 border border-border rounded-lg cursor-pointer hover:border-indigo transition-colors active:bg-indigo-soft"
+                  title="Click to auto-place on grid">
                   <GripVertical className="w-3 h-3 text-ink-soft shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold truncate text-ink">{rack.label}</div>
@@ -111,13 +115,23 @@ function InventoryPanel({ onClose }: { onClose: () => void }) {
 
         {inventoryNodes.length > 0 && (
           <div>
-            <div className="text-[10px] font-semibold text-indigo mb-1">NODES ({inventoryNodes.length})</div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[10px] font-semibold text-indigo">NODES ({inventoryNodes.length})</span>
+              <button
+                onClick={() => useGameStore.getState().clearAllNodes()}
+                className="text-[9px] font-semibold px-1.5 py-0.5 bg-amber-soft text-amber border border-amber/30 rounded hover:bg-amber hover:text-white transition-colors cursor-pointer"
+              >
+                Clear
+              </button>
+            </div>
             <div className="space-y-1">
               {inventoryNodes.map(node => (
                 <div key={node.id} draggable
                   onDragStart={(e) => handleNodeDragStart(e, node.id)}
                   onDragEnd={handleNodeDragEnd}
-                  className="flex items-center gap-2 px-2 py-1.5 bg-surface-2 border border-border rounded-lg cursor-grab active:cursor-grabbing hover:border-indigo transition-colors">
+                  onClick={() => useGameStore.getState().autoPlaceNode(node.id)}
+                  className="flex items-center gap-2 px-2 py-1.5 bg-surface-2 border border-border rounded-lg cursor-pointer hover:border-indigo transition-colors active:bg-indigo-soft"
+                  title="Click to auto-place in first empty slot">
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CATEGORY_COLORS[node.category] || '#666' }} />
                   <span className="font-semibold text-ink flex-1">{node.label}</span>
                   <span className="text-[9px] text-ink-soft">{node.heat}h · {node.power}pw</span>
@@ -158,11 +172,20 @@ function RackSlotView({ rackId, onClose }: { rackId: string; onClose: () => void
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div>
             <h3 className="text-sm font-bold text-ink">{rack.label}</h3>
-            <div className="text-[11px] text-ink-soft mt-0.5 flex gap-3">
+            <div className="text-[11px] text-ink-soft mt-0.5 flex gap-3 items-center">
               <span>{rack.tier} · {rack.maxSlots} slots</span>
               <span className="text-indigo">Cool {rack.coolingUsed}/{rack.coolingCapacity}</span>
               <span className="text-amber">{rack.powerDraw}pw</span>
-              {rack.isOverheating && <span className="text-red">OVERHEAT!</span>}
+              {rack.slots.some(s => s.node) && (
+                <button
+                  onClick={() => { useGameStore.getState().clearRack(rack.id); }}
+                  className="text-[9px] px-1.5 py-0.5 bg-amber-soft text-amber border border-amber/30 rounded hover:bg-amber hover:text-white transition-colors cursor-pointer ml-1"
+                  title="Clear all nodes from this rack"
+                >
+                  Clear Nodes
+                </button>
+              )}
+              {rack.isOverheating && <span className="text-red font-bold ml-1">OVERHEAT!</span>}
             </div>
           </div>
           <button onClick={onClose} className="text-ink-soft hover:text-ink text-xl cursor-pointer">&times;</button>
@@ -269,7 +292,7 @@ function PlotGrid() {
     return { x: Math.max(0, Math.min(x, plot.gridCols - 1)), y: Math.max(0, Math.min(y, plot.gridRows - 1)) };
   }, [plot.gridCols, plot.gridRows]);
 
-  const checkCollision = (x: number, y: number, w: number, h: number, excludeId?: string) =>
+  const colCheck = (x: number, y: number, w: number, h: number, excludeId?: string) =>
     racks.some(r => r.id !== excludeId && r.plotId === plot.id && x < r.gridX + r.gridW && x + w > r.gridX && y < r.gridY + r.gridH && y + h > r.gridY);
 
   const getRackFromData = useCallback((e: React.DragEvent) => {
@@ -285,6 +308,7 @@ function PlotGrid() {
     if (draggedRackId !== rack.id) setDraggedRackId(rack.id);
     const pos = getGridPos(e.clientX, e.clientY);
     if (!pos || pos.x + rack.gridW > plot.gridCols || pos.y + rack.gridH > plot.gridRows) return;
+    if (colCheck(pos.x, pos.y, rack.gridW, rack.gridH, rack.id)) return;
     setDragOverPos({ x: pos.x, y: pos.y, w: rack.gridW, h: rack.gridH });
   };
 
@@ -294,7 +318,7 @@ function PlotGrid() {
     if (!rack) return;
     const pos = getGridPos(e.clientX, e.clientY);
     if (!pos || pos.x + rack.gridW > plot.gridCols || pos.y + rack.gridH > plot.gridRows) return;
-    if (checkCollision(pos.x, pos.y, rack.gridW, rack.gridH, rack.id)) return;
+    if (colCheck(pos.x, pos.y, rack.gridW, rack.gridH, rack.id)) return;
     rack.plotId === plot.id ? moveRack(rack.id, pos.x, pos.y) : placeRack(rack.id, plot.id, pos.x, pos.y);
   };
 
@@ -304,7 +328,7 @@ function PlotGrid() {
     setDraggedRackId(rack.id);
   };
   const handleRackDragEnd = () => { setDragOverPos(null); setDraggedRackId(null); };
-  const isValidDrop = dragOverPos && !checkCollision(dragOverPos.x, dragOverPos.y, dragOverPos.w, dragOverPos.h);
+  const isValidDrop = dragOverPos && !colCheck(dragOverPos.x, dragOverPos.y, dragOverPos.w, dragOverPos.h, draggedRackId ?? undefined);
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -322,12 +346,20 @@ function PlotGrid() {
             className="text-[11px] font-semibold px-3 py-1.5 bg-green-soft text-green border border-green/30 rounded-lg hover:bg-green hover:text-white transition-colors cursor-pointer">
             Shop
           </button>
+          {plotRacks.length > 0 && (
+            <button
+              onClick={() => useGameStore.getState().unplaceAllRacks(plot.id)}
+              className="text-[11px] font-semibold px-3 py-1.5 bg-red-soft text-red border border-red/30 rounded-lg hover:bg-red hover:text-white transition-colors cursor-pointer"
+            >
+              Unplace All
+            </button>
+          )}
         </div>
       </div>
 
       <div className="relative pl-5 pb-5">
         <div ref={gridRef}
-          className={`relative border-2 rounded-lg transition-colors ${dragOverPos ? 'border-indigo bg-indigo-soft/30' : 'border-border bg-surface'}`}
+          className={`relative border-2 rounded-lg transition-colors box-border ${dragOverPos ? 'border-indigo bg-indigo-soft/30' : 'border-border bg-surface'}`}
           style={{ width: plot.gridCols * CELL_SIZE, height: plot.gridRows * CELL_SIZE }}
           onDrop={handleGridDrop} onDragOver={handleGridDragOver} onDragLeave={() => setDragOverPos(null)}>
           {Array.from({ length: plot.gridRows }, (_, row) =>
@@ -355,13 +387,13 @@ function PlotGrid() {
               <div key={rack.id} draggable
                 onDragStart={(e) => handleRackDragStart(e, rack)}
                 onDragEnd={handleRackDragEnd}
-                onClick={() => setSelectedRackId(rack.id)}
-                className="absolute border-2 rounded-lg cursor-grab active:cursor-grabbing hover:border-indigo transition-colors group"
+                onClick={() => { setSelectedRackId(rack.id); setShowInventory(true); }}
+                className="absolute border-2 rounded-lg cursor-grab active:cursor-grabbing hover:border-indigo transition-colors group box-border"
                 style={{
                   left: rack.gridX * CELL_SIZE, top: rack.gridY * CELL_SIZE,
                   width: rack.gridW * CELL_SIZE, height: rack.gridH * CELL_SIZE,
-                  borderColor: coolingPct > 90 ? '#D1453B' : nodeCount === 0 ? '#E3E7EE' : '#4F5EFF',
-                  backgroundColor: coolingPct > 90 ? 'rgba(209,69,59,0.1)' : nodeCount === 0 ? 'rgba(248,249,251,0.8)' : 'rgba(79,94,255,0.08)',
+                  borderColor: coolingPct > 90 ? '#D1453B' : nodeCount === 0 ? 'var(--color-border)' : '#4F5EFF',
+                  backgroundColor: coolingPct > 90 ? 'rgba(209,69,59,0.1)' : nodeCount === 0 ? 'var(--color-surface-2)' : 'rgba(79,94,255,0.08)',
                 }}>
                 <div className="p-1.5 h-full flex flex-col justify-between">
                   <div>

@@ -1,13 +1,14 @@
 import { create } from 'zustand';
-import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound, SourcingCampaign, Applicant } from '../types';
+import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound, SourcingCampaign, Applicant, GameEvent } from '../types';
 import { calcFundingOffer } from '../types/employee';
 import { getComponentDef, COMPONENTS } from '../data/components';
 import { getProductDef } from '../data/products';
 import { getNodeDef, getRackDef } from '../data/servers';
 import { calculateNodeLoads, calcMonthlyServerCost } from '../systems/server';
-import { getTrafficStats } from '../systems/traffic';
+import { getPlatformStats, getAppliedEffects } from '../systems/platform';
 import { calculateRevenue } from '../systems/monetization';
 import { generateApplicant, CAMPAIGN_COST, getCampaignTicks, negotiate, applicantToEmployee } from '../systems/recruitment';
+import { checkEventTrigger, processEvents, calcSecurityLevel } from '../systems/events';
 
 export type GameSpeed = 1 | 2 | 4;
 export const TICKS_PER_MONTH = 600;
@@ -85,11 +86,17 @@ interface GameState {
   placeRack: (rackId: string, plotId: string, x: number, y: number) => void;
   moveRack: (rackId: string, x: number, y: number) => void;
   unplaceRack: (rackId: string) => void;
+  unplaceAllRacks: (plotId: string) => void;
+  autoPlaceRack: (rackId: string, plotId: string) => void;
+  autoPlaceNode: (nodeId: string) => void;
   buyNode: (typeId: NodeTypeId) => void;
   placeNode: (nodeId: string, rackId: string, slotIndex: number) => void;
   sellNode: (rackId: string, slotIndex: number) => void;
   unequipNode: (rackId: string, slotIndex: number) => void;
   sellRack: (rackId: string) => void;
+  clearRack: (rackId: string) => void;
+  clearAllNodes: () => void;
+  unplaceAllRacksGlobal: () => void;
   rentServer: (type: RentalType) => void;
   cancelRental: (id: string) => void;
   toggleDevMode: () => void;
@@ -117,6 +124,9 @@ interface GameState {
   startVacation: (employeeId: string, days: number) => void;
   cancelVacation: (employeeId: string) => void;
   restartGame: () => void;
+  currentUsers: number;
+  events: GameEvent[];
+  setNodeScale: (rackId: string, slotIndex: number, delta: number) => void;
 }
 
 function calcTotalSalary(employees: Employee[]): number {
@@ -168,6 +178,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   sourcingCampaign: null,
   applicants: [],
   selectedHrId: null,
+  currentUsers: 0,
+  events: [],
 
   setScreen: (screen) => set({ screen }),
   togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
@@ -209,7 +221,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   incrementTick: () => {
     const state = get();
-    const { tick, employees, resources, features, racks } = state;
+    const { tick, employees, resources, features, racks, events, currentUsers, selectedProduct, rentedServers } = state;
     const newTick = tick + 1;
     const newMonth = Math.floor(newTick / TICKS_PER_MONTH);
     const oldMonth = Math.floor(tick / TICKS_PER_MONTH);
@@ -230,7 +242,6 @@ export const useGameStore = create<GameState>((set, get) => ({
         let newVacationTicks = emp.vacationTicksLeft;
         let newOnVacation = emp.onVacation;
 
-        // Vacation
         if (emp.onVacation) {
           newVacationTicks = emp.vacationTicksLeft - 1;
           newHappiness += 0.1;
@@ -239,7 +250,6 @@ export const useGameStore = create<GameState>((set, get) => ({
             newVacationTicks = 0;
           }
         } else if (emp.isTraining) {
-          // Training progress
           newTrainingProgress = emp.trainingProgress + emp.speed;
           if (newTrainingProgress >= emp.level * 400) {
             newLevel = emp.level + 1;
@@ -248,7 +258,6 @@ export const useGameStore = create<GameState>((set, get) => ({
             get().addNotification(`${emp.name} completed training — now Lv.${newLevel}!`, 'success');
           }
         } else if (emp.currentTask && def) {
-          // Component production
           newProgress = emp.taskProgress + emp.speed;
           if (newProgress >= def.baseTicks) {
             const existing = newResources.find(r => r.id === def.id);
@@ -264,7 +273,6 @@ export const useGameStore = create<GameState>((set, get) => ({
 
         const isWorking = newCurrentTask !== null || newIsTraining;
         if (newOnVacation) {
-          // happiness already recovers above, no extra decay
         } else if (isWorking) {
           newHappiness -= 0.05;
         } else {
@@ -281,7 +289,6 @@ export const useGameStore = create<GameState>((set, get) => ({
           newSpeed = emp.level;
         }
 
-        // Overwork penalty (all employees)
         if (newHappiness < 20 && isWorking) {
           newOverworkTicks += 1;
         } else {
@@ -291,7 +298,6 @@ export const useGameStore = create<GameState>((set, get) => ({
           newSpeed = Math.floor(newSpeed * 0.7);
         }
 
-        // Resign (skip for player)
         if (!emp.isPlayer && newHappiness < 15) {
           newResignTicks += 1;
         } else {
@@ -322,19 +328,87 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const placedRacks = racks.filter(r => r.plotId !== null);
     const unplacedRacks = racks.filter(r => r.plotId === null);
-    const trafficStats = getTrafficStats(features);
+
+    // Platform stats (cohesion, synergy, target users)
+    const platformStats = getPlatformStats(features, events, selectedProduct);
+    const targetUsers = platformStats.targetUsers;
+    const cohesionScore = platformStats.cohesionScore;
+
+    // Dynamic users
+    const eventEffects = getAppliedEffects(events);
+    const userDelta = (targetUsers - currentUsers) * 0.005 * cohesionScore;
+    const hasCrash = placedRacks.some(r => r.slots.some(s => s.node?.status === 'crashed'));
+    const crashPenalty = hasCrash ? currentUsers * 0.05 : 0;
+    const churn = currentUsers * (1 - cohesionScore) * 0.0002;
+    let newCurrentUsers = currentUsers + (userDelta * eventEffects.userGrowthMult) - crashPenalty - churn;
+    newCurrentUsers = Math.max(0, Math.round(newCurrentUsers));
+
+    // Server calculation with effectiveRPS
     const sysAdminLevel = employees
       .filter(e => e.role === 'SysAdmin' && e.happiness >= 15)
       .reduce((max, e) => Math.max(max, e.level), 0);
-    const updatedPlacedRacks = calculateNodeLoads(placedRacks, trafficStats.rps, state.rentedServers, sysAdminLevel);
+    const { racks: updatedPlacedRacks, rentedServers: updatedRentedServers } = calculateNodeLoads(placedRacks, platformStats.effectiveRps, rentedServers, sysAdminLevel);
+
+    // If no web capacity at all, users drop fast
+    const hasWebCapacity = updatedPlacedRacks.some(r =>
+      r.slots.some(s =>
+        s.node?.category === 'web_server' && (s.node.status === 'active' || s.node.status === 'overloaded')
+      )
+    ) || updatedRentedServers.some(r => r.capacityRps > 0);
+    if (platformStats.effectiveRps > 0 && !hasWebCapacity) {
+      newCurrentUsers = Math.max(0, Math.floor(newCurrentUsers * 0.92));
+    }
+
+    // Event trigger & processing
+    const securityLevel = calcSecurityLevel(updatedPlacedRacks);
+    const newEvent = checkEventTrigger(newCurrentUsers, securityLevel, events, cohesionScore);
+    const allEvents = newEvent ? [...events, newEvent] : events;
+    const { events: processedEvents, crashedRackId } = processEvents(allEvents, updatedPlacedRacks);
+
+    // Handle server_outage: crash all nodes in target rack
+    let finalRacks = updatedPlacedRacks;
+    if (crashedRackId) {
+      finalRacks = updatedPlacedRacks.map(r =>
+        r.id === crashedRackId
+          ? {
+              ...r,
+              slots: r.slots.map(s =>
+                s.node && s.node.status !== 'offline'
+                  ? { ...s, node: { ...s.node, status: 'crashed' as const, load: 0, crashTicks: 0 } }
+                  : s
+              ),
+            }
+          : r
+      );
+      get().addNotification('Server outage! A rack has crashed.', 'error');
+    }
+
+    // DDoS duration reduction if rate limiter present
+    let finalEvents = processedEvents;
+    if (newEvent?.type === 'ddos') {
+      const hasRateLimiter = finalRacks.some(r =>
+        r.slots.some(s => s.node?.typeId === 'rate_limiter' && s.node.status === 'active')
+      );
+      if (hasRateLimiter) {
+        finalEvents = finalEvents.map(ev =>
+          ev.id === newEvent.id ? { ...ev, duration: Math.round(ev.duration * 0.5), tickLeft: Math.round(ev.tickLeft * 0.5) } : ev
+        );
+      }
+    }
+
+    // Viral growth: instant user boost
+    if (newEvent?.type === 'viral_growth') {
+      newCurrentUsers = Math.round(newCurrentUsers * 1.1);
+      get().addNotification('Viral growth! Users increased by 10%', 'success');
+    }
 
     let cashChange = 0;
     let newTotalSalary = state.totalSalary;
     let newNegativeCashMonths = state.negativeCashMonths;
     if (newMonth > oldMonth) {
       newTotalSalary = calcTotalSalary(newEmployees);
-      const serverCost = calcMonthlyServerCost(updatedPlacedRacks, state.rentedServers);
-      const revenue = calculateRevenue(trafficStats.users, features, updatedPlacedRacks);
+      const serverCost = calcMonthlyServerCost(finalRacks, rentedServers);
+      const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore, platformStats.synergyRevenueBonus);
       cashChange = revenue.total - (newTotalSalary + serverCost);
 
       const cashAfter = state.cash + cashChange;
@@ -359,9 +433,8 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     let newPendingFunding = state.pendingFunding;
     if (newMonth > oldMonth && !newPendingFunding) {
-      const traffic = getTrafficStats(state.features);
-      const revenue = calculateRevenue(traffic.users, state.features, updatedPlacedRacks);
-      const offer = calcFundingOffer(newMonth, traffic.users, revenue.total);
+      const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore, platformStats.synergyRevenueBonus);
+      const offer = calcFundingOffer(newMonth, newCurrentUsers, revenue.total);
       if (offer) {
         const lastRound = state.fundingRounds[state.fundingRounds.length - 1];
         const monthsSinceLast = lastRound ? newMonth - lastRound.month : newMonth;
@@ -407,12 +480,15 @@ export const useGameStore = create<GameState>((set, get) => ({
       totalSalary: newTotalSalary,
       employees: newEmployees,
       resources: newResources,
-      racks: [...unplacedRacks, ...updatedPlacedRacks],
+      racks: [...unplacedRacks, ...finalRacks],
+      rentedServers: updatedRentedServers,
       negativeCashMonths: newNegativeCashMonths,
       isBankrupt,
       pendingFunding: newPendingFunding,
       sourcingCampaign: newCampaign,
       applicants: newApplicants,
+      currentUsers: newCurrentUsers,
+      events: finalEvents,
     });
   },
 
@@ -425,9 +501,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     const monthsSinceLast = lastRound ? state.month - lastRound.month : state.month;
     if (monthsSinceLast < 6) return;
 
-    const traffic = getTrafficStats(state.features);
-    const revenue = calculateRevenue(traffic.users, state.features, state.racks);
-    const offer = calcFundingOffer(state.month, traffic.users, revenue.total);
+    const traffic = getPlatformStats(state.features, state.events, state.selectedProduct);
+    const revenue = calculateRevenue(state.currentUsers, state.features, state.racks, traffic.cohesionScore, traffic.synergyRevenueBonus);
+    const offer = calcFundingOffer(state.month, state.currentUsers, revenue.total);
     if (!offer) return;
     const round: FundingRound = {
       id: `fund-${state.fundingRounds.length + 1}`,
@@ -526,9 +602,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (!product) return;
     const features: PlatformFeature[] = product.features.map((f) => ({
       id: f.id, name: f.name, level: 0,
+      group: f.group,
       requiredComponents: f.requiredComponents, trafficGenerated: 0,
     }));
-    set({ selectedProduct: productId, features, screen: 'playerSetup' });
+    set({ selectedProduct: productId, features, screen: 'playerSetup', currentUsers: 0 });
   },
 
   initPlayer: (name: string) => {
@@ -641,7 +718,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const newFeatures = state.features.map(f =>
       f.id === featureId
-        ? { ...f, level: 1, trafficGenerated: featDef.baseTraffic }
+        ? { ...f, level: 1, trafficGenerated: featDef.baseTraffic, group: featDef.group }
         : f
     );
 
@@ -682,6 +759,23 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     get().addNotification(`Upgraded ${featDef.name} to Lv.${nextLevel}!`, 'success');
     set({ resources: newResources, features: newFeatures });
+  },
+
+  setNodeScale: (rackId: string, slotIndex: number, delta: number) => {
+    set((state) => ({
+      racks: state.racks.map(r =>
+        r.id === rackId
+          ? {
+              ...r,
+              slots: r.slots.map(s =>
+                s.index === slotIndex && s.node
+                  ? { ...s, node: { ...s.node, scaleLevel: Math.max(1, Math.min(5, s.node.scaleLevel + delta)) } }
+                  : s
+              ),
+            }
+          : r
+      ),
+    }));
   },
 
   buyRack: (tier: RackTier) => {
@@ -783,6 +877,78 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
+  unplaceAllRacks: (plotId: string) => {
+    const state = get();
+    const plot = state.plots.find(p => p.id === plotId);
+    if (!plot || plot.rackIds.length === 0) return;
+    get().addLog(`Removed all racks from ${plotId}`);
+    set({
+      racks: state.racks.map(r =>
+        r.plotId === plotId ? { ...r, plotId: null, gridX: 0, gridY: 0 } : r
+      ),
+      plots: state.plots.map(p =>
+        p.id === plotId ? { ...p, rackIds: [] } : p
+      ),
+    });
+  },
+
+  autoPlaceRack: (rackId: string, plotId: string) => {
+    const state = get();
+    const rack = state.racks.find(r => r.id === rackId);
+    const plot = state.plots.find(p => p.id === plotId);
+    if (!rack || !plot) return;
+
+    for (let y = 0; y <= plot.gridRows - rack.gridH; y++) {
+      for (let x = 0; x <= plot.gridCols - rack.gridW; x++) {
+        const collision = state.racks.some(r =>
+          r.id !== rackId && r.plotId === plotId &&
+          x < r.gridX + r.gridW && x + rack.gridW > r.gridX &&
+          y < r.gridY + r.gridH && y + rack.gridH > r.gridY
+        );
+        if (!collision) {
+          get().addLog(`Auto-placed ${rack.label} at (${x},${y}) on ${plotId}`);
+          set({
+            racks: state.racks.map(r =>
+              r.id === rackId ? { ...r, plotId, gridX: x, gridY: y } : r
+            ),
+            plots: state.plots.map(p =>
+              p.id === plotId ? { ...p, rackIds: [...p.rackIds.filter(id => id !== rackId), rackId] } : p
+            ),
+          });
+          return;
+        }
+      }
+    }
+    get().addNotification('No space available for rack', 'warning');
+  },
+
+  autoPlaceNode: (nodeId: string) => {
+    const state = get();
+    const node = state.inventoryNodes.find(n => n.id === nodeId);
+    if (!node) return;
+
+    for (const rack of state.racks) {
+      if (rack.plotId === null) continue;
+      for (const slot of rack.slots) {
+        if (!slot.node) {
+          const emptySlot = slot;
+          get().addLog(`Auto-placed ${node.label} into ${rack.label} slot ${emptySlot.index + 1}`);
+          get().addNotification(`Placed ${node.label} into ${rack.label}`, 'success');
+          set({
+            inventoryNodes: state.inventoryNodes.filter(n => n.id !== nodeId),
+            racks: state.racks.map(r =>
+              r.id === rack.id
+                ? { ...r, slots: r.slots.map(s => s.index === emptySlot.index ? { ...s, node } : s) }
+                : r
+            ),
+          });
+          return;
+        }
+      }
+    }
+    get().addNotification('No empty slots available in any rack', 'warning');
+  },
+
   buyPlot: () => {
     const state = get();
     const price = 1500;
@@ -823,6 +989,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       load: 0,
       crashTicks: 0,
       recoveryTicks: 0,
+      scaleLevel: 1,
     };
 
     get().addLog(`Bought ${def.label} ($${def.price}) → inventory`);
@@ -921,12 +1088,57 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
+  clearRack: (rackId: string) => {
+    const state = get();
+    const rack = state.racks.find(r => r.id === rackId);
+    if (!rack) return;
+    const nodes = rack.slots.filter(s => s.node !== null).map(s => s.node!);
+    if (nodes.length === 0) return;
+    get().addLog(`Cleared ${nodes.length} nodes from ${rack.label}`);
+    get().addNotification(`Cleared ${rack.label} — ${nodes.length} nodes returned to inventory`, 'info');
+    set({
+      racks: state.racks.map(r =>
+        r.id === rackId
+          ? { ...r, slots: r.slots.map(s => s.node ? { ...s, node: null } : s) }
+          : r
+      ),
+      inventoryNodes: [...state.inventoryNodes, ...nodes],
+    });
+  },
+
+  clearAllNodes: () => {
+    const state = get();
+    const allNodes: ServerNode[] = [];
+    const newRacks = state.racks.map(r => ({
+      ...r,
+      slots: r.slots.map(s => {
+        if (s.node) allNodes.push(s.node);
+        return { ...s, node: null };
+      }),
+    }));
+    if (allNodes.length === 0) return;
+    get().addLog(`Cleared all nodes (${allNodes.length}) from all racks`);
+    get().addNotification(`Cleared all nodes — ${allNodes.length} returned to inventory`, 'info');
+    set({ racks: newRacks, inventoryNodes: [...state.inventoryNodes, ...allNodes] });
+  },
+
+  unplaceAllRacksGlobal: () => {
+    const state = get();
+    const placedCount = state.racks.filter(r => r.plotId !== null).length;
+    if (placedCount === 0) return;
+    get().addLog(`Unplaced all racks from all plots`);
+    set({
+      racks: state.racks.map(r => r.plotId !== null ? { ...r, plotId: null, gridX: 0, gridY: 0 } : r),
+      plots: state.plots.map(p => ({ ...p, rackIds: [] })),
+    });
+  },
+
   rentServer: (type: RentalType) => {
     const state = get();
     const defs: Record<RentalType, Omit<RentedServer, 'id'>> = {
-      vps: { type: 'vps', label: 'VPS', capacityRps: 150, storage: 50, monthlyCost: 40, uptime: 0.99 },
-      dedicated: { type: 'dedicated', label: 'Dedicated', capacityRps: 600, storage: 200, monthlyCost: 180, uptime: 0.999 },
-      cloud: { type: 'cloud', label: 'Cloud Instance', capacityRps: 1000, storage: 500, monthlyCost: 300, uptime: 0.995 },
+      vps: { type: 'vps', label: 'VPS', capacityRps: 150, storage: 50, monthlyCost: 40, uptime: 0.99, load: 0 },
+      dedicated: { type: 'dedicated', label: 'Dedicated', capacityRps: 600, storage: 200, monthlyCost: 180, uptime: 0.999, load: 0 },
+      cloud: { type: 'cloud', label: 'Cloud Instance', capacityRps: 1000, storage: 500, monthlyCost: 300, uptime: 0.995, load: 0 },
     };
     const def = defs[type];
     get().addNotification(`Rented ${def.label} — $${def.monthlyCost}/mo`, 'info');
@@ -1009,7 +1221,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const newFeatures = state.features.map(f => {
       const featDef = product.features.find(pf => pf.id === f.id);
       if (!featDef || f.level > 0) return f;
-      return { ...f, level: 1, trafficGenerated: featDef.baseTraffic };
+      return { ...f, level: 1, trafficGenerated: featDef.baseTraffic, group: featDef.group };
     });
     set({ features: newFeatures });
   },
@@ -1047,6 +1259,7 @@ export const useGameStore = create<GameState>((set, get) => ({
             load: 0,
             crashTicks: 0,
             recoveryTicks: 0,
+            scaleLevel: 1,
           },
         };
       });
@@ -1072,6 +1285,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       fundingRounds: [], pendingFunding: null,
       sourcingCampaign: null, applicants: [],
       selectedHrId: null,
+      currentUsers: 0,
+      events: [],
     });
   },
 }));

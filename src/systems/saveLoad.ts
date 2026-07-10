@@ -30,6 +30,8 @@ export async function saveGame(): Promise<void> {
     sourcingCampaign: state.sourcingCampaign,
     applicants: state.applicants,
     selectedHrId: state.selectedHrId,
+    currentUsers: state.currentUsers,
+    events: state.events,
   });
 }
 
@@ -62,6 +64,8 @@ export async function loadGame(): Promise<boolean> {
     sourcingCampaign: save.sourcingCampaign ?? null,
     applicants: save.applicants ?? [],
     selectedHrId: save.selectedHrId ?? null,
+    currentUsers: save.currentUsers ?? 0,
+    events: save.events ?? [],
   });
 
   return true;

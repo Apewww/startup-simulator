@@ -1,6 +1,6 @@
-import { Play, Pause, Save, AlertTriangle, Handshake, Moon, Sun, TrendingUp, TrendingDown } from 'lucide-react';
+import { Play, Pause, Save, AlertTriangle, Handshake, Moon, Sun, TrendingUp, TrendingDown, Activity, Shield } from 'lucide-react';
 import { useGameStore, TICKS_PER_MONTH, TICKS_PER_DAY } from '../store/gameStore';
-import { getTrafficStats } from '../systems/traffic';
+import { getPlatformStats } from '../systems/platform';
 import { calculateRevenue } from '../systems/monetization';
 import { calcMonthlyServerCost } from '../systems/server';
 
@@ -12,6 +12,12 @@ function formatCash(n: number): string {
   return `$${n.toLocaleString('en-US')}`;
 }
 
+function formatCompact(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return n.toString();
+}
+
 interface HudBarProps {
   onSave: () => void;
   saveMsg: string;
@@ -20,8 +26,8 @@ interface HudBarProps {
 }
 
 export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps) {
-  const { tick, isPaused, speed, cash, month, features, racks, rentedServers, totalSalary, togglePause, setSpeed, negativeCashMonths, pendingFunding } = useGameStore();
-  const trafficStats = getTrafficStats(features);
+  const { tick, isPaused, speed, cash, month, features, racks, rentedServers, totalSalary, togglePause, setSpeed, negativeCashMonths, pendingFunding, currentUsers, events, selectedProduct } = useGameStore();
+  const platformStats = getPlatformStats(features, events, selectedProduct);
   const bankruptWarning = negativeCashMonths > 0;
 
   const day = Math.floor((tick % TICKS_PER_MONTH) / TICKS_PER_DAY) + 1;
@@ -31,12 +37,17 @@ export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps
   const hour = Math.floor((tick % TICKS_PER_DAY) * (24 / TICKS_PER_DAY));
   const timeStr = `${String(hour).padStart(2, '0')}:00`;
 
-  const monthlyRevenue = calculateRevenue(trafficStats.users, features, racks);
+  const monthlyRevenue = calculateRevenue(currentUsers, features, racks);
   const monthlyServerCost = calcMonthlyServerCost(racks, rentedServers);
   const monthlyNet = monthlyRevenue.total - (totalSalary + monthlyServerCost);
   const profitable = monthlyNet >= 0;
   const CashArrow = profitable ? TrendingUp : TrendingDown;
   const cashColor = profitable ? 'text-green' : 'text-red';
+
+  const healthPct = Math.round(platformStats.cohesionScore * 100);
+  const healthColor = healthPct > 70 ? 'bg-green' : healthPct > 40 ? 'bg-amber' : 'bg-red';
+  const activeEvent = events.length > 0;
+  const hasDdos = events.some(e => e.type === 'ddos');
 
   return (
     <div className="shrink-0 bg-surface border-b border-border">
@@ -65,13 +76,32 @@ export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps
             <Handshake className="w-3 h-3" /> Funding
           </button>
         )}
+        {activeEvent && (
+          <span className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-semibold shrink-0 ${hasDdos ? 'bg-red-soft text-red border border-red/30 animate-pulse' : 'bg-amber-soft text-amber border border-amber/30'}`}>
+            <Activity className="w-3 h-3" />
+            {events[0]?.name || 'Event'}
+          </span>
+        )}
 
         <div className="flex-1" />
+
+        {/* Platform Health */}
+        {features.some(f => f.level > 0) && (
+          <div className="flex items-center gap-1.5" title={`Platform Health: ${healthPct}%`}>
+            <Shield className="w-3 h-3 text-ink-soft" />
+            <div className="w-14 h-1.5 bg-surface-2 rounded-full overflow-hidden">
+              <div className={`h-full rounded-full transition-all ${healthColor}`} style={{ width: `${healthPct}%` }} />
+            </div>
+            <span className="text-[10px] text-ink-soft font-mono">{healthPct}%</span>
+          </div>
+        )}
 
         {/* Right — stats */}
         <div className="flex items-center gap-4 text-ink-soft">
           <span className="font-mono font-semibold text-ink">{timeStr}</span>
-          <span className="font-mono font-semibold text-ink">{trafficStats.users.toLocaleString()}</span>
+          <span className="font-mono font-semibold text-ink" title={`${currentUsers} current / ${platformStats.targetUsers} target`}>
+            {formatCompact(currentUsers)}
+          </span>
           <span className={`flex items-center gap-0.5 font-mono font-bold ${cashColor}`}>
             <CashArrow className="w-3 h-3" strokeWidth={2.5} />
             {formatCash(cash)}
