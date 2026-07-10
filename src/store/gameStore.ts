@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound } from '../types';
+import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound, SourcingCampaign, Applicant } from '../types';
 import { calcFundingOffer } from '../types/employee';
 import { getComponentDef, COMPONENTS } from '../data/components';
 import { getProductDef } from '../data/products';
@@ -7,11 +7,12 @@ import { getNodeDef, getRackDef } from '../data/servers';
 import { calculateNodeLoads, calcMonthlyServerCost } from '../systems/server';
 import { getTrafficStats } from '../systems/traffic';
 import { calculateRevenue } from '../systems/monetization';
+import { generateApplicant, CAMPAIGN_COST, CAMPAIGN_DAYS } from '../systems/recruitment';
 
 export type GameSpeed = 1 | 2 | 4;
 export const TICKS_PER_MONTH = 30;
 
-export type PanelId = 'employees' | 'features' | 'server' | 'finance';
+export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment';
 export type PanelOpenState = Record<PanelId, boolean>;
 export type GameScreen = 'menu' | 'select' | 'playing';
 
@@ -99,6 +100,11 @@ interface GameState {
   completeTask: (employeeId: string) => void;
   unlockAllFeatures: () => void;
   fillRack: (rackId: string, typeId: NodeTypeId) => void;
+  sourcingCampaign: SourcingCampaign | null;
+  applicants: Applicant[];
+  startSourcing: (tier: SourcingCampaign['tier']) => void;
+  cancelSourcing: () => void;
+  dismissApplicant: (id: string) => void;
   restartGame: () => void;
 }
 
@@ -138,8 +144,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   isBankrupt: false,
   negativeCashMonths: 0,
   screen: 'menu',
-  panelOpen: { employees: true, features: false, server: false, finance: false },
-  panelMinimized: { employees: false, features: false, server: false, finance: false },
+  panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false },
+  panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false },
   maximizedPanel: null,
   selectedEmployeeId: null,
   darkMode: false,
@@ -147,6 +153,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   cashFlowHistory: [],
   fundingRounds: [],
   pendingFunding: null,
+  sourcingCampaign: null,
+  applicants: [],
 
   setScreen: (screen) => set({ screen }),
   togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
@@ -312,6 +320,18 @@ export const useGameStore = create<GameState>((set, get) => ({
       get().addNotification(`Funding offer: $${newPendingFunding.amount} for ${newPendingFunding.equityGiven}% equity`, 'info');
     }
 
+    let newCampaign = state.sourcingCampaign;
+    let newApplicants = [...state.applicants];
+    if (newCampaign) {
+      newCampaign = { ...newCampaign, daysLeft: newCampaign.daysLeft - 1 };
+      if (newCampaign.daysLeft <= 0) {
+        const applicant = generateApplicant(newCampaign);
+        newApplicants.push(applicant);
+        newCampaign = null;
+        get().addNotification(`New applicant: ${applicant.name} (${applicant.role.replace('_', ' ')})`, 'info');
+      }
+    }
+
     set({
       tick: newTick,
       month: newMonth,
@@ -323,6 +343,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       negativeCashMonths: newNegativeCashMonths,
       isBankrupt,
       pendingFunding: newPendingFunding,
+      sourcingCampaign: newCampaign,
+      applicants: newApplicants,
     });
   },
 
@@ -370,6 +392,26 @@ export const useGameStore = create<GameState>((set, get) => ({
       fundingRounds: [...state.fundingRounds, { ...state.pendingFunding }],
       pendingFunding: null,
     });
+  },
+
+  startSourcing: (tier) => {
+    const state = get();
+    const cost = CAMPAIGN_COST[tier];
+    if (state.cash < cost) return;
+    set({
+      cash: state.cash - cost,
+      sourcingCampaign: { tier, daysLeft: CAMPAIGN_DAYS[tier] },
+    });
+    get().addNotification(`Started ${tier} sourcing campaign`, 'info');
+  },
+
+  cancelSourcing: () => {
+    set({ sourcingCampaign: null });
+    get().addNotification('Sourcing campaign cancelled', 'info');
+  },
+
+  dismissApplicant: (id) => {
+    set((state) => ({ applicants: state.applicants.filter(a => a.id !== id) }));
   },
 
   selectProduct: (productId: string) => {
@@ -825,12 +867,13 @@ export const useGameStore = create<GameState>((set, get) => ({
       inventoryNodes: [], activeView: { type: 'office' }, visitedPlots: [], gameLog: [],
       cashFlowHistory: [], notifications: [],
       isBankrupt: false, negativeCashMonths: 0, screen: 'menu',
-      panelOpen: { employees: true, features: false, server: false, finance: false },
-      panelMinimized: { employees: false, features: false, server: false, finance: false },
+      panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false },
+      panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false },
       maximizedPanel: null,
       selectedEmployeeId: null,
       darkMode: false,
       fundingRounds: [], pendingFunding: null,
+      sourcingCampaign: null, applicants: [],
     });
   },
 }));

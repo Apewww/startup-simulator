@@ -27,6 +27,8 @@ export async function saveGame(): Promise<void> {
     cashFlowHistory: state.cashFlowHistory,
     fundingRounds: state.fundingRounds,
     pendingFunding: state.pendingFunding,
+    sourcingCampaign: state.sourcingCampaign,
+    applicants: state.applicants,
   });
 }
 
@@ -56,6 +58,8 @@ export async function loadGame(): Promise<boolean> {
     cashFlowHistory: save.cashFlowHistory ?? [],
     fundingRounds: save.fundingRounds ?? [],
     pendingFunding: save.pendingFunding ?? null,
+    sourcingCampaign: save.sourcingCampaign ?? null,
+    applicants: save.applicants ?? [],
   });
 
   return true;

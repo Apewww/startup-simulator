@@ -1,4 +1,4 @@
-export type { Employee, EmployeeRole, FundingRound } from './employee';
+export type { Employee, EmployeeRole, SourcingCampaign, Applicant, ApplicantMood, FundingRound } from './employee';
 export type { ComponentResource } from './resource';
 export type {
   ServerNode, NodeTypeId, NodeCategory, NodeDef,

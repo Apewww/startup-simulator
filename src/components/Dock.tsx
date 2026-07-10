@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
-import { Users, LayoutGrid, Server, DollarSign } from 'lucide-react';
+import { Users, LayoutGrid, Server, DollarSign, UserCheck } from 'lucide-react';
 import { useGameStore, type PanelId } from '../store/gameStore';
 
 export const DOCK_ITEMS: { id: PanelId; label: string; shortcut: string; Icon: typeof Users; accent: string }[] = [
   { id: 'employees', label: 'Team', shortcut: '1', Icon: Users, accent: '#4F5EFF' },
+  { id: 'recruitment', label: 'Hire', shortcut: '5', Icon: UserCheck, accent: '#17A366' },
   { id: 'features', label: 'Build', shortcut: '2', Icon: LayoutGrid, accent: '#4F5EFF' },
   { id: 'server', label: 'Server', shortcut: '3', Icon: Server, accent: '#4F5EFF' },
   { id: 'finance', label: 'Money', shortcut: '4', Icon: DollarSign, accent: '#4F5EFF' },

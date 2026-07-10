@@ -1,5 +1,25 @@
 export type EmployeeRole = 'Developer' | 'Designer' | 'Lead_Developer' | 'SysAdmin';
 
+export interface SourcingCampaign {
+  tier: 'basic' | 'pro' | 'headhunter';
+  daysLeft: number;
+}
+
+export type ApplicantMood = 'patient' | 'stubborn' | 'volatile';
+
+export interface Applicant {
+  id: string;
+  name: string;
+  role: EmployeeRole;
+  level: number;
+  speed: number;
+  expectedSalary: number;
+  minAcceptableSalary: number;
+  mood: ApplicantMood;
+  negotiationRounds: number;
+  status: 'pending' | 'countered' | 'rejected' | 'hired';
+}
+
 export interface Employee {
   id: string;
   name: string;

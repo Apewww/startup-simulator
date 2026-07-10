@@ -12,6 +12,7 @@ import { FloatingPanel } from './components/FloatingPanel';
 import { EmployeesPanel, employeesPanelMeta } from './components/EmployeesPanel';
 import { FeaturesPanel, featuresPanelMeta } from './components/FeaturesPanel';
 import { FinancePanel, financePanelMeta } from './components/FinancePanel';
+import { RecruitmentPanel, recruitmentPanelMeta } from './components/RecruitmentPanel';
 import { Server, Skull, CheckCircle, Info, AlertTriangle, XCircle } from 'lucide-react';
 import { getTrafficStats } from './systems/traffic';
 import { saveGame } from './systems/saveLoad';
@@ -171,15 +172,19 @@ function App() {
             <EmployeesPanel />
           </FloatingPanel>
 
-          <FloatingPanel id="features" index={1} title={featuresPanelMeta.title} icon={featuresPanelMeta.icon} accent="#4F5EFF">
+          <FloatingPanel id="recruitment" index={1} title={recruitmentPanelMeta.title} icon={recruitmentPanelMeta.icon} accent="#17A366">
+            <RecruitmentPanel />
+          </FloatingPanel>
+
+          <FloatingPanel id="features" index={2} title={featuresPanelMeta.title} icon={featuresPanelMeta.icon} accent="#4F5EFF">
             <FeaturesPanel />
           </FloatingPanel>
 
-          <FloatingPanel id="server" index={2} title="Server" icon={<Server className="w-4 h-4 text-indigo" />} accent="#4F5EFF">
+          <FloatingPanel id="server" index={3} title="Server" icon={<Server className="w-4 h-4 text-indigo" />} accent="#4F5EFF">
             <ServerPanel />
           </FloatingPanel>
 
-          <FloatingPanel id="finance" index={3} title={financePanelMeta.title} icon={financePanelMeta.icon} accent="#4F5EFF">
+          <FloatingPanel id="finance" index={4} title={financePanelMeta.title} icon={financePanelMeta.icon} accent="#4F5EFF">
             <FinancePanel />
           </FloatingPanel>
         </div>

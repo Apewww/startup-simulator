@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
-import type { EmployeeRole } from '../types';
+import type { EmployeeRole, SourcingCampaign } from '../types';
 import { COMPONENTS } from '../data/components';
 import { NODE_DEFS, RACK_TIERS } from '../data/servers';
+import { generateApplicant } from '../systems/recruitment';
 
 const ROLES: EmployeeRole[] = ['Developer', 'Designer', 'Lead_Developer', 'SysAdmin'];
 
@@ -96,6 +97,23 @@ export function DevPanel() {
               </div>
             </div>
           ))}
+        </DevSection>
+
+        <DevSection title="Recruitment">
+          <div className="flex flex-wrap gap-1">
+            {(['basic', 'pro', 'headhunter'] as const).map(tier => (
+              <button key={tier} onClick={() => {
+                const s = useGameStore.getState();
+                const campaign: SourcingCampaign = { tier, daysLeft: 0 };
+                const app = generateApplicant(campaign);
+                s.addNotification(`DEV: ${app.name} (${app.role.replace('_', ' ')})`, 'info');
+                useGameStore.setState({ applicants: [...s.applicants, app] });
+              }} className="px-2 py-1 bg-indigo hover:bg-indigo/90 text-white rounded-lg text-[10px]">
+                Spawn {tier}
+              </button>
+            ))}
+          </div>
+          <div className="text-[10px] text-ink-soft mt-1">{useGameStore.getState().applicants.length} applicants</div>
         </DevSection>
 
         <DevSection title="Game State">
