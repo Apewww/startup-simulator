@@ -45,12 +45,16 @@ export function DevPanel() {
             <div className="space-y-1 mt-1">
               {employees.map(emp => (
                 <div key={emp.id} className="flex items-center justify-between bg-surface-2 px-2 py-1 rounded-lg border border-border">
-                  <span className="text-[10px] text-ink">{emp.name} ({emp.role.replace('_', ' ')})</span>
-                  {emp.currentTask && (
-                    <button onClick={() => useGameStore.getState().completeTask(emp.id)} className="text-[10px] px-2 py-0.5 bg-indigo hover:bg-indigo/90 text-white rounded-lg">
-                      Finish
-                    </button>
-                  )}
+                  <span className="text-[10px] text-ink">{emp.name} ({emp.role.replace('_', ' ')}) · Lv.{emp.level}</span>
+                  <div className="flex gap-1">
+                    {emp.currentTask && (
+                      <button onClick={() => useGameStore.getState().completeTask(emp.id)} className="text-[10px] px-2 py-0.5 bg-indigo hover:bg-indigo/90 text-white rounded-lg">
+                        Finish
+                      </button>
+                    )}
+                    <button onClick={() => { useGameStore.setState({ employees: useGameStore.getState().employees.map(e => e.id === emp.id ? { ...e, level: e.level + 1, trainingProgress: 0, isTraining: false } : e) }); }}
+                      className="text-[10px] px-2 py-0.5 bg-amber hover:bg-amber/90 text-white rounded-lg">Lv+</button>
+                  </div>
                 </div>
               ))}
             </div>

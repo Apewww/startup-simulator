@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { UserCheck, Clock, X, User, Send, MessageSquare, CheckCircle, XCircle } from 'lucide-react';
+import { UserCheck, Clock, X, User, Send, MessageSquare, CheckCircle, XCircle, Users as UsersIcon } from 'lucide-react';
 import { useGameStore, TICKS_PER_DAY } from '../store/gameStore';
-import { CAMPAIGN_COST, CAMPAIGN_TICKS } from '../systems/recruitment';
+import { CAMPAIGN_COST, getCampaignTicks } from '../systems/recruitment';
 
 function formatCash(n: number): string {
   return `$${n.toLocaleString('en-US')}`;
@@ -15,12 +15,16 @@ interface NegotiationState {
 }
 
 export function RecruitmentPanel() {
-  const { cash, sourcingCampaign, applicants, startSourcing, cancelSourcing, negotiateSalary, dismissApplicant } = useGameStore();
+  const { cash, employees, sourcingCampaign, applicants, selectedHrId, startSourcing, cancelSourcing, negotiateSalary, dismissApplicant, setSelectedHr } = useGameStore();
   const [negotiatingId, setNegotiatingId] = useState<string | null>(null);
   const [offerInput, setOfferInput] = useState('');
   const [negoResult, setNegoResult] = useState<NegotiationState | null>(null);
 
   const activeApplicants = applicants.filter(a => a.status !== 'hired');
+  const hrEmployees = employees.filter(e => e.role === 'HR');
+  const selectedHr = employees.find(e => e.id === selectedHrId);
+  const hrLevel = selectedHr?.role === 'HR' ? selectedHr.level : 0;
+  const hrSpeed = selectedHr?.role === 'HR' ? selectedHr.speed : 0;
 
   const startNegotiate = (id: string, expectedSalary: number) => {
     setNegotiatingId(id);
@@ -32,7 +36,6 @@ export function RecruitmentPanel() {
     const app = applicants.find(a => a.id === appId);
     if (!app) return;
     negotiateSalary(appId, Number(offerInput));
-    // Get updated applicant state after negotiation
     const updated = useGameStore.getState().applicants.find(a => a.id === appId);
     if (!updated) return;
 
@@ -42,9 +45,7 @@ export function RecruitmentPanel() {
     } else if (updated.status === 'rejected') {
       setNegoResult({ applicantId: appId, message: 'No deal. Good luck.', result: 'rejected' });
     } else {
-      const msg = updated.negotiationRounds >= (
-        updated.mood === 'patient' ? 4 : updated.mood === 'stubborn' ? 2 : 1
-      )
+      const msg = updated.negotiationRounds >= (updated.mood === 'patient' ? 4 : updated.mood === 'stubborn' ? 2 : 1)
         ? 'Tired of negotiating. Goodbye.'
         : updated.expectedSalary < app.expectedSalary
           ? updated.mood === 'patient'
@@ -60,6 +61,26 @@ export function RecruitmentPanel() {
 
   return (
     <div className="space-y-3">
+      {/* HR Lead Selector */}
+      <div className="card p-3">
+        <div className="flex items-center gap-1.5 mb-2">
+          <UsersIcon className="w-3.5 h-3.5 text-indigo" />
+          <span className="text-[11px] font-bold text-ink">HR Lead</span>
+        </div>
+        <select value={selectedHrId ?? ''} onChange={e => setSelectedHr(e.target.value || null)}
+          className="w-full bg-surface-2 border border-border rounded-lg px-2 py-1.5 text-[11px] text-ink font-semibold cursor-pointer outline-none focus:border-indigo">
+          <option value="">No HR assigned</option>
+          {hrEmployees.map(e => (
+            <option key={e.id} value={e.id}>{e.name} (Lv.{e.level} · {e.speed.toFixed(1)}x)</option>
+          ))}
+        </select>
+        {hrLevel > 0 && (
+          <div className="mt-1.5 text-[9px] text-green font-semibold">
+            Campaign speed boost: Lv.{hrLevel} × 30 + {Math.floor(hrSpeed * 10)} = {hrLevel * 30 + Math.floor(hrSpeed * 10)} ticks reduction
+          </div>
+        )}
+      </div>
+
       {/* Sourcing Campaign */}
       <div className="card p-3">
         <div className="flex items-center gap-1.5 mb-2">
@@ -75,7 +96,7 @@ export function RecruitmentPanel() {
             </div>
             <div className="h-1.5 bg-surface-2 rounded-full overflow-hidden">
               <div className="h-full bg-indigo rounded-full transition-all duration-300"
-                style={{ width: `${((CAMPAIGN_TICKS[sourcingCampaign.tier] - sourcingCampaign.daysLeft) / CAMPAIGN_TICKS[sourcingCampaign.tier]) * 100}%` }} />
+                style={{ width: `${((getCampaignTicks(sourcingCampaign.tier, hrLevel, hrSpeed) - sourcingCampaign.daysLeft) / getCampaignTicks(sourcingCampaign.tier, hrLevel, hrSpeed)) * 100}%` }} />
             </div>
             <button onClick={cancelSourcing} className="text-[10px] text-red hover:text-red/80 transition-colors cursor-pointer">Cancel</button>
           </div>
@@ -84,6 +105,7 @@ export function RecruitmentPanel() {
             {(['basic', 'pro', 'headhunter'] as const).map((tier) => {
               const cost = CAMPAIGN_COST[tier];
               const canAfford = cash >= cost;
+              const ticks = getCampaignTicks(tier, hrLevel, hrSpeed);
               return (
                 <button key={tier} onClick={() => canAfford && startSourcing(tier)} disabled={!canAfford}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
@@ -91,7 +113,7 @@ export function RecruitmentPanel() {
                   }`}>
                   <div className="flex items-center gap-2">
                     <span className="capitalize">{tier}</span>
-                    <span className="text-[9px] text-ink-soft font-normal">{CAMPAIGN_TICKS[tier] / TICKS_PER_DAY}d</span>
+                    <span className="text-[9px] text-ink-soft font-normal">{Math.ceil(ticks / TICKS_PER_DAY)}d</span>
                   </div>
                   <span className="font-mono text-[10px]">{cost === 0 ? 'Free' : formatCash(cost)}</span>
                 </button>
@@ -147,7 +169,6 @@ export function RecruitmentPanel() {
                     </div>
                   </div>
 
-                  {/* Negotiation response */}
                   {negoResult && negoResult.applicantId === app.id && (
                     <div className={`mt-1.5 p-2 rounded-lg border text-[10px] ${
                       negoResult.result === 'hired' ? 'bg-green-soft border-green/30 text-green' :
@@ -167,7 +188,6 @@ export function RecruitmentPanel() {
                   )}
                 </div>
 
-                {/* Negotiation input */}
                 {negotiatingId === app.id && app.status !== 'rejected' && app.status !== 'hired' && (
                   <div className="mt-1 ml-2 p-2 rounded-lg bg-surface border border-border">
                     <div className="text-[9px] text-ink-soft mb-1.5">Your offer ($/mo):</div>

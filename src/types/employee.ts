@@ -1,4 +1,4 @@
-export type EmployeeRole = 'Developer' | 'Designer' | 'Lead_Developer' | 'SysAdmin';
+export type EmployeeRole = 'Developer' | 'Designer' | 'Lead_Developer' | 'SysAdmin' | 'HR';
 
 export interface SourcingCampaign {
   tier: 'basic' | 'pro' | 'headhunter';
@@ -32,6 +32,10 @@ export interface Employee {
   taskProgress: number;
   resignTicks: number;
   deskIndex: number;
+  isPlayer: boolean;
+  isTraining: boolean;
+  trainingProgress: number;
+  overworkTicks: number;
 }
 
 export interface FundingRound {

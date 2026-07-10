@@ -7,7 +7,7 @@ import { getNodeDef, getRackDef } from '../data/servers';
 import { calculateNodeLoads, calcMonthlyServerCost } from '../systems/server';
 import { getTrafficStats } from '../systems/traffic';
 import { calculateRevenue } from '../systems/monetization';
-import { generateApplicant, CAMPAIGN_COST, CAMPAIGN_TICKS, negotiate, applicantToEmployee } from '../systems/recruitment';
+import { generateApplicant, CAMPAIGN_COST, getCampaignTicks, negotiate, applicantToEmployee } from '../systems/recruitment';
 
 export type GameSpeed = 1 | 2 | 4;
 export const TICKS_PER_MONTH = 600;
@@ -15,7 +15,7 @@ export const TICKS_PER_DAY = 20;
 
 export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment';
 export type PanelOpenState = Record<PanelId, boolean>;
-export type GameScreen = 'menu' | 'select' | 'playing';
+export type GameScreen = 'menu' | 'select' | 'playerSetup' | 'playing';
 
 export interface Notification {
   id: string;
@@ -107,6 +107,12 @@ interface GameState {
   cancelSourcing: () => void;
   dismissApplicant: (id: string) => void;
   negotiateSalary: (applicantId: string, offer: number) => void;
+  selectedHrId: string | null;
+  setSelectedHr: (id: string | null) => void;
+  initPlayer: (name: string) => void;
+  setPlayerRole: (id: string, role: EmployeeRole) => void;
+  startTraining: (employeeId: string) => void;
+  cancelTraining: (employeeId: string) => void;
   restartGame: () => void;
 }
 
@@ -119,6 +125,7 @@ const EMPLOYEE_NAMES: Record<EmployeeRole, string[]> = {
   Designer: ['Bob', 'Diana', 'Fiona', 'George', 'Helen', 'Isaac', 'Julia', 'Kevin'],
   Lead_Developer: ['Mallory', 'Oscar', 'Peggy', 'Sam', 'Uma', 'Walter'],
   SysAdmin: ['Trent', 'Victor', 'Wendy', 'Xavier', 'Yara', 'Zane'],
+  HR: ['Riley', 'Jordan', 'Casey', 'Morgan', 'Avery', 'Quinn', 'Skyler', 'Harper'],
 };
 
 let rackCounter = 0;
@@ -157,6 +164,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   pendingFunding: null,
   sourcingCampaign: null,
   applicants: [],
+  selectedHrId: null,
 
   setScreen: (screen) => set({ screen }),
   togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
@@ -176,7 +184,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     const newEmp: Employee = {
       id, name, role, level: 1, salary: 500,
       happiness: 80, speed: 1, currentTask: null, taskProgress: 0,
-      resignTicks: 0, deskIndex,
+      resignTicks: 0, deskIndex, isPlayer: false,
+      isTraining: false, trainingProgress: 0, overworkTicks: 0,
     };
 
     const updated = [...state.employees, newEmp];
@@ -210,8 +219,22 @@ export const useGameStore = create<GameState>((set, get) => ({
         let newProgress = emp.taskProgress;
         let newCurrentTask = emp.currentTask;
         let newResignTicks = emp.resignTicks;
+        let newTrainingProgress = emp.trainingProgress;
+        let newIsTraining = emp.isTraining;
+        let newLevel = emp.level;
+        let newOverworkTicks = emp.overworkTicks;
 
-        if (emp.currentTask && def) {
+        // Training progress
+        if (emp.isTraining) {
+          newTrainingProgress = emp.trainingProgress + emp.speed;
+          if (newTrainingProgress >= emp.level * 400) {
+            newLevel = emp.level + 1;
+            newIsTraining = false;
+            newTrainingProgress = 0;
+            get().addNotification(`${emp.name} completed training — now Lv.${newLevel}!`, 'success');
+          }
+        } else if (emp.currentTask && def) {
+          // Component production
           newProgress = emp.taskProgress + emp.speed;
           if (newProgress >= def.baseTicks) {
             const existing = newResources.find(r => r.id === def.id);
@@ -225,7 +248,8 @@ export const useGameStore = create<GameState>((set, get) => ({
           }
         }
 
-        if (newCurrentTask !== null) {
+        const isWorking = newCurrentTask !== null || newIsTraining;
+        if (isWorking) {
           newHappiness -= 0.05;
         } else {
           newHappiness -= 0.005;
@@ -241,13 +265,26 @@ export const useGameStore = create<GameState>((set, get) => ({
           newSpeed = emp.level;
         }
 
-        if (newHappiness < 15) {
+        // Player overwork penalty
+        if (emp.isPlayer) {
+          if (newHappiness < 20 && isWorking) {
+            newOverworkTicks += 1;
+          } else {
+            newOverworkTicks = 0;
+          }
+          if (newOverworkTicks >= 50) {
+            newSpeed = Math.floor(newSpeed * 0.7);
+          }
+        }
+
+        // Resign (skip for player)
+        if (!emp.isPlayer && newHappiness < 15) {
           newResignTicks += 1;
         } else {
           newResignTicks = 0;
         }
 
-        if (newResignTicks >= 10 * TICKS_PER_DAY && Math.random() < 0.2) {
+        if (!emp.isPlayer && newResignTicks >= 10 * TICKS_PER_DAY && Math.random() < 0.2) {
           resignedIds.push(emp.id);
           return null;
         }
@@ -259,6 +296,10 @@ export const useGameStore = create<GameState>((set, get) => ({
           currentTask: newCurrentTask,
           taskProgress: newProgress,
           resignTicks: newResignTicks,
+          isTraining: newIsTraining,
+          trainingProgress: newTrainingProgress,
+          level: newLevel,
+          overworkTicks: newOverworkTicks,
         };
       })
       .filter((emp): emp is Employee => emp !== null);
@@ -330,10 +371,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (newCampaign) {
       newCampaign = { ...newCampaign, daysLeft: newCampaign.daysLeft - 1 };
       if (newCampaign.daysLeft <= 0) {
+        const hrEmp = state.selectedHrId ? state.employees.find(e => e.id === state.selectedHrId) : undefined;
+        const hrLevel = hrEmp?.role === 'HR' ? hrEmp.level : 0;
         const count = newCampaign.tier === 'basic' ? 1 : newCampaign.tier === 'pro' ? 2 + Math.floor(Math.random() * 2) : 3 + Math.floor(Math.random() * 3);
         const batch: Applicant[] = [];
         for (let i = 0; i < count; i++) {
-          batch.push(generateApplicant(newCampaign));
+          batch.push(generateApplicant(newCampaign, hrLevel));
         }
         newApplicants.push(...batch);
         newCampaign = null;
@@ -407,11 +450,15 @@ export const useGameStore = create<GameState>((set, get) => ({
     const state = get();
     const cost = CAMPAIGN_COST[tier];
     if (state.cash < cost) return;
+    const hrEmp = state.selectedHrId ? state.employees.find(e => e.id === state.selectedHrId) : undefined;
+    const hrLevel = hrEmp?.role === 'HR' ? hrEmp.level : 0;
+    const hrSpeed = hrEmp?.role === 'HR' ? hrEmp.speed : 0;
+    const ticks = getCampaignTicks(tier, hrLevel, hrSpeed);
     set({
       cash: state.cash - cost,
-      sourcingCampaign: { tier, daysLeft: CAMPAIGN_TICKS[tier] },
+      sourcingCampaign: { tier, daysLeft: ticks },
     });
-    get().addNotification(`Started ${tier} sourcing campaign`, 'info');
+    get().addNotification(`Started ${tier} sourcing campaign${hrLevel > 0 ? ` (HR Lv.${hrLevel} boost)` : ''}`, 'info');
   },
 
   cancelSourcing: () => {
@@ -465,7 +512,59 @@ export const useGameStore = create<GameState>((set, get) => ({
       id: f.id, name: f.name, level: 0,
       requiredComponents: f.requiredComponents, trafficGenerated: 0,
     }));
-    set({ selectedProduct: productId, features, screen: 'playing' });
+    set({ selectedProduct: productId, features, screen: 'playerSetup' });
+  },
+
+  initPlayer: (name: string) => {
+    const player: Employee = {
+      id: 'player-1',
+      name,
+      role: 'Designer',
+      level: 1,
+      salary: 0,
+      happiness: 80,
+      speed: 1,
+      currentTask: null,
+      taskProgress: 0,
+      resignTicks: 0,
+      deskIndex: 0,
+      isPlayer: true,
+      isTraining: false,
+      trainingProgress: 0,
+      overworkTicks: 0,
+    };
+    set({ employees: [player], totalSalary: 0, screen: 'playing' });
+  },
+
+  setSelectedHr: (id) => {
+    set({ selectedHrId: id });
+  },
+
+  setPlayerRole: (id, role) => {
+    const state = get();
+    const emp = state.employees.find(e => e.id === id);
+    if (!emp || !emp.isPlayer) return;
+    set({ employees: state.employees.map(e => e.id === id ? { ...e, role } : e) });
+  },
+
+  startTraining: (employeeId) => {
+    set((state) => ({
+      employees: state.employees.map(emp =>
+        emp.id === employeeId && !emp.isTraining
+          ? { ...emp, isTraining: true, trainingProgress: 0, currentTask: null, taskProgress: 0 }
+          : emp
+      ),
+    }));
+  },
+
+  cancelTraining: (employeeId) => {
+    set((state) => ({
+      employees: state.employees.map(emp =>
+        emp.id === employeeId
+          ? { ...emp, isTraining: false, trainingProgress: 0 }
+          : emp
+      ),
+    }));
   },
 
   buildFeature: (featureId: string) => {
@@ -919,6 +1018,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       darkMode: false,
       fundingRounds: [], pendingFunding: null,
       sourcingCampaign: null, applicants: [],
+      selectedHrId: null,
     });
   },
 }));

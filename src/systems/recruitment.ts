@@ -23,30 +23,29 @@ function generateName(): string {
   return `${pick(FIRST_NAMES)} ${pick(LAST_NAMES)}`;
 }
 
-function rollLevel(tier: SourcingCampaign['tier']): number {
+function rollLevelHR(tier: SourcingCampaign['tier'], hrLevel: number): number {
+  const boost = Math.min(hrLevel * 0.15, 0.45);
   const r = Math.random();
   switch (tier) {
     case 'basic':
-      return r < 0.8 ? 1 : 2;
+      return r < 0.8 - boost ? 1 : r < 0.95 ? 2 : 3;
     case 'pro':
-      return r < 0.4 ? 1 : r < 0.85 ? 2 : 3;
+      return r < 0.4 - boost ? 1 : r < 0.85 - boost ? 2 : 3;
     case 'headhunter':
-      return r < 0.2 ? 1 : r < 0.5 ? 2 : 3;
+      return r < 0.2 - boost ? 1 : r < 0.5 - boost ? 2 : 3;
   }
 }
 
-export function generateApplicant(campaign: SourcingCampaign): Applicant {
+export function generateApplicant(campaign: SourcingCampaign, hrLevel: number = 0): Applicant {
   const role = pick(ROLES);
-  const level = rollLevel(campaign.tier);
+  const level = rollLevelHR(campaign.tier, hrLevel);
   const speed = parseFloat((0.8 + Math.random() * 0.7).toFixed(2));
 
-  let baseSalary: number;
-  switch (role) {
-    case 'Designer': baseSalary = 300 + level * 150; break;
-    case 'SysAdmin': baseSalary = 350 + level * 150; break;
-    case 'Developer': baseSalary = 400 + level * 200; break;
-    case 'Lead_Developer': baseSalary = 600 + level * 250; break;
-  }
+  let baseSalary = 300 + level * 150;
+  if (role === 'Developer') baseSalary = 400 + level * 200;
+  else if (role === 'Lead_Developer') baseSalary = 600 + level * 250;
+  else if (role === 'SysAdmin') baseSalary = 350 + level * 150;
+  else if (role === 'HR') baseSalary = 250 + level * 120;
   const expectedSalary = Math.round(baseSalary * (0.85 + speed * 0.15));
 
   const mood = pick(['patient', 'stubborn', 'volatile'] as const);
@@ -78,6 +77,12 @@ export const CAMPAIGN_TICKS: Record<SourcingCampaign['tier'], number> = {
   pro: 100,
   headhunter: 40,
 };
+
+export function getCampaignTicks(tier: SourcingCampaign['tier'], hrLevel: number, hrSpeed: number): number {
+  const base = CAMPAIGN_TICKS[tier];
+  const reduction = hrLevel * 30 + Math.floor(hrSpeed * 10);
+  return Math.max(20, base - reduction);
+}
 
 const MAX_ROUNDS: Record<ApplicantMood, number> = {
   patient: 4,
@@ -151,5 +156,9 @@ export function applicantToEmployee(applicant: Applicant, deskIndex: number): Em
     taskProgress: 0,
     resignTicks: 0,
     deskIndex,
+    isPlayer: false,
+    isTraining: false,
+    trainingProgress: 0,
+    overworkTicks: 0,
   };
 }

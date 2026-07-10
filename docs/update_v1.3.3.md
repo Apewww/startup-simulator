@@ -1,170 +1,149 @@
-# Update V1.3.3 — HR & Recruitment System + Theme Color Fixes
+# Update V1.3.3 — Player Character, HR Role, Training & Level Lock
 
 **Induk:** `docs/update_v1.3.2.md` (SysAdmin & Funding Rounds)
-**Tujuan:** Overhaul sistem rekrutmen dari klik instan menjadi proses negosiasi/level locking + perbaikan warna tombol di dark/light theme.
+**Tujuan:** Player character system, HR role dengan recruitment boost, training system, level locking + perbaikan UI.
 
 ---
 
-## 1. HR & Recruitment System
+## 1. Player Character (CEO)
 
-### Tujuan
-- Rekrutmen instan → proses investasi waktu & modal
-- Level locking: batasan peran berdasarkan level staf
-- Negosiasi interaktif: mini-game tawar gaji berbasis mood AI
+Setelah memilih produk, player masuk **PlayerSetup** screen — input username, lalu character dibuat:
+- `isPlayer: true` — tidak bisa resign/dipecat
+- Role dinamis: bisa diganti kapan aja via dropdown di EmployeeCard (Developer / Designer / HR)
+- Tag `Owner` + icon Crown 👑
+- **Overwork system**: jika happiness < 20 selama ≥50 tick kerja → speed -30%
 
-### Struktur Data Baru
+### Alur
+```
+Main Menu → Pilih Produk → Input Username → Main Game
+                                  ↓
+                        Player character created:
+                        name=username, role=Designer(default)
+```
 
-#### SourcingCampaign
+---
+
+## 2. HR Role (Role ke-5)
+
+`EmployeeRole` ditambah `'HR'`.
+
+### HR Lead — Recruitment Boost
+- Panel rekrutmen ada **dropdown** untuk pilih karyawan HR sebagai HR lead
+- Campaign ticks: `baseTicks - (hrLevel × 30) - ⌊hrSpeed × 10⌋` (min 20 tick)
+- Applicant quality: HR level meningkatkan distribusi level applicant
+- Hanya 1 HR lead aktif dalam satu waktu
+
+### HR Tidak Produksi Komponen
+Role HR tidak punya component assignments — fokus ke recruitment support.
+
+---
+
+## 3. Training System
+
+Setiap karyawan (non-player) bisa di-training:
+- Tombol **Train** di EmployeeCard (muncul saat idle)
+- Selama training: `isTraining = true`, tidak produksi komponen
+- Progress bar kuning (amber), baseTicks = `level × 400`
+- Selesai → level +1, notifikasi sukses
+- Bisa cancel kapan aja (progress reset)
+
+| Level | Training Duration |
+|---|---|
+| Lv1 | 400 ticks (20 day) |
+| Lv2 | 800 ticks (40 day) |
+| Lv3 | 1200 ticks (60 day) |
+
+---
+
+## 4. Struktur Data
+
 ```ts
-export interface SourcingCampaign {
-  tier: 'basic' | 'pro' | 'headhunter';
-  daysLeft: number; // Berkurang tiap tick
+// Employee — field baru
+interface Employee {
+  ...
+  isPlayer: boolean;
+  isTraining: boolean;
+  trainingProgress: number;
+  overworkTicks: number;
 }
 ```
 
-#### Applicant
-```ts
-export interface Applicant {
-  id: string;
-  name: string;
-  role: 'Developer' | 'Designer' | 'Lead Developer' | 'SysAdmin';
-  level: number; // 1–3
-  speed: number; // 0.8–1.5
-  expectedSalary: number;
-  minAcceptableSalary: number;
-  mood: 'patient' | 'stubborn' | 'volatile';
-  negotiationRounds: number;
-  status: 'pending' | 'countered' | 'rejected' | 'hired';
-}
-```
+---
 
-### Logika Negosiasi Gaji
+## 5. Level Locking
 
-- **Tawaran >= expectedSalary** → langsung Hired
-- **Tawaran < minAcceptableSalary**:
-  - Volatile: 70% chance reject langsung
-  - Stubborn: 40% chance reject langsung
-  - Jika tidak reject, kandidat tolak turunkan tuntutan
-- **Tawaran >= minAcceptableSalary && < expectedSalary**:
-  - Counter offer (jalan tengah)
-  - Turun sesuai mood: Patient -15%, Volatile/Stubborn -5–10%
-- **Batas ronde**: Patient 4x, Stubborn 2x, Volatile 1x → rejected
-
-### Level Locking per Komponen
-
-| Komponen | Role | Min Level | Base Ticks |
-|---|---|---|---|
-| UI Component | Designer | Lv1 | 20 |
-| Graphics Component | Designer | Lv2 | 25 |
-| Brand Identity | Designer | Lv3 | 35 |
-| Backend Code | Developer | Lv1 | 20 |
-| Network Module | Developer | Lv2 | 30 |
-| Security Protocol | Developer | Lv3 | 40 |
-
-### Fase Implementasi
-
-| Fase | Isi | Status |
+| Komponen | Role | Min Level |
 |---|---|---|
-| **A** | Backend state + UI dock tab REKRUT + campaign sourcing | ✅ Selesai |
-| **B** | Algoritma negosiasi + dialog simulasi interaktif | ✅ Selesai |
-| **C** | Desk indexing otomatis + level lock pada processWorkforces() + visual lock 🔒 | ⏳ |
+| UI Component | Designer | Lv1 |
+| Graphics Component | Designer | Lv2 |
+| Brand Identity | Designer | Lv3 |
+| Backend Code | Developer | Lv1 |
+| Network Module | Developer | Lv2 |
+| Security Protocol | Developer | Lv3 |
+
+Komponen terkunci ditampilkan dengan icon 🔒 + badge "Lv.X" di EmployeeCard.
 
 ---
 
-## 2. Theme Color Fixes
-
-### Dark Theme — Button Fixes
-
-#### Masalah: `bg-ink text-white` tidak terbaca di dark mode
-- `--color-ink` di dark mode = `#E4E7EB` (light gray)
-- `text-white` = `#FFFFFF`
-- Tombol seperti **Save** di HudBar: bg light gray + teks putih → hampir tidak terbaca
-
-**Fix:**
-- Tombol aksi utama (`bg-ink text-white`): ganti ke `bg-indigo text-white` (indigo konsisten di kedua tema)
-- Atau tambah utility class `.btn-primary` dengan warna tetap di kedua tema
-
-#### Speed Button Group — Dark Mode
-- Container `bg-surface-2` di dark mode = `#242A33` (cukup kontras)
-- Inactive button `text-ink-soft` = `#8A94A6` → ok
-- **Tidak ada masalah berarti di dark mode** untuk speed button
-
-### Light Theme — Speed Button Visibility
-
-#### Masalah: Speed button group menyatu dengan background putih
-- Container `bg-surface-2` = `#F8F9FB` (hampir putih)
-- HudBar bg = `bg-surface` = `#FFFFFF`
-- Border container = `#E3E7EE` (sangat tipis)
-- Inactive button: teks `#667085` tanpa background → kurang visible
-
-**Fix:**
-- Container: tambah border lebih tebal/kontras atau ubah bg ke abu-abu lebih jelas
-- Inactive button: kasih `hover:bg-surface-2` atau gunakan `text-ink` (bukan soft) untuk teks lebih gelap
-- Opsi: container border `border-indigo/20` untuk aksen halus
-
-### Perubahan File Lain
+## 6. Perubahan File
 
 | File | Perubahan |
 |---|---|
-| `src/index.css` | Tambah utility `.btn-primary`, `.btn-ghost`; adjust kontras di dark |
-| `src/components/HudBar.tsx` | Speed button container bg/border fix, Save button `bg-indigo` ganti `bg-ink` |
-| `src/components/FloatingPanel.tsx` | Header button `hover:bg-ink/5` → CSS var aman |
-| `src/components/ServerRoomView.tsx` | Sama |
-| `src/components/MainMenu.tsx` | Update versi ke v1.3.3 |
+| `types/employee.ts` | HR role, isPlayer, isTraining, trainingProgress, overworkTicks |
+| `types/index.ts` | — (auto) |
+| `store/gameStore.ts` | initPlayer, setPlayerRole, startTraining, cancelTraining, selectedHrId, setSelectedHr; HR boost di startSourcing & campaign tick; training progress + overwork di incrementTick |
+| `systems/recruitment.ts` | getCampaignTicks(), rollLevelHR(), HR salary; applicantToEmployee dengan new fields |
+| `data/components.ts` | — (sama) |
+| `components/PlayerSetup.tsx` | **BARU** — input username |
+| `components/EmployeesPanel.tsx` | Owner tag, role dropdown, training button, overwork warning, progress bar amber |
+| `components/RecruitmentPanel.tsx` | HR lead selector dropdown + boost info |
+| `components/CharacterAvatar.tsx` | HR color/icon definition |
+| `App.tsx` | Routing PlayerSetup screen |
+| `systems/saveLoad.ts` | Save selectedHrId |
+| `db/gameDB.ts` | DB v6, field selectedHrId |
+| `components/DevPanel.tsx` | Training cheat Lv+ button |
+| `docs/update_v1.3.3.md` | Dokumen ini |
 
 ---
 
-## 3. Perubahan File (HR System)
+## 7. Checklist
 
-| File | Perubahan |
-|---|---|
-| `src/types/employee.ts` | Tambah `SourcingCampaign`, `Applicant` interface |
-| `src/types/index.ts` | Export baru |
-| `src/store/gameStore.ts` | State: `sourcingCampaign`, `applicants`; actions: `startSourcing`, `reviewApplicant`, `negotiateSalary`, `hireApplicant`; proses sourcing di `incrementTick` |
-| `src/systems/recruitment.ts` | BARU — logika sourcing campaign, generate applicant, negosiasi, level lock check |
-| `src/components/RecruitmentPanel.tsx` | BARU — panel rekrutmen dengan campaign + list applicant + negosiasi |
-| `src/components/Dock.tsx` | Tambah tombol REKRUT (`UserCheck` icon) |
-| `src/systems/employee.ts` | `processWorkforces()` — validasi level lock sebelum assign task |
-| `src/systems/saveLoad.ts` | Save/load `sourcingCampaign`, `applicants` |
-| `src/db/gameDB.ts` | DB version 5 — tambah field baru |
-| `src/components/MainMenu.tsx` | Update versi v1.3.3 |
-| `docs/02_TASK.md` | Update checklist |
+### Player Character
+- [x] PlayerSetup screen (username input)
+- [x] Player character: isPlayer, cannot resign
+- [x] Owner tag + Crown icon di EmployeeCard
+- [x] Role dropdown dinamis (Developer/Designer/HR)
+- [x] Overwork system (happiness < 20 selama 50 tick → speed -30%)
 
----
+### HR Role
+- [x] HR ditambah sebagai role ke-5
+- [x] HR lead selector dropdown di RecruitmentPanel
+- [x] Campaign ticks: getCampaignTicks(hrLevel, hrSpeed)
+- [x] Applicant quality: rollLevelHR(hrLevel)
+- [x] HR tidak punya component tasks
 
-## 4. Checklist
+### Training System
+- [x] startTraining / cancelTraining actions
+- [x] Progress bar amber, baseTicks = level * 400
+- [x] Cancel reset progress
+- [x] Selesai → level +1, notifikasi
 
-### Theme Fixes
-- [x] Fix `bg-ink text-white` di dark mode (HudBar Save button)
-- [x] Fix speed button group visibility di light theme
+### Level Lock
+- [x] minLevel di ComponentDef
+- [x] getAvailableComponents / getLockedComponents
+- [x] Visual lock 🔒 + badge Lv.X
 
-### Fase A — Sourcing & Applicant
-- [x] `SourcingCampaign` + `Applicant` types
-- [x] Sourcing campaign (basic/pro/headhunter) dengan timer
-- [x] Generate applicant random dengan atribut (level, speed, salary, mood)
-- [x] UI panel rekrutmen + tab dock
-- [x] Save/load support + DB v5
-- [x] Hapus instant hire dari EmployeesPanel
+### Tick System
+- [x] 1 day = 20 ticks (TICKS_PER_DAY=20, TICKS_PER_MONTH=600)
+- [x] HUD: full-width month progress bar + weekday/day/month/year display
+- [x] Cash profit indicator (TrendingUp/TrendingDown hijau/merah)
 
-### Fase B — Negosiasi Gaji
-- [x] Logika negosiasi (mood-based: patient/stubborn/volatile)
-- [x] Batas ronde negosiasi
-- [x] UI input offer + tombol Tawar
-- [x] Response kandidat (hired/rejected/countered)
-- [x] Auto-hire ke employees saat deal
-
-### Fase C — Level Lock & Desk Indexing
-- [x] `minLevel` di ComponentDef + data komponen
-- [x] `deskIndex` di Employee type
-- [x] Desk indexing otomatis saat hire (cari slot kosong pertama)
-- [x] Level lock filtering: `getAvailableComponents()` cek level
-- [x] Visual lock 🔒 + required level badge di task buttons
-- [x] OfficeGrid pakai `deskIndex` (bukan array index)
-- [x] Main Menu versi v1.3.3
+### Lainnya
+- [x] Save/load + DB v6
 - [x] Build sukses (typecheck + lint)
 
 ---
 
-## 5. Dev Mode (tetap)
+## 8. Dev Mode (tetap)
 
 Dev Panel & tombol `DEV` **tetap hanya di `npm run dev`** (`import.meta.env.DEV`).

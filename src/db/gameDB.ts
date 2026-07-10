@@ -28,6 +28,7 @@ export interface GameSave {
   pendingFunding: FundingRound | null;
   sourcingCampaign: SourcingCampaign | null;
   applicants: Applicant[];
+  selectedHrId: string | null;
 }
 
 export class GameDB extends Dexie {
@@ -40,6 +41,7 @@ export class GameDB extends Dexie {
     this.version(3).stores({ saves: '++id, timestamp' });
     this.version(4).stores({ saves: '++id, timestamp' });
     this.version(5).stores({ saves: '++id, timestamp' });
+    this.version(6).stores({ saves: '++id, timestamp' });
   }
 }
 

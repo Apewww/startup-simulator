@@ -29,6 +29,7 @@ export async function saveGame(): Promise<void> {
     pendingFunding: state.pendingFunding,
     sourcingCampaign: state.sourcingCampaign,
     applicants: state.applicants,
+    selectedHrId: state.selectedHrId,
   });
 }
 
@@ -60,6 +61,7 @@ export async function loadGame(): Promise<boolean> {
     pendingFunding: save.pendingFunding ?? null,
     sourcingCampaign: save.sourcingCampaign ?? null,
     applicants: save.applicants ?? [],
+    selectedHrId: save.selectedHrId ?? null,
   });
 
   return true;

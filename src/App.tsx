@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useGameStore, type Notification } from './store/gameStore';
 import { MainMenu } from './components/MainMenu';
 import { ProductSelect } from './components/ProductSelect';
+import { PlayerSetup } from './components/PlayerSetup';
 import { ServerPanel } from './components/ServerPanel';
 import { DevPanel } from './components/DevPanel';
 import { HudBar } from './components/HudBar';
@@ -155,6 +156,10 @@ function App() {
 
   if (screen === 'select') {
     return <ProductSelect />;
+  }
+
+  if (screen === 'playerSetup') {
+    return <PlayerSetup />;
   }
 
   return (
