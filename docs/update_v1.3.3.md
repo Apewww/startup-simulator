@@ -138,6 +138,26 @@ Komponen terkunci ditampilkan dengan icon 🔒 + badge "Lv.X" di EmployeeCard.
 - [x] HUD: full-width month progress bar + weekday/day/month/year display
 - [x] Cash profit indicator (TrendingUp/TrendingDown hijau/merah)
 
+### Mood & Recovery
+- [x] All employees: overwork penalty (happiness < 20, 50+ ticks → speed -30%)
+- [x] Give Bonus ($200, +20 happiness)
+- [x] Vacation system (1-7 days, happiness recovery +0.1/tick)
+- [x] Vacation: progress bar + countdown + cut short
+
+### Recruitment Difficulty
+- [x] HR boost reduced: 0.15/Lv → 0.08/Lv
+- [x] Basic: always 85/12/3% (HR no effect)
+- [x] Pro: 55/33/12 → 31/42/27 with HR Lv3
+- [x] Headhunter: 25/30/45 → 1/18/81 with HR Lv3
+- [x] Applicant count: pro 2-3→1-2, headhunter 3-5→2-3
+- [x] Pro unlock: HR Lv.2 required
+- [x] Headhunter unlock: HR Lv.3 required
+
+### HUD Fixes
+- [x] Cash format compact (K/M)
+- [x] Real-time profit color (revenue - costs, not monthly snapshot)
+- [x] Maximize panel: backdrop overlay, smooth transition, responsive width
+
 ### Lainnya
 - [x] Save/load + DB v6
 - [x] Build sukses (typecheck + lint)

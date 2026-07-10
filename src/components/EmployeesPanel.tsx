@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { Users, Lock, Unlock, Crown, GraduationCap, XCircle, AlertTriangle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Users, Lock, Unlock, Crown, GraduationCap, XCircle, AlertTriangle, Gift, Plane, ChevronDown, ChevronUp } from 'lucide-react';
 import { useGameStore, getAvailableComponents, getLockedComponents } from '../store/gameStore';
 import { getComponentDef } from '../data/components';
 import type { Employee, EmployeeRole } from '../types';
@@ -15,10 +15,16 @@ function EmployeeCard({ employee }: { employee: Employee }) {
   const startTraining = useGameStore((s) => s.startTraining);
   const cancelTraining = useGameStore((s) => s.cancelTraining);
   const setPlayerRole = useGameStore((s) => s.setPlayerRole);
+  const giveBonus = useGameStore((s) => s.giveBonus);
+  const startVacation = useGameStore((s) => s.startVacation);
+  const cancelVacation = useGameStore((s) => s.cancelVacation);
+  const cash = useGameStore((s) => s.cash);
   const availableComponents = getAvailableComponents(employee.role, employee.level);
   const lockedComponents = getLockedComponents(employee.role, employee.level);
   const selectedId = useGameStore((s) => s.selectedEmployeeId);
   const isSelected = selectedId === employee.id;
+  const [showActions, setShowActions] = useState(false);
+  const [vacationDays, setVacationDays] = useState(3);
 
   useEffect(() => {
     if (isSelected) {
@@ -117,12 +123,60 @@ function EmployeeCard({ employee }: { employee: Employee }) {
             <span className="text-[11px] text-ink-soft">No components available</span>
           )}
           {/* Training button for non-player, max level 3 */}
-          {!employee.isPlayer && !employee.isTraining && employee.level < 3 && (
+          {!employee.isPlayer && !employee.isTraining && employee.level < 3 && !employee.onVacation && (
             <button onClick={() => startTraining(employee.id)}
               className="text-[10px] px-2 py-1 bg-amber-soft text-amber border border-amber/30 rounded hover:bg-amber hover:text-white transition-colors cursor-pointer flex items-center gap-1">
               <GraduationCap className="w-2.5 h-2.5" /> Train
             </button>
           )}
+          {/* Actions toggle */}
+          <button onClick={() => setShowActions(!showActions)}
+            className="text-[10px] px-2 py-1 bg-surface-2 border border-border rounded text-ink-soft hover:text-ink transition-colors cursor-pointer flex items-center gap-1">
+            {showActions ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+            Actions
+          </button>
+        </div>
+      )}
+
+      {/* Vacation progress */}
+      {employee.onVacation && (
+        <div className="mt-1.5">
+          <div className="flex justify-between text-[10px] text-ink-soft mb-0.5">
+            <span className="flex items-center gap-1"><Plane className="w-3 h-3" /> Vacation</span>
+            <span>{Math.ceil(employee.vacationTicksLeft / 20)}d left</span>
+          </div>
+          <div className="flex gap-1.5 items-center">
+            <div className="flex-1 h-1.5 bg-surface-2 rounded-full overflow-hidden">
+              <div className="h-full bg-green rounded-full transition-all duration-300" style={{ width: `${100 - (employee.vacationTicksLeft > 0 ? Math.min(100, (employee.vacationTicksLeft / (employee.vacationTicksLeft + (employee.vacationTicksLeft > 0 ? 1 : 0))) * 100) : 0)}%` }} />
+            </div>
+            <button onClick={() => cancelVacation(employee.id)}
+              className="text-[9px] text-red hover:text-red/80 cursor-pointer shrink-0">Cut short</button>
+          </div>
+        </div>
+      )}
+
+      {/* Actions panel */}
+      {showActions && !employee.onVacation && (
+        <div className="mt-1.5 p-2 rounded-lg bg-surface-2 border border-border space-y-1.5">
+          <button onClick={() => giveBonus(employee.id)}
+            className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-[10px] font-semibold transition-colors cursor-pointer ${
+              cash >= 200 ? 'bg-surface border border-border hover:border-green text-ink' : 'bg-surface border border-border opacity-40 cursor-not-allowed text-ink-soft'
+            }`}>
+            <span className="flex items-center gap-1"><Gift className="w-3 h-3 text-green" /> Give Bonus</span>
+            <span className="font-mono">+20 happy · $200</span>
+          </button>
+          <div className="flex items-center gap-1.5">
+            <Plane className="w-3 h-3 text-indigo shrink-0" />
+            <span className="text-[10px] text-ink-soft shrink-0">Vacation:</span>
+            <select value={vacationDays} onChange={e => setVacationDays(Number(e.target.value))}
+              className="bg-surface border border-border rounded px-1.5 py-1 text-[10px] text-ink font-semibold cursor-pointer outline-none">
+              {[1,2,3,4,5,6,7].map(d => <option key={d} value={d}>{d} day{d > 1 ? 's' : ''}</option>)}
+            </select>
+            <button onClick={() => startVacation(employee.id, vacationDays)}
+              className="px-2 py-1 bg-indigo hover:bg-indigo/90 text-white text-[10px] font-semibold rounded transition-colors cursor-pointer">
+              Start
+            </button>
+          </div>
         </div>
       )}
     </div>

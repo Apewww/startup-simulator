@@ -36,6 +36,8 @@ export interface Employee {
   isTraining: boolean;
   trainingProgress: number;
   overworkTicks: number;
+  onVacation: boolean;
+  vacationTicksLeft: number;
 }
 
 export interface FundingRound {

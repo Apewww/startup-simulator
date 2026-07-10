@@ -106,14 +106,18 @@ export function RecruitmentPanel() {
               const cost = CAMPAIGN_COST[tier];
               const canAfford = cash >= cost;
               const ticks = getCampaignTicks(tier, hrLevel, hrSpeed);
+              const reqLevel = tier === 'basic' ? 0 : tier === 'pro' ? 2 : 3;
+              const hasHrReq = hrLevel >= reqLevel;
+              const canStart = canAfford && hasHrReq;
               return (
-                <button key={tier} onClick={() => canAfford && startSourcing(tier)} disabled={!canAfford}
+                <button key={tier} onClick={() => canStart && startSourcing(tier)} disabled={!canStart}
                   className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-[11px] font-semibold transition-colors cursor-pointer ${
-                    canAfford ? 'bg-surface-2 border border-border hover:border-indigo text-ink' : 'bg-surface-2 border border-border opacity-40 cursor-not-allowed text-ink-soft'
+                    canStart ? 'bg-surface-2 border border-border hover:border-indigo text-ink' : 'bg-surface-2 border border-border opacity-50 cursor-not-allowed text-ink-soft'
                   }`}>
                   <div className="flex items-center gap-2">
                     <span className="capitalize">{tier}</span>
                     <span className="text-[9px] text-ink-soft font-normal">{Math.ceil(ticks / TICKS_PER_DAY)}d</span>
+                    {!hasHrReq && <span className="text-[8px] text-red font-semibold">Requires HR Lv.{reqLevel}</span>}
                   </div>
                   <span className="font-mono text-[10px]">{cost === 0 ? 'Free' : formatCash(cost)}</span>
                 </button>

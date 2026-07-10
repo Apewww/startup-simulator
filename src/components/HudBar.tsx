@@ -1,10 +1,14 @@
 import { Play, Pause, Save, AlertTriangle, Handshake, Moon, Sun, TrendingUp, TrendingDown } from 'lucide-react';
 import { useGameStore, TICKS_PER_MONTH, TICKS_PER_DAY } from '../store/gameStore';
 import { getTrafficStats } from '../systems/traffic';
+import { calculateRevenue } from '../systems/monetization';
+import { calcMonthlyServerCost } from '../systems/server';
 
 const DAY_NAMES = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
 function formatCash(n: number): string {
+  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
   return `$${n.toLocaleString('en-US')}`;
 }
 
@@ -16,7 +20,7 @@ interface HudBarProps {
 }
 
 export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps) {
-  const { tick, isPaused, speed, cash, month, features, togglePause, setSpeed, negativeCashMonths, pendingFunding, cashFlowHistory } = useGameStore();
+  const { tick, isPaused, speed, cash, month, features, racks, rentedServers, totalSalary, togglePause, setSpeed, negativeCashMonths, pendingFunding } = useGameStore();
   const trafficStats = getTrafficStats(features);
   const bankruptWarning = negativeCashMonths > 0;
 
@@ -27,8 +31,10 @@ export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps
   const hour = Math.floor((tick % TICKS_PER_DAY) * (24 / TICKS_PER_DAY));
   const timeStr = `${String(hour).padStart(2, '0')}:00`;
 
-  const lastNet = cashFlowHistory[cashFlowHistory.length - 1]?.net;
-  const profitable = lastNet === undefined ? true : lastNet >= 0;
+  const monthlyRevenue = calculateRevenue(trafficStats.users, features, racks);
+  const monthlyServerCost = calcMonthlyServerCost(racks, rentedServers);
+  const monthlyNet = monthlyRevenue.total - (totalSalary + monthlyServerCost);
+  const profitable = monthlyNet >= 0;
   const CashArrow = profitable ? TrendingUp : TrendingDown;
   const cashColor = profitable ? 'text-green' : 'text-red';
 

@@ -129,7 +129,7 @@ function ToastContainer() {
 }
 
 function App() {
-  const { isPaused, speed, incrementTick, selectedProduct, devMode, toggleDevMode, isBankrupt, screen, darkMode, toggleDarkMode } = useGameStore();
+  const { isPaused, speed, incrementTick, selectedProduct, devMode, toggleDevMode, isBankrupt, screen, darkMode, toggleDarkMode, maximizedPanel } = useGameStore();
   const [saveMsg, setSaveMsg] = useState('');
 
   useEffect(() => {
@@ -170,9 +170,16 @@ function App() {
         <Dock />
 
         <MainViewport />
+      </div>
 
-        {/* Floating window layer */}
-        <div className="fixed inset-0 pointer-events-none">
+      {/* Maximized backdrop */}
+      {maximizedPanel && (
+        <div className="fixed inset-0 z-30 bg-black/10 max-md:hidden"
+          onClick={() => useGameStore.getState().setMaximizedPanel(null)} />
+      )}
+
+      {/* Floating window layer */}
+      <div className="fixed inset-0 pointer-events-none z-40">
           <FloatingPanel id="employees" index={0} title={employeesPanelMeta.title} icon={employeesPanelMeta.icon} accent="#4F5EFF">
             <EmployeesPanel />
           </FloatingPanel>
@@ -193,7 +200,6 @@ function App() {
             <FinancePanel />
           </FloatingPanel>
         </div>
-      </div>
 
       <PanelTaskbar />
 

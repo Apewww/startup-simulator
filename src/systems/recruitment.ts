@@ -24,15 +24,15 @@ function generateName(): string {
 }
 
 function rollLevelHR(tier: SourcingCampaign['tier'], hrLevel: number): number {
-  const boost = Math.min(hrLevel * 0.15, 0.45);
+  const boost = Math.min(hrLevel * 0.08, 0.24);
   const r = Math.random();
   switch (tier) {
     case 'basic':
-      return r < 0.8 - boost ? 1 : r < 0.95 ? 2 : 3;
+      return r < 0.85 ? 1 : r < 0.97 ? 2 : 3;
     case 'pro':
-      return r < 0.4 - boost ? 1 : r < 0.85 - boost ? 2 : 3;
+      return r < 0.55 - boost ? 1 : r < 0.88 - boost ? 2 : 3;
     case 'headhunter':
-      return r < 0.2 - boost ? 1 : r < 0.5 - boost ? 2 : 3;
+      return r < 0.25 - boost ? 1 : r < 0.55 - boost ? 2 : 3;
   }
 }
 
@@ -160,5 +160,7 @@ export function applicantToEmployee(applicant: Applicant, deskIndex: number): Em
     isTraining: false,
     trainingProgress: 0,
     overworkTicks: 0,
+    onVacation: false,
+    vacationTicksLeft: 0,
   };
 }

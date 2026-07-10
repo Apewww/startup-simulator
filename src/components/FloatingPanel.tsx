@@ -87,9 +87,11 @@ export function FloatingPanel({ id, title, icon, children, index = 0 }: Floating
   return (
     <div
       onPointerDown={bringToFront}
-      className={`flex flex-col overflow-hidden rounded-xl shadow-[0_12px_32px_-8px_rgba(20,30,60,0.15)] pointer-events-auto border
+      className={`flex flex-col overflow-hidden rounded-xl shadow-panel pointer-events-auto border transition-all duration-200 ease-out
         max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:max-h-[85vh] max-md:rounded-t-2xl max-md:rounded-b-none
-        ${isMaximized ? 'fixed right-0 top-[52px] bottom-10 w-[420px] z-50 rounded-none rounded-l-xl max-md:inset-0 max-md:!w-auto max-md:rounded-none' : 'absolute w-[300px]'}`}
+        ${isMaximized
+          ? 'fixed right-0 top-[43px] bottom-10 w-[420px] xl:w-[480px] z-50 rounded-none rounded-l-xl border-r-0 max-md:inset-0 max-md:!w-auto max-md:rounded-none max-md:border-r'
+          : 'absolute w-[300px]'}`}
       style={{
         left: isMaximized ? undefined : pos.x,
         top: isMaximized ? undefined : pos.y,

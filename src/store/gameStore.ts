@@ -113,6 +113,9 @@ interface GameState {
   setPlayerRole: (id: string, role: EmployeeRole) => void;
   startTraining: (employeeId: string) => void;
   cancelTraining: (employeeId: string) => void;
+  giveBonus: (employeeId: string) => void;
+  startVacation: (employeeId: string, days: number) => void;
+  cancelVacation: (employeeId: string) => void;
   restartGame: () => void;
 }
 
@@ -186,6 +189,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       happiness: 80, speed: 1, currentTask: null, taskProgress: 0,
       resignTicks: 0, deskIndex, isPlayer: false,
       isTraining: false, trainingProgress: 0, overworkTicks: 0,
+      onVacation: false, vacationTicksLeft: 0,
     };
 
     const updated = [...state.employees, newEmp];
@@ -223,9 +227,19 @@ export const useGameStore = create<GameState>((set, get) => ({
         let newIsTraining = emp.isTraining;
         let newLevel = emp.level;
         let newOverworkTicks = emp.overworkTicks;
+        let newVacationTicks = emp.vacationTicksLeft;
+        let newOnVacation = emp.onVacation;
 
-        // Training progress
-        if (emp.isTraining) {
+        // Vacation
+        if (emp.onVacation) {
+          newVacationTicks = emp.vacationTicksLeft - 1;
+          newHappiness += 0.1;
+          if (newVacationTicks <= 0) {
+            newOnVacation = false;
+            newVacationTicks = 0;
+          }
+        } else if (emp.isTraining) {
+          // Training progress
           newTrainingProgress = emp.trainingProgress + emp.speed;
           if (newTrainingProgress >= emp.level * 400) {
             newLevel = emp.level + 1;
@@ -249,7 +263,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
 
         const isWorking = newCurrentTask !== null || newIsTraining;
-        if (isWorking) {
+        if (newOnVacation) {
+          // happiness already recovers above, no extra decay
+        } else if (isWorking) {
           newHappiness -= 0.05;
         } else {
           newHappiness -= 0.005;
@@ -265,16 +281,14 @@ export const useGameStore = create<GameState>((set, get) => ({
           newSpeed = emp.level;
         }
 
-        // Player overwork penalty
-        if (emp.isPlayer) {
-          if (newHappiness < 20 && isWorking) {
-            newOverworkTicks += 1;
-          } else {
-            newOverworkTicks = 0;
-          }
-          if (newOverworkTicks >= 50) {
-            newSpeed = Math.floor(newSpeed * 0.7);
-          }
+        // Overwork penalty (all employees)
+        if (newHappiness < 20 && isWorking) {
+          newOverworkTicks += 1;
+        } else {
+          newOverworkTicks = 0;
+        }
+        if (newOverworkTicks >= 50) {
+          newSpeed = Math.floor(newSpeed * 0.7);
         }
 
         // Resign (skip for player)
@@ -300,6 +314,8 @@ export const useGameStore = create<GameState>((set, get) => ({
           trainingProgress: newTrainingProgress,
           level: newLevel,
           overworkTicks: newOverworkTicks,
+          onVacation: newOnVacation,
+          vacationTicksLeft: newVacationTicks,
         };
       })
       .filter((emp): emp is Employee => emp !== null);
@@ -373,7 +389,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       if (newCampaign.daysLeft <= 0) {
         const hrEmp = state.selectedHrId ? state.employees.find(e => e.id === state.selectedHrId) : undefined;
         const hrLevel = hrEmp?.role === 'HR' ? hrEmp.level : 0;
-        const count = newCampaign.tier === 'basic' ? 1 : newCampaign.tier === 'pro' ? 2 + Math.floor(Math.random() * 2) : 3 + Math.floor(Math.random() * 3);
+        const count = newCampaign.tier === 'basic' ? 1 : newCampaign.tier === 'pro' ? 1 + Math.floor(Math.random() * 2) : 2 + Math.floor(Math.random() * 2);
         const batch: Applicant[] = [];
         for (let i = 0; i < count; i++) {
           batch.push(generateApplicant(newCampaign, hrLevel));
@@ -532,6 +548,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       isTraining: false,
       trainingProgress: 0,
       overworkTicks: 0,
+      onVacation: false,
+      vacationTicksLeft: 0,
     };
     set({ employees: [player], totalSalary: 0, screen: 'playing' });
   },
@@ -562,6 +580,41 @@ export const useGameStore = create<GameState>((set, get) => ({
       employees: state.employees.map(emp =>
         emp.id === employeeId
           ? { ...emp, isTraining: false, trainingProgress: 0 }
+          : emp
+      ),
+    }));
+  },
+
+  giveBonus: (employeeId) => {
+    const state = get();
+    const cost = 200;
+    if (state.cash < cost) return;
+    set({
+      cash: state.cash - cost,
+      employees: state.employees.map(emp =>
+        emp.id === employeeId
+          ? { ...emp, happiness: Math.min(100, emp.happiness + 20) }
+          : emp
+      ),
+    });
+    get().addNotification('Bonus given! +20 happiness', 'success');
+  },
+
+  startVacation: (employeeId, days) => {
+    set((state) => ({
+      employees: state.employees.map(emp =>
+        emp.id === employeeId
+          ? { ...emp, onVacation: true, vacationTicksLeft: days * 20, currentTask: null, taskProgress: 0 }
+          : emp
+      ),
+    }));
+  },
+
+  cancelVacation: (employeeId) => {
+    set((state) => ({
+      employees: state.employees.map(emp =>
+        emp.id === employeeId
+          ? { ...emp, onVacation: false, vacationTicksLeft: 0 }
           : emp
       ),
     }));
