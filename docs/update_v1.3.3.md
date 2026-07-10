@@ -52,15 +52,14 @@ export interface Applicant {
 
 ### Level Locking per Komponen
 
-| Komponen | Minimum Karyawan |
-|---|---|
-| UI Component | Designer Lv1+ |
-| Graphics Component | Designer Lv2+ |
-| Brand Identity | Designer Lv3 |
-| Backend Code | Developer Lv1+ |
-| Network Module | Developer Lv2+ |
-| Security Protocol | Developer Lv3 |
-| Database Schema | Developer Lv3 |
+| Komponen | Role | Min Level | Base Ticks |
+|---|---|---|---|
+| UI Component | Designer | Lv1 | 20 |
+| Graphics Component | Designer | Lv2 | 25 |
+| Brand Identity | Designer | Lv3 | 35 |
+| Backend Code | Developer | Lv1 | 20 |
+| Network Module | Developer | Lv2 | 30 |
+| Security Protocol | Developer | Lv3 | 40 |
 
 ### Fase Implementasi
 
@@ -154,12 +153,15 @@ export interface Applicant {
 - [x] Response kandidat (hired/rejected/countered)
 - [x] Auto-hire ke employees saat deal
 
-### Fase C — Level Lock (TBD)
-- [ ] Level locking di `processWorkforces()`
-- [ ] Desk indexing otomatis saat hire
-- [ ] Visual lock 🔒 di task assign
-- [ ] Main Menu versi v1.3.3
-- [ ] Build sukses (typecheck + lint)
+### Fase C — Level Lock & Desk Indexing
+- [x] `minLevel` di ComponentDef + data komponen
+- [x] `deskIndex` di Employee type
+- [x] Desk indexing otomatis saat hire (cari slot kosong pertama)
+- [x] Level lock filtering: `getAvailableComponents()` cek level
+- [x] Visual lock 🔒 + required level badge di task buttons
+- [x] OfficeGrid pakai `deskIndex` (bukan array index)
+- [x] Main Menu versi v1.3.3
+- [x] Build sukses (typecheck + lint)
 
 ---
 

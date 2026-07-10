@@ -5,7 +5,7 @@ import { COMPONENTS } from '../data/components';
 import { NODE_DEFS, RACK_TIERS } from '../data/servers';
 import { generateApplicant } from '../systems/recruitment';
 
-const ROLES: EmployeeRole[] = ['Developer', 'Designer', 'Lead_Developer', 'SysAdmin'];
+const ROLES: EmployeeRole[] = ['Developer', 'Designer'];
 
 export function DevPanel() {
   const { devMode, toggleDevMode, cash, addCash, employees, hireEmployee, addResources, features, unlockAllFeatures, racks, fillRack, selectedProduct } = useGameStore();

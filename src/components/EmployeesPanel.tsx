@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { Users } from 'lucide-react';
-import { useGameStore, getComponentsByRole } from '../store/gameStore';
+import { Users, Lock, Unlock } from 'lucide-react';
+import { useGameStore, getAvailableComponents, getLockedComponents } from '../store/gameStore';
 import type { Employee } from '../types';
 
 function formatCash(n: number): string {
@@ -9,7 +9,8 @@ function formatCash(n: number): string {
 
 function EmployeeCard({ employee }: { employee: Employee }) {
   const assignTask = useGameStore((s) => s.assignTask);
-  const availableComponents = getComponentsByRole(employee.role);
+  const availableComponents = getAvailableComponents(employee.role, employee.level);
+  const lockedComponents = getLockedComponents(employee.role, employee.level);
   const selectedId = useGameStore((s) => s.selectedEmployeeId);
   const isSelected = selectedId === employee.id;
 
@@ -61,17 +62,19 @@ function EmployeeCard({ employee }: { employee: Employee }) {
         </div>
       ) : (
         <div className="flex flex-wrap gap-1 mt-1.5">
-          {availableComponents.length > 0 ? (
-            availableComponents.map((comp) => (
-              <button
-                key={comp.id}
-                onClick={() => assignTask(employee.id, comp.id)}
-                className="text-[10px] px-2 py-1 bg-surface-2 hover:bg-indigo-soft hover:text-indigo border border-border rounded transition-colors cursor-pointer"
-              >
-                {comp.name}
-              </button>
-            ))
-          ) : (
+          {availableComponents.length > 0 && availableComponents.map((comp) => (
+            <button key={comp.id} onClick={() => assignTask(employee.id, comp.id)}
+              className="text-[10px] px-2 py-1 bg-surface-2 hover:bg-indigo-soft hover:text-indigo border border-border rounded transition-colors cursor-pointer flex items-center gap-1">
+              <Unlock className="w-2.5 h-2.5" />{comp.name}
+            </button>
+          ))}
+          {lockedComponents.length > 0 && lockedComponents.map((comp) => (
+            <span key={comp.id} title={`Requires Lv.${comp.minLevel}`}
+              className="text-[10px] px-2 py-1 bg-surface-2 border border-border rounded text-ink-soft flex items-center gap-1 opacity-60">
+              <Lock className="w-2.5 h-2.5" />{comp.name} <span className="text-[8px]">Lv.{comp.minLevel}</span>
+            </span>
+          ))}
+          {availableComponents.length === 0 && lockedComponents.length === 0 && (
             <span className="text-[11px] text-ink-soft">No components available</span>
           )}
         </div>

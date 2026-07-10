@@ -169,10 +169,13 @@ export const useGameStore = create<GameState>((set, get) => ({
     const name = roleNames[roleCount % roleNames.length];
     const id = `emp-${state.employees.length + 1}`;
 
+    const usedDesks = new Set(state.employees.map(e => e.deskIndex));
+    let deskIndex = 0;
+    while (usedDesks.has(deskIndex)) deskIndex++;
     const newEmp: Employee = {
       id, name, role, level: 1, salary: 500,
       happiness: 80, speed: 1, currentTask: null, taskProgress: 0,
-      resignTicks: 0,
+      resignTicks: 0, deskIndex,
     };
 
     const updated = [...state.employees, newEmp];
@@ -430,7 +433,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (result.status === 'hired') {
       updated.expectedSalary = result.newExpectedSalary ?? offer;
       updated.status = 'hired';
-      const emp = applicantToEmployee(updated);
+      const usedDesks = new Set(state.employees.map(e => e.deskIndex));
+      let deskIndex = 0;
+      while (usedDesks.has(deskIndex)) deskIndex++;
+      const emp = applicantToEmployee(updated, deskIndex);
       const newApplicants = state.applicants.map((a, i) => i === idx ? updated : a);
       const newEmployees = [...state.employees, emp];
       get().addNotification(`Hired ${emp.name} (${emp.role.replace('_', ' ')}) — $${emp.salary.toLocaleString('en-US')}/mo`, 'success');
@@ -816,6 +822,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   focusEmployee: (id) => set((state) => ({
     selectedEmployeeId: id,
     panelOpen: { ...state.panelOpen, employees: true },
+    panelMinimized: { ...state.panelMinimized, employees: false },
   })),
 
   addResources: (componentId: string, amount: number) => {
@@ -917,4 +924,12 @@ export const useGameStore = create<GameState>((set, get) => ({
 
 export function getComponentsByRole(role: EmployeeRole) {
   return COMPONENTS.filter(c => c.producedBy === role);
+}
+
+export function getAvailableComponents(role: EmployeeRole, level: number) {
+  return COMPONENTS.filter(c => c.producedBy === role && level >= c.minLevel);
+}
+
+export function getLockedComponents(role: EmployeeRole, level: number) {
+  return COMPONENTS.filter(c => c.producedBy === role && level < c.minLevel);
 }

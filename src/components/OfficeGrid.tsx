@@ -22,10 +22,10 @@ export function OfficeGrid() {
   const focusEmployee = useGameStore((s) => s.focusEmployee);
   const darkMode = useGameStore((s) => s.darkMode);
 
+  const deskMap = new Map(employees.map(e => [e.deskIndex, e]));
   const cells = Array.from({ length: TOTAL_CELLS }, (_, i) => ({
     index: i,
-    employee: employees[i] || null,
-    isEmpty: i >= employees.length,
+    employee: deskMap.get(i) || null,
   }));
 
   return (
@@ -40,7 +40,8 @@ export function OfficeGrid() {
       <div className="overflow-x-auto">
         <div className="grid grid-cols-6 md:grid-cols-8 gap-2.5 mx-auto" style={{ maxWidth: 560 }}>
           {cells.map((cell) => {
-            if (!cell.employee) {
+            const emp = cell.employee;
+            if (!emp) {
               return (
                 <div
                   key={cell.index}
@@ -48,8 +49,6 @@ export function OfficeGrid() {
                 />
               );
             }
-
-            const emp = cell.employee;
             const deskClass = getDeskClass(emp.currentTask, emp.happiness);
             const progress = emp.currentTask
               ? Math.min(100, Math.round((emp.taskProgress / 20) * 100))

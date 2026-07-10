@@ -31,6 +31,7 @@ export interface Employee {
   currentTask: string | null;
   taskProgress: number;
   resignTicks: number;
+  deskIndex: number;
 }
 
 export interface FundingRound {

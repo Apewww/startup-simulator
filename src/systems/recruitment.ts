@@ -1,6 +1,6 @@
 import type { Applicant, ApplicantMood, EmployeeRole, Employee, SourcingCampaign } from '../types';
 
-const ROLES: EmployeeRole[] = ['Developer', 'Designer', 'Lead_Developer', 'SysAdmin'];
+const ROLES: EmployeeRole[] = ['Developer', 'Designer'];
 
 const FIRST_NAMES = [
   'Alice', 'Bob', 'Charlie', 'Diana', 'Eve', 'Frank', 'Grace', 'Henry',
@@ -137,7 +137,7 @@ export function negotiate(applicant: Applicant, offer: number): NegotiationResul
 
 let empCounter = 0;
 
-export function applicantToEmployee(applicant: Applicant): Employee {
+export function applicantToEmployee(applicant: Applicant, deskIndex: number): Employee {
   empCounter++;
   return {
     id: `emp-hired-${Date.now()}-${empCounter}`,
@@ -150,5 +150,6 @@ export function applicantToEmployee(applicant: Applicant): Employee {
     currentTask: null,
     taskProgress: 0,
     resignTicks: 0,
+    deskIndex,
   };
 }
