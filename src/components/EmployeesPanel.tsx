@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Users, Lock, Unlock } from 'lucide-react';
 import { useGameStore, getAvailableComponents, getLockedComponents } from '../store/gameStore';
+import { getComponentDef } from '../data/components';
 import type { Employee } from '../types';
 
 function formatCash(n: number): string {
@@ -54,10 +55,10 @@ function EmployeeCard({ employee }: { employee: Employee }) {
         <div className="mt-1.5">
           <div className="flex justify-between text-[11px] text-ink-soft mb-0.5">
             <span>{employee.currentTask.replace(/_/g, ' ')}</span>
-            <span>{Math.min(100, Math.round((employee.taskProgress / 20) * 100))}%</span>
+            <span>{Math.min(100, Math.round((employee.taskProgress / (getComponentDef(employee.currentTask)?.baseTicks ?? 1)) * 100))}%</span>
           </div>
           <div className="w-full bg-surface-2 rounded h-1.5">
-            <div className="bg-indigo h-1.5 rounded transition-all duration-300" style={{ width: `${Math.min(100, (employee.taskProgress / 20) * 100)}%` }} />
+            <div className="bg-indigo h-1.5 rounded transition-all duration-300" style={{ width: `${Math.min(100, (employee.taskProgress / (getComponentDef(employee.currentTask)?.baseTicks ?? 1)) * 100)}%` }} />
           </div>
         </div>
       ) : (

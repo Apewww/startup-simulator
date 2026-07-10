@@ -73,10 +73,10 @@ export const CAMPAIGN_COST: Record<SourcingCampaign['tier'], number> = {
   headhunter: 1000,
 };
 
-export const CAMPAIGN_DAYS: Record<SourcingCampaign['tier'], number> = {
-  basic: 10,
-  pro: 5,
-  headhunter: 2,
+export const CAMPAIGN_TICKS: Record<SourcingCampaign['tier'], number> = {
+  basic: 200,
+  pro: 100,
+  headhunter: 40,
 };
 
 const MAX_ROUNDS: Record<ApplicantMood, number> = {

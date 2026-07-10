@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { UserCheck, Clock, X, User, Send, MessageSquare, CheckCircle, XCircle } from 'lucide-react';
-import { useGameStore } from '../store/gameStore';
-import { CAMPAIGN_COST, CAMPAIGN_DAYS } from '../systems/recruitment';
+import { useGameStore, TICKS_PER_DAY } from '../store/gameStore';
+import { CAMPAIGN_COST, CAMPAIGN_TICKS } from '../systems/recruitment';
 
 function formatCash(n: number): string {
   return `$${n.toLocaleString('en-US')}`;
@@ -71,11 +71,11 @@ export function RecruitmentPanel() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-ink capitalize">{sourcingCampaign.tier} campaign</span>
-              <span className="text-[10px] text-ink-soft font-mono">{sourcingCampaign.daysLeft}d left</span>
+              <span className="text-[10px] text-ink-soft font-mono">{Math.ceil(sourcingCampaign.daysLeft / TICKS_PER_DAY)}d left</span>
             </div>
             <div className="h-1.5 bg-surface-2 rounded-full overflow-hidden">
               <div className="h-full bg-indigo rounded-full transition-all duration-300"
-                style={{ width: `${((CAMPAIGN_DAYS[sourcingCampaign.tier] - sourcingCampaign.daysLeft) / CAMPAIGN_DAYS[sourcingCampaign.tier]) * 100}%` }} />
+                style={{ width: `${((CAMPAIGN_TICKS[sourcingCampaign.tier] - sourcingCampaign.daysLeft) / CAMPAIGN_TICKS[sourcingCampaign.tier]) * 100}%` }} />
             </div>
             <button onClick={cancelSourcing} className="text-[10px] text-red hover:text-red/80 transition-colors cursor-pointer">Cancel</button>
           </div>
@@ -91,7 +91,7 @@ export function RecruitmentPanel() {
                   }`}>
                   <div className="flex items-center gap-2">
                     <span className="capitalize">{tier}</span>
-                    <span className="text-[9px] text-ink-soft font-normal">{CAMPAIGN_DAYS[tier]}d</span>
+                    <span className="text-[9px] text-ink-soft font-normal">{CAMPAIGN_TICKS[tier] / TICKS_PER_DAY}d</span>
                   </div>
                   <span className="font-mono text-[10px]">{cost === 0 ? 'Free' : formatCash(cost)}</span>
                 </button>

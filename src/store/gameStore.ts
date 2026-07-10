@@ -7,10 +7,11 @@ import { getNodeDef, getRackDef } from '../data/servers';
 import { calculateNodeLoads, calcMonthlyServerCost } from '../systems/server';
 import { getTrafficStats } from '../systems/traffic';
 import { calculateRevenue } from '../systems/monetization';
-import { generateApplicant, CAMPAIGN_COST, CAMPAIGN_DAYS, negotiate, applicantToEmployee } from '../systems/recruitment';
+import { generateApplicant, CAMPAIGN_COST, CAMPAIGN_TICKS, negotiate, applicantToEmployee } from '../systems/recruitment';
 
 export type GameSpeed = 1 | 2 | 4;
-export const TICKS_PER_MONTH = 30;
+export const TICKS_PER_MONTH = 600;
+export const TICKS_PER_DAY = 20;
 
 export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment';
 export type PanelOpenState = Record<PanelId, boolean>;
@@ -225,9 +226,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
 
         if (newCurrentTask !== null) {
-          newHappiness -= 1;
+          newHappiness -= 0.05;
         } else {
-          newHappiness -= 0.1;
+          newHappiness -= 0.005;
         }
         newHappiness = Math.max(0, Math.min(100, newHappiness));
 
@@ -246,7 +247,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           newResignTicks = 0;
         }
 
-        if (newResignTicks >= 10 && Math.random() < 0.2) {
+        if (newResignTicks >= 10 * TICKS_PER_DAY && Math.random() < 0.2) {
           resignedIds.push(emp.id);
           return null;
         }
@@ -408,7 +409,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (state.cash < cost) return;
     set({
       cash: state.cash - cost,
-      sourcingCampaign: { tier, daysLeft: CAMPAIGN_DAYS[tier] },
+      sourcingCampaign: { tier, daysLeft: CAMPAIGN_TICKS[tier] },
     });
     get().addNotification(`Started ${tier} sourcing campaign`, 'info');
   },

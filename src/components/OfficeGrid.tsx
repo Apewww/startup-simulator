@@ -1,4 +1,5 @@
 import { useGameStore } from '../store/gameStore';
+import { getComponentDef } from '../data/components';
 import { roleColor } from './CharacterAvatar';
 
 const GRID_COLS = 8;
@@ -51,7 +52,7 @@ export function OfficeGrid() {
             }
             const deskClass = getDeskClass(emp.currentTask, emp.happiness);
             const progress = emp.currentTask
-              ? Math.min(100, Math.round((emp.taskProgress / 20) * 100))
+              ? Math.min(100, Math.round((emp.taskProgress / (getComponentDef(emp.currentTask)?.baseTicks ?? 1)) * 100))
               : 0;
 
             const bgColorWorking = darkMode ? 'bg-green/20' : 'bg-green-soft';

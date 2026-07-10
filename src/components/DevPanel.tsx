@@ -118,9 +118,9 @@ export function DevPanel() {
 
         <DevSection title="Game State">
           <div className="text-[10px] text-ink-soft">Tick: {useGameStore.getState().tick} | Month: {useGameStore.getState().month}</div>
-          <button onClick={() => { const s = useGameStore.getState(); for (let i = 0; i < 30; i++) s.incrementTick(); }}
+          <button onClick={() => { const s = useGameStore.getState(); for (let i = 0; i < 20; i++) s.incrementTick(); }}
             className="px-2 py-1 bg-surface-2 hover:bg-surface border border-border rounded-lg text-[10px] mt-1">
-            Fast-forward 30 ticks
+            Fast-forward 1 day
           </button>
         </DevSection>
       </div>
