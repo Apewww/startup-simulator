@@ -38,6 +38,7 @@ export interface Employee {
   overworkTicks: number;
   onVacation: boolean;
   vacationTicksLeft: number;
+  vacationTotal?: number;
   supervisedBy?: string;
   supervising?: string[];
 }

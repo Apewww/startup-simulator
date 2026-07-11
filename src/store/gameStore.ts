@@ -395,7 +395,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const crashPenalty = hasCrash ? currentUsers * 0.05 : 0;
     const churn = currentUsers * (1 - cohesionScore) * 0.0002;
     let newCurrentUsers = currentUsers + (userDelta * eventEffects.userGrowthMult) - crashPenalty - churn;
-    newCurrentUsers = Math.max(0, Math.round(newCurrentUsers));
+    newCurrentUsers = Math.max(0, newCurrentUsers);
 
     // Server calculation with effectiveRPS — compliance load mult untuk compute/data shortage
     const complianceBefore = features.some(f => f.level > 0) ? getComplianceStatus(features, placedRacks, rentedServers) : null;
@@ -767,7 +767,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => ({
       employees: state.employees.map(emp =>
         emp.id === employeeId
-          ? { ...emp, onVacation: true, vacationTicksLeft: days * 20, currentTask: null, taskProgress: 0 }
+          ? { ...emp, onVacation: true, vacationTicksLeft: days * 20, vacationTotal: days * 20, currentTask: null, taskProgress: 0 }
           : emp
       ),
     }));
