@@ -116,14 +116,55 @@ function getRackBaseCooling(tier: string): number {
 export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, rentedServers: RentedServer[] = [], sysAdminLevel: number = 0, crashChanceBonus: number = 0): NodeLoadResult {
   const stats = calcServerStats(racks, rentedServers);
   const rpsAfterCache = Math.max(0, incomingRPS - stats.totalCacheOffload);
-  const totalWeb = stats.totalWebCapacity + stats.rentedCapacity;
-  const ownedRPS = totalWeb > 0 ? rpsAfterCache * (stats.totalWebCapacity / totalWeb) : rpsAfterCache;
-  const rentedRPS = totalWeb > 0 ? rpsAfterCache * (stats.rentedCapacity / totalWeb) : 0;
 
-  const updatedRented = rentedServers.map(r => {
+  // Water-fill: collect all web servers (owned + rented), distribute RPS sequentially
+  type WebEntry = { capacity: number } & (
+    { type: 'owned'; rackId: string; slotIndex: number } |
+    { type: 'rented'; idx: number }
+  );
+
+  const webEntries: WebEntry[] = [];
+
+  // Owned web servers (active only)
+  for (const rack of racks) {
+    for (const slot of rack.slots) {
+      const node = slot.node;
+      if (!node || node.category !== 'web_server') continue;
+      if (node.status === 'crashed' || node.status === 'offline') continue;
+      const scaled = applyNodeScaling(node);
+      webEntries.push({ capacity: scaled.effectiveCapacity, type: 'owned', rackId: rack.id, slotIndex: slot.index });
+    }
+  }
+
+  // Rented servers (all have web capacity)
+  for (let i = 0; i < rentedServers.length; i++) {
+    webEntries.push({ capacity: rentedServers[i].capacityRps, type: 'rented', idx: i });
+  }
+
+  // Water-fill: fill first server to 100%, spill to next, etc.
+  const ownedLoadMap = new Map<string, number>();
+  let remaining = rpsAfterCache;
+  for (const entry of webEntries) {
+    const take = Math.min(remaining, entry.capacity);
+    const pct = entry.capacity > 0 ? (take / entry.capacity) * 100 : 0;
+    remaining -= take;
+    if (entry.type === 'owned') {
+      ownedLoadMap.set(`${entry.rackId}:${entry.slotIndex}`, pct);
+    }
+  }
+
+  // Rented server loads (water-filled)
+  const updatedRented = rentedServers.map((r, i) => {
     if (r.capacityRps <= 0) return { ...r, load: 0 };
-    const load = Math.round((rentedRPS / r.capacityRps) * 100);
-    return { ...r, load: Math.max(0, Math.min(200, load)) };
+    let allocRps = 0;
+    let tempRemaining = rpsAfterCache;
+    for (const e of webEntries) {
+      const take = Math.min(tempRemaining, e.capacity);
+      if (e.type === 'rented' && e.idx === i) { allocRps = take; break; }
+      tempRemaining -= take;
+    }
+    const load = r.capacityRps > 0 ? (allocRps / r.capacityRps) * 100 : 0;
+    return { ...r, load: Math.max(0, Math.min(200, Math.round(load))) };
   });
 
   const updatedRacks: ServerRack[] = racks.map(rack => {
@@ -161,14 +202,8 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
       }
 
       if (node.category === 'web_server') {
-        const activeCount = Math.max(1, racks.reduce((c, r) =>
-          c + r.slots.filter(s =>
-            s.node?.category === 'web_server' &&
-            (s.node?.status === 'active' || s.node?.status === 'overloaded')
-          ).length, 0));
-
-        const rpsPerServer = activeCount > 0 ? ownedRPS / activeCount : 0;
-        newLoad = node.capacity > 0 ? (rpsPerServer / node.capacity) * 100 : 0;
+        const waterLoad = ownedLoadMap.get(`${rack.id}:${slot.index}`);
+        newLoad = waterLoad !== undefined ? Math.round(waterLoad) : 0;
 
         if (newLoad >= 100) {
           newStatus = 'overloaded';
