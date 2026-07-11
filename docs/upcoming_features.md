@@ -30,24 +30,6 @@ Skala kesulitan: 🟢 Mudah | 🟡 Menengah | 🔴 Sulit | ⚫ Sangat Kompleks
 
 ---
 
-### **Phase 1 — Lead Developer: Data Model & Supervisi Dasar**
-**Difficulty: 🟡 Menengah**
-
-Tujuan: Bangun fondasi data & UI assignment, tanpa efek boost dulu.
-
-- [ ] Tambah field baru di `Employee` type: `supervisedBy?: string` (employee id lead-nya), dan di Lead: `supervising: string[]` (list id developer).
-- [ ] Validasi assignment:
-  - Hanya role `Lead_Developer` yang bisa punya `supervising`.
-  - Hanya role `Developer` yang bisa punya `supervisedBy`.
-  - 1 developer hanya bisa di-supervise oleh 1 lead pada satu waktu.
-  - Cap maksimum developer per lead **scale sesuai level lead** (formula & angka pasti didesain di Phase 2, lihat tabel cap).
-- [ ] UI: Tambah panel/modal di `EmployeesPanel.tsx` — saat klik Lead Developer, muncul list developer yang tersedia untuk di-assign/unassign (checkbox atau drag list).
-- [ ] Update `gameStore.ts` — actions: `assignDeveloperToLead()`, `unassignDeveloperFromLead()`.
-- [ ] Handle edge case: developer resign/dipecat saat masih di-supervise → auto unassign dari lead.
-- [ ] Handle edge case: lead resign/dipecat → semua developer yang disupervisi otomatis unassigned (fallback ke normal production).
-
-**Risk/Notes:** Ini murni data + UI, tidak menyentuh tick loop production sama sekali. Aman untuk dikerjakan pertama.
-
 ---
 
 ### **Phase 2 — Lead Developer: Production Boost Logic**
@@ -158,17 +140,17 @@ Tujuan: Ubah OfficeGrid dari layout statis jadi grid modular seperti ServerRoomV
 ## 📊 Ringkasan Urutan & Effort
 
 | Phase | Fitur | Difficulty | Dependency |
-|---|---|---|---|
-| 1 | Lead Dev — Data & Assignment UI | 🟡 | - |
-| 2 | Lead Dev — Production Boost Logic | 🔴 | Phase 1 |
+|---|---|---|---|---|
+| ~~1~~ ✅ | ~~Lead Dev — Data & Assignment UI~~ | 🟡 | - |
+| 2 | Lead Dev — Production Boost Logic | 🔴 | Phase 1 ✅ |
 | 3 | Lead Dev — UI Polish | 🟢 | Phase 2 |
-| 4 | Office Grid — Modular Refactor | 🔴 | - (independen, tapi prasyarat Phase 6) |
+| 4 | Office Grid — Modular Refactor | 🔴 | - |
 | 5 | Furniture — Perk/Unlock System | 🟡 | - |
 | 6 | Furniture — Shop & Placement | 🟡 | Phase 4, Phase 5 |
 | 7 | Balancing & QA Gabungan | 🔴 | Semua phase di atas |
 
 **Catatan urutan kerja realistis:**
-Phase 1-3 (Lead Dev) dan Phase 4-5 (Office Grid + Perks) bisa dikerjakan **paralel** karena tidak saling bergantung. Phase 6 baru bisa mulai setelah Phase 4 & 5 selesai. Phase 7 di akhir sebagai integrasi & polish penuh.
+Phase 2-3 (Lead Dev) dan Phase 4-5 (Office Grid + Perks) bisa dikerjakan **paralel** karena tidak saling bergantung. Phase 6 baru bisa mulai setelah Phase 4 & 5 selesai. Phase 7 di akhir sebagai integrasi & polish penuh.
 
 ---
 
