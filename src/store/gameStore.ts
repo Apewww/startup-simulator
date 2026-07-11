@@ -577,7 +577,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       pendingFunding: newPendingFunding,
       sourcingCampaign: newCampaign,
       applicants: newApplicants,
-      currentUsers: newCurrentUsers,
+      currentUsers: Math.round(newCurrentUsers),
       events: finalEvents,
     });
 
