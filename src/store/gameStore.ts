@@ -266,7 +266,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
         if (emp.onVacation) {
           newVacationTicks = emp.vacationTicksLeft - 1;
-          newHappiness += 0.1;
+          newHappiness += 0.1 + (emp.vacationTotal ? (emp.vacationTotal / 20 - 1) * 0.03 : 0);
           if (newVacationTicks <= 0) {
             newOnVacation = false;
             newVacationTicks = 0;
