@@ -2,7 +2,13 @@ import { useGameStore } from '../store/gameStore';
 import type { ComponentRequirement, PlatformFeature, FeatureGroup } from '../types';
 import { getProductDef } from '../data/products';
 import { getComponentDef } from '../data/components';
-import { LayoutGrid, Package, Zap, ToggleLeft, ToggleRight, ChevronDown } from 'lucide-react';
+import { LayoutGrid, Package, Zap, ToggleLeft, ToggleRight, ChevronDown, Server } from 'lucide-react';
+
+const HARDWARE_RATES: Record<FeatureGroup, { compute: number; data: number; network: number }> = {
+  core: { compute: 0.5, data: 0.3, network: 0.3 },
+  business: { compute: 0.3, data: 0.3, network: 0 },
+  engagement: { compute: 0.3, data: 0, network: 0.3 },
+};
 
 const GROUP_LABEL: Record<FeatureGroup, { label: string; color: string }> = {
   core: { label: 'CORE', color: 'text-indigo bg-indigo-soft border-indigo/20' },
@@ -70,8 +76,8 @@ function FeatureCard({ feature }: { feature: PlatformFeature }) {
         {isBuilt && <span className="text-[11px] text-ink-soft font-mono">{feature.trafficGenerated} traffic</span>}
       </div>
 
-      <div className="space-y-0.5 mb-1.5">
-        {!isBuilt && cost.map((req) => {
+      <div className="space-y-0.5 mb-1">
+        {cost.map((req) => {
           const compDef = getComponentDef(req.componentId);
           const res = resources.find((r) => r.id === req.componentId);
           const have = res?.quantity || 0;
@@ -84,6 +90,14 @@ function FeatureCard({ feature }: { feature: PlatformFeature }) {
             </div>
           );
         })}
+      </div>
+
+      {/* Hardware requirement */}
+      <div className="flex items-center gap-2.5 text-[10px] text-ink-soft mb-1.5 border-t border-surface-2 pt-1">
+        <Server className="w-3 h-3" />
+        <span>CPU <strong className="text-ink">{(HARDWARE_RATES[feature.group].compute * nextLevel).toFixed(1)}</strong></span>
+        <span>Data <strong className="text-ink">{(HARDWARE_RATES[feature.group].data * nextLevel).toFixed(1)}</strong></span>
+        <span>Net <strong className="text-ink">{(HARDWARE_RATES[feature.group].network * nextLevel).toFixed(1)}</strong></span>
       </div>
 
       {synergyActive && <div className="text-[10px] text-purple mb-1">{synergyDesc}</div>}

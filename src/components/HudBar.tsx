@@ -16,7 +16,8 @@ function formatCash(n: number): string {
 function formatCompact(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toString();
+  if (n >= 1) return Math.floor(n).toString();
+  return n > 0 ? '<1' : '0';
 }
 
 interface HudBarProps {

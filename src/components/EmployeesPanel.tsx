@@ -189,7 +189,7 @@ function EmployeeCard({ employee }: { employee: Employee }) {
           </div>
           <div className="flex gap-1.5 items-center">
             <div className="flex-1 h-1.5 bg-surface-2 rounded-full overflow-hidden">
-              <div className="h-full bg-green rounded-full transition-all duration-300" style={{ width: `${100 - (employee.vacationTicksLeft > 0 ? Math.min(100, (employee.vacationTicksLeft / (employee.vacationTicksLeft + (employee.vacationTicksLeft > 0 ? 1 : 0))) * 100) : 0)}%` }} />
+              <div className="h-full bg-green rounded-full transition-all duration-300" style={{ width: `${employee.vacationTotal ? ((employee.vacationTotal - employee.vacationTicksLeft) / employee.vacationTotal * 100) : 0}%` }} />
             </div>
             <button onClick={() => cancelVacation(employee.id)}
               className="text-[9px] text-red hover:text-red/80 cursor-pointer shrink-0">Cut short</button>
