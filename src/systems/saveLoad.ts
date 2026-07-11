@@ -36,6 +36,9 @@ export async function saveGame(): Promise<void> {
     events: state.events,
     officeGridCols: state.officeGridCols,
     officeGridRows: state.officeGridRows,
+    perkPoints: state.perkPoints,
+    earnedMilestones: state.earnedMilestones,
+    unlockedPerks: state.unlockedPerks,
   });
 }
 
@@ -80,6 +83,9 @@ export async function loadGame(): Promise<boolean> {
     events: save.events ?? [],
     officeGridCols: save.officeGridCols ?? 8,
     officeGridRows: save.officeGridRows ?? 8,
+    perkPoints: save.perkPoints ?? 0,
+    earnedMilestones: save.earnedMilestones ?? [],
+    unlockedPerks: save.unlockedPerks ?? [],
   });
 
   return true;

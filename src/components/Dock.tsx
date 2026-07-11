@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Users, LayoutGrid, Server, DollarSign, UserCheck } from 'lucide-react';
+import { Users, LayoutGrid, Server, DollarSign, UserCheck, Gift } from 'lucide-react';
 import { useGameStore, type PanelId } from '../store/gameStore';
 
 export const DOCK_ITEMS: { id: PanelId; label: string; shortcut: string; Icon: typeof Users; accent: string }[] = [
@@ -8,6 +8,7 @@ export const DOCK_ITEMS: { id: PanelId; label: string; shortcut: string; Icon: t
   { id: 'features', label: 'Build', shortcut: '2', Icon: LayoutGrid, accent: '#4F5EFF' },
   { id: 'server', label: 'Server', shortcut: '3', Icon: Server, accent: '#4F5EFF' },
   { id: 'finance', label: 'Money', shortcut: '4', Icon: DollarSign, accent: '#4F5EFF' },
+  { id: 'perks', label: 'Perks', shortcut: '6', Icon: Gift, accent: '#B7791F' },
 ];
 
 export function Dock() {

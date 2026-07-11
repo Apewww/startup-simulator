@@ -202,3 +202,28 @@ Server tidak dibeli langsung — pemain harus beli **rack** dulu, lalu pasang **
 - [ ] `saveLoad.ts`: migrasi `deskIndex` → `gridX`/`gridY` untuk save lama
 - [ ] `saveLoad.ts`: save/load `officeGridCols`/`officeGridRows`
 - [ ] Build sukses (typecheck + lint)
+
+---
+
+## V1.4.4 — Furniture Perk/Unlock System (Perk Points)
+
+- [ ] `data/milestones.ts`: `MILESTONES` (10 fixed + 1 repeatable `survival_6mo`) + `PerkContext`
+- [ ] `data/perks.ts`: `PERKS` (Coffee Machine, Ergonomic Chair, Water Dispenser, cost 1) + `PerkDef`
+- [ ] `gameStore.ts`: state `perkPoints` / `earnedMilestones` / `unlockedPerks`
+- [ ] `gameStore.ts`: action `checkMilestones` (fixed + repeatable, award point + notif)
+- [ ] `gameStore.ts`: action `unlockPerk(perkId)` (guard + spend + notif)
+- [ ] `gameStore.ts`: `incrementTick` panggil `checkMilestones`
+- [ ] `gameStore.ts`: `restartGame` reset perk state
+- [ ] `gameStore.ts`: `PanelId` + `'perks'` di panelOpen/Minimized
+- [ ] `PerksPanel.tsx`: tab Milestones (progress bar + clear state)
+- [ ] `PerksPanel.tsx`: tab Unlock (buy button + owned state)
+- [ ] `Dock.tsx`: tombol Perks (shortcut 6)
+- [ ] `App.tsx`: `FloatingPanel` Perks
+- [ ] `gameDB.ts`: bump Dexie v10 + field `GameSave`
+- [ ] `saveLoad.ts`: save/load 3 field baru
+- [ ] Build sukses (typecheck + lint)
+- [ ] Test: hire 5 employee → notif "+1 Perk Point"
+- [ ] Test: unlock perk → point turun, masuk `unlockedPerks`
+- [ ] Test: save/load perk state persist
+- [ ] Test: restart → perk state reset
+

@@ -83,13 +83,21 @@ Tujuan: Ubah OfficeGrid dari layout statis jadi grid modular seperti ServerRoomV
 
 ---
 
-### **Phase 5 — Furniture Perk/Unlock System**
+### **Phase 5 — Furniture Perk/Unlock System** 🚧 `v1.4.4` (in progress)
 **Difficulty: 🟡 Menengah**
 
-- [ ] Buat `data/perks.ts` — daftar perk/milestone yang unlock furniture (contoh: "Reach 10 employees" → unlock Coffee Machine; "Cash $50,000" → unlock Ergonomic Chairs).
-- [ ] State baru di `gameStore.ts`: `unlockedPerks: string[]`.
-- [ ] Tick loop check: setiap tick/bulan, cek kondisi milestone, kalau terpenuhi → push ke `unlockedPerks` + trigger notifikasi (reuse `EventBanner.tsx` pattern untuk notif unlock).
-- [ ] UI: Tambah tab "Perks" di panel yang relevan (atau modal terpisah) menampilkan perk yang sudah/belum unlock beserta requirement-nya (progress bar kalau relevan).
+> **Desain final (v1.4.4):** pakai **Perk Point system** (bukan auto-unlock pasif). Milestone kasih Perk Point, player spend point buat unlock perk/furniture. Sumber hybrid: fixed milestone (early game) + repeatable (`survival_6mo`, late game). Detail di `docs/update_v1.4.4.md`.
+
+- [x] Buat `data/milestones.ts` — daftar milestone yang kasih Perk Point (10 fixed + 1 repeatable), pakai `PerkContext`.
+- [x] Buat `data/perks.ts` — daftar perk (Coffee Machine, Ergonomic Chair, Water Dispenser), masing-masing cost 1 point + `furnitureUnlock`.
+- [x] State baru di `gameStore.ts`: `perkPoints: number`, `earnedMilestones: string[]`, `unlockedPerks: string[]`.
+- [x] Action `checkMilestones()` — scan milestone tiap tick, award point, trigger notif "Milestone Clear".
+- [x] Action `unlockPerk(perkId)` — spend point, push ke `unlockedPerks`, notif "Perk Unlocked".
+- [x] UI: `PerksPanel.tsx` — 2 tab (Milestones progress / Unlock Perks) + tombol Dock "Perks".
+- [x] Tick loop hook: `checkMilestones()` di `incrementTick`.
+- [x] Dexie v10 + save/load 3 field baru.
+
+> **Belum dikerjakan (Phase 6):** efek furniture radius/decay aktual. Phase 5 cuma unlock gate.
 
 ---
 
@@ -128,7 +136,7 @@ Tujuan: Ubah OfficeGrid dari layout statis jadi grid modular seperti ServerRoomV
 | ~~2~~ ✅ | ~~Lead Dev — Production Boost Logic~~ | 🔴 | Phase 1 ✅ |
 | ~~3~~ ✅ ~~v1.4.2~~ | ~~Lead Dev — UI Polish~~ | 🟢 | Phase 2 |
 | ~~4~~ ✅ ~~v1.4.3~~ | ~~Office Grid — Modular Refactor~~ | 🔴 | - |
-| 5 | Furniture — Perk/Unlock System | 🟡 | - |
+| 5 🚧 `v1.4.4` | Furniture — Perk/Unlock System (Perk Points) | 🟡 | - |
 | 6 | Furniture — Shop & Placement | 🟡 | Phase 4, Phase 5 |
 | 7 | Balancing & QA Gabungan | 🔴 | Semua phase di atas |
 

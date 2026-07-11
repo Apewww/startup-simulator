@@ -3,6 +3,8 @@ import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, Compon
 import { calcFundingOffer, calcMaxSupervised } from '../types/employee';
 import { getComponentDef, COMPONENTS } from '../data/components';
 import { getProductDef } from '../data/products';
+import { MILESTONES, type PerkContext } from '../data/milestones';
+import { PERKS } from '../data/perks';
 import { getNodeDef, getRackDef } from '../data/servers';
 import { calculateNodeLoads, calcMonthlyServerCost } from '../systems/server';
 import { getPlatformStats, getAppliedEffects } from '../systems/platform';
@@ -16,7 +18,7 @@ export type GameSpeed = 1 | 2 | 4;
 export const TICKS_PER_MONTH = 600;
 export const TICKS_PER_DAY = 20;
 
-export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment';
+export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment' | 'perks';
 export type PanelOpenState = Record<PanelId, boolean>;
 export type GameScreen = 'menu' | 'select' | 'playerSetup' | 'playing';
 
@@ -138,6 +140,11 @@ interface GameState {
   officeGridCols: number;
   officeGridRows: number;
   moveEmployee: (empId: string, x: number, y: number) => void;
+  perkPoints: number;
+  earnedMilestones: string[];
+  unlockedPerks: string[];
+  checkMilestones: () => void;
+  unlockPerk: (perkId: string) => void;
 }
 
 function calcTotalSalary(employees: Employee[]): number {
@@ -177,8 +184,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   isBankrupt: false,
   negativeCashMonths: 0,
   screen: 'menu',
-  panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false },
-  panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false },
+  panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false },
+  panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false },
   maximizedPanel: null,
   selectedEmployeeId: null,
   darkMode: (() => { try { return localStorage.getItem('ss-dark') === '1'; } catch { return false; } })(),
@@ -192,8 +199,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   currentUsers: 0,
   events: [],
   officeGridCols: 8,
-  officeGridRows: 8,
- 
+      officeGridRows: 8,
+      perkPoints: 0,
+      earnedMilestones: [],
+      unlockedPerks: [],
+
   setScreen: (screen) => set({ screen }),
   togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
   setSpeed: (speed) => set({ speed }),
@@ -570,6 +580,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       currentUsers: newCurrentUsers,
       events: finalEvents,
     });
+
+    get().checkMilestones();
   },
 
   addCash: (amount) => set((state) => ({ cash: state.cash + amount })),
@@ -1490,6 +1502,59 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
+  checkMilestones: () => {
+    const state = get();
+    const ctx: PerkContext = {
+      employees: state.employees,
+      cash: state.cash,
+      currentUsers: state.currentUsers,
+      features: state.features,
+      racks: state.racks,
+      month: state.month,
+    };
+
+    const earned = [...state.earnedMilestones];
+    const notifications: string[] = [];
+    let points = 0;
+
+    for (const m of MILESTONES) {
+      if (m.repeatable) {
+        const count = m.repeatCount ? m.repeatCount(ctx) : 0;
+        const already = earned.filter(id => id.startsWith(`${m.id}_`)).length;
+        const toAward = Math.max(0, count - already);
+        for (let i = 0; i < toAward; i++) {
+          earned.push(`${m.id}_${already + i + 1}`);
+          points++;
+          notifications.push(`Milestone Clear: "${m.name}" — +1 Perk Point!`);
+        }
+      } else if (!earned.includes(m.id) && m.check(ctx)) {
+        earned.push(m.id);
+        points++;
+        notifications.push(`Milestone Clear: "${m.name}" — +1 Perk Point!`);
+      }
+    }
+
+    if (points === 0) return;
+    set({ perkPoints: state.perkPoints + points, earnedMilestones: earned });
+    for (const msg of notifications) get().addNotification(msg, 'success');
+  },
+
+  unlockPerk: (perkId: string) => {
+    const state = get();
+    const perk = PERKS.find(p => p.id === perkId);
+    if (!perk) return;
+    if (state.unlockedPerks.includes(perkId)) return;
+    if (state.perkPoints < perk.cost) {
+      get().addNotification(`Not enough Perk Points for ${perk.name}`, 'warning');
+      return;
+    }
+    set({
+      perkPoints: state.perkPoints - perk.cost,
+      unlockedPerks: [...state.unlockedPerks, perkId],
+    });
+    get().addNotification(`Perk Unlocked: ${perk.name}!`, 'success');
+  },
+
   restartGame: () => {
     set({
       tick: 0, isPaused: false, speed: 1, cash: 15000, month: 0,
@@ -1498,8 +1563,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       inventoryNodes: [], activeView: { type: 'office' }, visitedPlots: [], gameLog: [],
       cashFlowHistory: [], notifications: [],
       isBankrupt: false, negativeCashMonths: 0, screen: 'menu',
-      panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false },
-      panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false },
+      panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false },
+      panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false },
       maximizedPanel: null,
       selectedEmployeeId: null,
   darkMode: (() => { try { return localStorage.getItem('ss-dark') === '1'; } catch { return false; } })(),
@@ -1510,6 +1575,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       events: [],
       officeGridCols: 8,
       officeGridRows: 8,
+      perkPoints: 0,
+      earnedMilestones: [],
+      unlockedPerks: [],
     });
   },
 }));
