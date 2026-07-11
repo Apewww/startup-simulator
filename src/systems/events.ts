@@ -6,7 +6,7 @@ const EVENT_TEMPLATES: Record<EventType, Omit<GameEvent, 'id' | 'tickLeft'>> = {
     name: 'DDoS Attack',
     description: 'Server under DDoS attack! Traffic melonjak drastis.',
     duration: 20,
-    effects: { rpsMultiplier: 2.5, userGrowthMultiplier: 0.5, revenueMultiplier: 0.7 },
+    effects: { rpsMultiplier: 2.5, userGrowthMultiplier: 0.5, revenueMultiplier: 0.5, crashChanceBonus: 0.15 },
   },
   traffic_spike: {
     type: 'traffic_spike',

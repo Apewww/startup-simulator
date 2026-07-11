@@ -348,12 +348,14 @@ export const useGameStore = create<GameState>((set, get) => ({
     // Server calculation with effectiveRPS — first check compliance for RPS penalty
     const complianceBefore = features.some(f => f.level > 0) ? getComplianceStatus(features, placedRacks, rentedServers) : null;
     const rpsMult = complianceBefore?.rpsPenalty ?? 1;
-    const adjustedRps = Math.round(platformStats.effectiveRps * rpsMult);
+    const computeLoadMult = complianceBefore ? Math.max(1, complianceBefore.compute.required / Math.max(complianceBefore.compute.provided, 0.1)) : 1;
+    const dataLoadMult = complianceBefore ? Math.max(1, complianceBefore.data.required / Math.max(complianceBefore.data.provided, 0.1)) : 1;
+    const adjustedRps = Math.round(platformStats.effectiveRps * rpsMult * computeLoadMult * dataLoadMult);
 
     const sysAdminLevel = employees
       .filter(e => e.role === 'SysAdmin' && e.happiness >= 15)
       .reduce((max, e) => Math.max(max, e.level), 0);
-    const { racks: updatedPlacedRacks, rentedServers: updatedRentedServers } = calculateNodeLoads(placedRacks, adjustedRps, rentedServers, sysAdminLevel);
+    const { racks: updatedPlacedRacks, rentedServers: updatedRentedServers } = calculateNodeLoads(placedRacks, adjustedRps, rentedServers, sysAdminLevel, eventEffects.crashChanceBonus);
 
     // If no web capacity at all, users drop fast
     const hasWebCapacity = updatedPlacedRacks.some(r =>
@@ -559,11 +561,15 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   startSourcing: (tier) => {
     const state = get();
+    const hrEmp = state.selectedHrId ? state.employees.find(e => e.id === state.selectedHrId) : undefined;
+    if (!hrEmp || hrEmp.role !== 'HR') {
+      get().addNotification('Assign an HR lead first (Team panel → HR role)', 'warning');
+      return;
+    }
     const cost = CAMPAIGN_COST[tier];
     if (state.cash < cost) return;
-    const hrEmp = state.selectedHrId ? state.employees.find(e => e.id === state.selectedHrId) : undefined;
-    const hrLevel = hrEmp?.role === 'HR' ? hrEmp.level : 0;
-    const hrSpeed = hrEmp?.role === 'HR' ? hrEmp.speed : 0;
+    const hrLevel = hrEmp.level;
+    const hrSpeed = hrEmp.speed;
     const ticks = getCampaignTicks(tier, hrLevel, hrSpeed);
     set({
       cash: state.cash - cost,

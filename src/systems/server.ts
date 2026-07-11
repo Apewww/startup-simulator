@@ -113,7 +113,7 @@ function getRackBaseCooling(tier: string): number {
   }
 }
 
-export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, rentedServers: RentedServer[] = [], sysAdminLevel: number = 0): NodeLoadResult {
+export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, rentedServers: RentedServer[] = [], sysAdminLevel: number = 0, crashChanceBonus: number = 0): NodeLoadResult {
   const stats = calcServerStats(racks, rentedServers);
   const rpsAfterCache = Math.max(0, incomingRPS - stats.totalCacheOffload);
   const totalWeb = stats.totalWebCapacity + stats.rentedCapacity;
@@ -213,7 +213,7 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
     const isOverheating = rackHeat > rackCooling;
     const newOverheatTicks = isOverheating ? rack.overheatTicks + 1 : 0;
 
-    const crashChance = Math.max(0.01, 0.05 - sysAdminLevel * 0.008);
+    const crashChance = Math.max(0.01, Math.min(0.4, 0.05 - sysAdminLevel * 0.008 + crashChanceBonus));
     if (isOverheating && newOverheatTicks >= 5) {
       newSlots.forEach(slot => {
         if (slot.node && slot.node.status !== 'crashed' && slot.node.status !== 'offline' && slot.node.heat > 0) {
