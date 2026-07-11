@@ -74,6 +74,7 @@ interface GameState {
   addCash: (amount: number) => void;
   hireEmployee: (role: EmployeeRole) => void;
   assignTask: (employeeId: string, componentId: string) => void;
+  cancelTask: (employeeId: string) => void;
   selectProduct: (productId: string) => void;
   buildFeature: (featureId: string) => void;
   upgradeFeature: (featureId: string) => void;
@@ -220,6 +221,16 @@ export const useGameStore = create<GameState>((set, get) => ({
       employees: state.employees.map(emp =>
         emp.id === employeeId
           ? emp.onVacation ? emp : { ...emp, currentTask: componentId, taskProgress: 0 }
+          : emp
+      ),
+    }));
+  },
+
+  cancelTask: (employeeId: string) => {
+    set((state) => ({
+      employees: state.employees.map(emp =>
+        emp.id === employeeId
+          ? { ...emp, currentTask: null, taskProgress: 0 }
           : emp
       ),
     }));
@@ -673,6 +684,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     const state = get();
     const emp = state.employees.find(e => e.id === id);
     if (!emp || !emp.isPlayer) return;
+    if (emp.currentTask || emp.isTraining) {
+      get().addNotification('Cannot change role while working — finish current task first', 'warning');
+      return;
+    }
     set({ employees: state.employees.map(e => e.id === id ? { ...e, role } : e) });
   },
 

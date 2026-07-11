@@ -12,6 +12,7 @@ function formatCash(n: number): string {
 
 function EmployeeCard({ employee }: { employee: Employee }) {
   const assignTask = useGameStore((s) => s.assignTask);
+  const cancelTask = useGameStore((s) => s.cancelTask);
   const startTraining = useGameStore((s) => s.startTraining);
   const cancelTraining = useGameStore((s) => s.cancelTraining);
   const setPlayerRole = useGameStore((s) => s.setPlayerRole);
@@ -103,6 +104,10 @@ function EmployeeCard({ employee }: { employee: Employee }) {
           <div className="w-full bg-surface-2 rounded h-1.5">
             <div className="bg-indigo h-1.5 rounded transition-all duration-300" style={{ width: `${Math.min(100, (employee.taskProgress / (getComponentDef(employee.currentTask)?.baseTicks ?? 1)) * 100)}%` }} />
           </div>
+          <button onClick={() => cancelTask(employee.id)}
+            className="text-[9px] text-red hover:text-red/80 mt-0.5 flex items-center gap-0.5 cursor-pointer">
+            <XCircle className="w-2.5 h-2.5" /> Cancel task
+          </button>
         </div>
       ) : (
         // Task buttons
@@ -123,7 +128,7 @@ function EmployeeCard({ employee }: { employee: Employee }) {
             <span className="text-[11px] text-ink-soft">No components available</span>
           )}
           {/* Training button for non-player, max level 3 */}
-          {!employee.isPlayer && !employee.isTraining && employee.level < 3 && !employee.onVacation && (
+          {!employee.isTraining && !employee.currentTask && employee.level < 3 && !employee.onVacation && (
             <button onClick={() => startTraining(employee.id)}
               className="text-[10px] px-2 py-1 bg-amber-soft text-amber border border-amber/30 rounded hover:bg-amber hover:text-white transition-colors cursor-pointer flex items-center gap-1">
               <GraduationCap className="w-2.5 h-2.5" /> Train
