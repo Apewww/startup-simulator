@@ -158,12 +158,13 @@ export function RackCard({ rack }: { rack: ServerRack }) {
 export function ServerPanel() {
   const rentedServers = useGameStore(s => s.rentedServers);
   const cancelRental = useGameStore(s => s.cancelRental);
+  const scaleRental = useGameStore(s => s.scaleRental);
   const features = useGameStore(s => s.features);
   const racks = useGameStore(s => s.racks);
   const [shopOpen, setShopOpen] = useState(false);
 
   const hasFeatures = features.some(f => f.level > 0);
-  const compliance = hasFeatures ? getComplianceStatus(features, racks) : null;
+  const compliance = hasFeatures ? getComplianceStatus(features, racks, rentedServers) : null;
 
   return (
     <div className="space-y-3">
@@ -218,13 +219,34 @@ export function ServerPanel() {
               return (
                 <div key={r.id} className="card px-3 py-2">
                   <div className="flex items-center justify-between mb-1">
-                    <div>
+                    <div className="flex items-center gap-2">
                       <span className="text-xs font-semibold text-ink">{r.label}</span>
-                      <span className="text-[11px] text-ink-soft ml-2">{r.capacityRps} RPS · {r.storage} st · {Math.round(r.uptime * 100)}%</span>
+                      <span className="text-[9px] text-ink-soft bg-surface-2 border border-border rounded px-1">Lv.{r.scaleLevel}</span>
                     </div>
-                    <button onClick={() => cancelRental(r.id)} className="text-[11px] text-red hover:text-red/80 font-semibold cursor-pointer">
-                      Cancel
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => scaleRental(r.id, -1)}
+                        disabled={r.scaleLevel <= 1}
+                        className="p-0.5 rounded bg-surface-2 border border-border hover:bg-ink/5 disabled:opacity-30 cursor-pointer"
+                      >
+                        <Minus className="w-2.5 h-2.5 text-ink-soft" />
+                      </button>
+                      <button
+                        onClick={() => scaleRental(r.id, 1)}
+                        disabled={r.scaleLevel >= 5}
+                        className="p-0.5 rounded bg-surface-2 border border-border hover:bg-ink/5 disabled:opacity-30 cursor-pointer"
+                      >
+                        <Plus className="w-2.5 h-2.5 text-ink-soft" />
+                      </button>
+                      <button onClick={() => cancelRental(r.id)} className="text-[11px] text-red hover:text-red/80 font-semibold cursor-pointer ml-1">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-ink-soft mb-1 flex gap-2">
+                    <span>{r.capacityRps} RPS</span>
+                    <span>$ {r.monthlyCost}/mo</span>
+                    <span>{r.compute}C {r.data}D {r.network}N</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 bg-border rounded h-1.5">

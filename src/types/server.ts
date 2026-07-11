@@ -76,6 +76,10 @@ export interface RentedServer {
   monthlyCost: number;
   uptime: number;
   load: number;
+  scaleLevel: number;
+  compute: number;
+  data: number;
+  network: number;
 }
 
 export interface NodeDef {

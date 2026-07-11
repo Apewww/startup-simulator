@@ -99,6 +99,7 @@ interface GameState {
   clearAllNodes: () => void;
   unplaceAllRacksGlobal: () => void;
   rentServer: (type: RentalType) => void;
+  scaleRental: (rentalId: string, delta: number) => void;
   cancelRental: (id: string) => void;
   toggleDevMode: () => void;
   setActiveView: (view: { type: 'office' } | { type: 'server', plotId: string }) => void;
@@ -345,7 +346,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     newCurrentUsers = Math.max(0, Math.round(newCurrentUsers));
 
     // Server calculation with effectiveRPS — first check compliance for RPS penalty
-    const complianceBefore = features.some(f => f.level > 0) ? getComplianceStatus(features, placedRacks) : null;
+    const complianceBefore = features.some(f => f.level > 0) ? getComplianceStatus(features, placedRacks, rentedServers) : null;
     const rpsMult = complianceBefore?.rpsPenalty ?? 1;
     const adjustedRps = Math.round(platformStats.effectiveRps * rpsMult);
 
@@ -366,7 +367,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     // Compliance check — hardware must meet feature requirements
     const compliance = features.some(f => f.level > 0)
-      ? getComplianceStatus(features, [...unplacedRacks, ...updatedPlacedRacks])
+      ? getComplianceStatus(features, [...unplacedRacks, ...updatedPlacedRacks], updatedRentedServers)
       : null;
     if (compliance) {
       if (compliance.overall === 'critical') {
@@ -519,7 +520,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (monthsSinceLast < 6) return;
 
     const traffic = getPlatformStats(state.features, state.events, state.selectedProduct);
-    const compliance = state.features.some(f => f.level > 0) ? getComplianceStatus(state.features, state.racks) : null;
+    const compliance = state.features.some(f => f.level > 0) ? getComplianceStatus(state.features, state.racks, state.rentedServers) : null;
     const revenue = calculateRevenue(state.currentUsers, state.features, state.racks, traffic.cohesionScore * (compliance?.revenueMult ?? 1), traffic.synergyRevenueBonus);
     const offer = calcFundingOffer(state.month, state.currentUsers, revenue.total);
     if (!offer) return;
@@ -1153,14 +1154,46 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   rentServer: (type: RentalType) => {
     const state = get();
-    const defs: Record<RentalType, Omit<RentedServer, 'id'>> = {
-      vps: { type: 'vps', label: 'VPS', capacityRps: 150, storage: 50, monthlyCost: 40, uptime: 0.99, load: 0 },
-      dedicated: { type: 'dedicated', label: 'Dedicated', capacityRps: 600, storage: 200, monthlyCost: 180, uptime: 0.999, load: 0 },
-      cloud: { type: 'cloud', label: 'Cloud Instance', capacityRps: 1000, storage: 500, monthlyCost: 300, uptime: 0.995, load: 0 },
+    const baseDefs: Record<RentalType, { label: string; capacityRps: number; storage: number; monthlyCost: number; uptime: number; compute: number; data: number; network: number }> = {
+      vps: { label: 'VPS', capacityRps: 150, storage: 50, monthlyCost: 40, uptime: 0.99, compute: 1, data: 0.5, network: 0.3 },
+      dedicated: { label: 'Dedicated', capacityRps: 600, storage: 200, monthlyCost: 180, uptime: 0.999, compute: 3, data: 2, network: 1 },
+      cloud: { label: 'Cloud Instance', capacityRps: 1000, storage: 500, monthlyCost: 300, uptime: 0.995, compute: 5, data: 3, network: 3 },
     };
-    const def = defs[type];
+    const def = baseDefs[type];
     get().addNotification(`Rented ${def.label} — $${def.monthlyCost}/mo`, 'info');
-    set({ rentedServers: [...state.rentedServers, { id: `rent-${state.rentedServers.length + 1}`, ...def }] });
+    set({ rentedServers: [...state.rentedServers, { id: `rent-${state.rentedServers.length + 1}`, type, ...def, load: 0, scaleLevel: 1 }] });
+  },
+
+  scaleRental: (rentalId: string, delta: number) => {
+    const state = get();
+    const idx = state.rentedServers.findIndex(r => r.id === rentalId);
+    if (idx === -1) return;
+    const r = state.rentedServers[idx];
+    const newLevel = Math.max(1, Math.min(5, r.scaleLevel + delta));
+    if (newLevel === r.scaleLevel) return;
+    const baseDefs: Record<string, { capacityRps: number; monthlyCost: number; compute: number; data: number; network: number }> = {
+      vps: { capacityRps: 150, monthlyCost: 40, compute: 1, data: 0.5, network: 0.3 },
+      dedicated: { capacityRps: 600, monthlyCost: 180, compute: 3, data: 2, network: 1 },
+      cloud: { capacityRps: 1000, monthlyCost: 300, compute: 5, data: 3, network: 3 },
+    };
+    const base = baseDefs[r.type];
+    if (!base) return;
+    const mult = [1, 1.3, 1.6, 2, 2.5][newLevel - 1];
+    const costMult = [1, 1.3, 1.7, 2.2, 3][newLevel - 1];
+    const updated = {
+      ...r,
+      scaleLevel: newLevel,
+      capacityRps: Math.round(base.capacityRps * mult),
+      monthlyCost: Math.round(base.monthlyCost * costMult),
+      compute: Math.round(base.compute * mult * 10) / 10,
+      data: Math.round(base.data * mult * 10) / 10,
+      network: Math.round(base.network * mult * 10) / 10,
+    };
+    get().addLog(`Scaled ${r.label} to Lv.${newLevel} (${updated.capacityRps} RPS, $${updated.monthlyCost}/mo)`);
+    get().addNotification(`Scaled ${r.label} to Lv.${newLevel}`, 'info');
+    set({
+      rentedServers: state.rentedServers.map((s, i) => i === idx ? updated : s),
+    });
   },
 
   cancelRental: (id: string) => {

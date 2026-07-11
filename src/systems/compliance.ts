@@ -1,4 +1,4 @@
-import type { PlatformFeature, ServerRack, FeatureGroup } from '../types';
+import type { PlatformFeature, ServerRack, RentedServer, FeatureGroup } from '../types';
 import { getNodeDef } from '../data/servers';
 
 const COMPUTE_RATES: Record<FeatureGroup, number> = { core: 0.5, business: 0.3, engagement: 0.3 };
@@ -35,7 +35,7 @@ export function calcRequirements(features: PlatformFeature[]): { compute: number
   return { compute, data, network };
 }
 
-export function calcProvidedPoints(racks: ServerRack[]): { compute: number; data: number; network: number; security: number } {
+export function calcProvidedPoints(racks: ServerRack[], rentedServers: RentedServer[] = []): { compute: number; data: number; network: number; security: number } {
   let compute = 0;
   let data = 0;
   let network = 0;
@@ -53,12 +53,17 @@ export function calcProvidedPoints(racks: ServerRack[]): { compute: number; data
       security += def.security;
     }
   }
+  for (const r of rentedServers) {
+    compute += r.compute;
+    data += r.data;
+    network += r.network;
+  }
   return { compute, data, network, security };
 }
 
-export function getComplianceStatus(features: PlatformFeature[], racks: ServerRack[]): ComplianceStatus {
+export function getComplianceStatus(features: PlatformFeature[], racks: ServerRack[], rentedServers?: RentedServer[]): ComplianceStatus {
   const req = calcRequirements(features);
-  const prov = calcProvidedPoints(racks);
+  const prov = calcProvidedPoints(racks, rentedServers);
 
   const computeRatio = req.compute > 0 ? Math.min(prov.compute / req.compute, 5) : 1;
   const dataRatio = req.data > 0 ? Math.min(prov.data / req.data, 5) : 1;

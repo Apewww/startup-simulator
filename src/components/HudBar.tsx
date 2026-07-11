@@ -99,7 +99,7 @@ export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps
 
         {/* Compliance status dot */}
         {features.some(f => f.level > 0) && (() => {
-          const comp = getComplianceStatus(features, racks);
+          const comp = getComplianceStatus(features, racks, rentedServers);
           const dotColor = comp.overall === 'ok' ? 'text-green' : comp.overall === 'partial' ? 'text-amber' : 'text-red';
           const dotLabel = comp.overall === 'ok' ? 'Hardware OK' : comp.overall === 'partial' ? `Partial (${Math.round(Math.min(comp.userCap, 1) * 100)}% cap)` : 'Critical — no service';
           return (
