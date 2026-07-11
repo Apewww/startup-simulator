@@ -1,11 +1,23 @@
-import { Star } from 'lucide-react';
+import { useState, useRef, useCallback } from 'react';
+import { Star, Coffee, Armchair, Droplets, X } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import { getComponentDef } from '../data/components';
+import { getFurnitureDef } from '../data/furniture';
 import { roleColor } from './CharacterAvatar';
 
-const GRID_COLS = 8;
-const GRID_ROWS = 8;
-const TOTAL_CELLS = GRID_COLS * GRID_ROWS;
+const CELL_SIZE = 72;
+
+const FURNITURE_ICON: Record<string, typeof Coffee> = {
+  coffee_machine: Coffee,
+  ergonomic_chair: Armchair,
+  water_dispenser: Droplets,
+};
+
+const FURNITURE_COLOR: Record<string, string> = {
+  coffee_machine: '#B7791F',
+  ergonomic_chair: '#4F5EFF',
+  water_dispenser: '#0EA5E9',
+};
 
 function getStatusText(task: string | null): string {
   if (!task) return 'Idle';
@@ -19,38 +31,247 @@ function getDeskClass(task: string | null, happiness: number): string {
   return 'idle';
 }
 
+function isValidPlacement(
+  defId: string,
+  x: number,
+  y: number,
+  cols: number,
+  rows: number,
+  employees: { gridX: number; gridY: number }[],
+  furniture: { defId: string; gridX: number; gridY: number }[],
+): boolean {
+  if (x < 0 || x >= cols || y < 0 || y >= rows) return false;
+  const def = getFurnitureDef(defId);
+  if (!def) return false;
+  if (def.placement === 'tile') {
+    return !employees.some(e => e.gridX === x && e.gridY === y)
+      && !furniture.some(f => f.gridX === x && f.gridY === y);
+  }
+  const empHere = employees.some(e => e.gridX === x && e.gridY === y);
+  const chairHere = furniture.some(f => f.defId === 'ergonomic_chair' && f.gridX === x && f.gridY === y);
+  return empHere && !chairHere;
+}
+
 export function OfficeGrid() {
   const employees = useGameStore((s) => s.employees);
+  const furniture = useGameStore((s) => s.furniture);
+  const furnitureInventory = useGameStore((s) => s.furnitureInventory);
   const focusEmployee = useGameStore((s) => s.focusEmployee);
+  const moveEmployee = useGameStore((s) => s.moveEmployee);
+  const moveFurniture = useGameStore((s) => s.moveFurniture);
   const darkMode = useGameStore((s) => s.darkMode);
+  const officeGridCols = useGameStore((s) => s.officeGridCols);
+  const officeGridRows = useGameStore((s) => s.officeGridRows);
+  const placementFurnitureId = useGameStore((s) => s.placementFurnitureId);
+  const placeFurniture = useGameStore((s) => s.placeFurniture);
+  const unplaceFurniture = useGameStore((s) => s.unplaceFurniture);
+  const cancelFurniturePlacement = useGameStore((s) => s.cancelFurniturePlacement);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [dragOverPos, setDragOverPos] = useState<{ x: number; y: number } | null>(null);
+  const [draggedEmpId, setDraggedEmpId] = useState<string | null>(null);
+  const [draggedFurnId, setDraggedFurnId] = useState<string | null>(null);
+  const [placeHover, setPlaceHover] = useState<{ x: number; y: number } | null>(null);
 
-  const deskMap = new Map(employees.map(e => [e.deskIndex, e]));
-  const cells = Array.from({ length: TOTAL_CELLS }, (_, i) => ({
-    index: i,
-    employee: deskMap.get(i) || null,
-  }));
+  const getGridPos = useCallback((clientX: number, clientY: number) => {
+    if (!gridRef.current) return null;
+    const rect = gridRef.current.getBoundingClientRect();
+    const x = Math.floor((clientX - rect.left) / CELL_SIZE);
+    const y = Math.floor((clientY - rect.top) / CELL_SIZE);
+    return { x: Math.max(0, Math.min(x, officeGridCols - 1)), y: Math.max(0, Math.min(y, officeGridRows - 1)) };
+  }, [officeGridCols, officeGridRows]);
+
+  const handleEmpDragStart = (e: React.DragEvent, empId: string) => {
+    e.dataTransfer.setData('application/emp-id', empId);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedEmpId(empId);
+    const el = e.currentTarget as HTMLElement;
+    setTimeout(() => el.style.opacity = '0.3', 0);
+  };
+
+  const handleEmpDragEnd = (e: React.DragEvent) => {
+    const el = e.currentTarget as HTMLElement;
+    el.style.opacity = '';
+    setDragOverPos(null);
+    setDraggedEmpId(null);
+  };
+
+  const handleFurnDragStart = (e: React.DragEvent, furnId: string) => {
+    if (placementFurnitureId) return;
+    e.dataTransfer.setData('application/furn-id', furnId);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedFurnId(furnId);
+    const el = e.currentTarget as HTMLElement;
+    setTimeout(() => el.style.opacity = '0.3', 0);
+  };
+
+  const handleFurnDragEnd = (e: React.DragEvent) => {
+    const el = e.currentTarget as HTMLElement;
+    el.style.opacity = '';
+    setDragOverPos(null);
+    setDraggedFurnId(null);
+  };
+
+  const handleGridDragOver = (e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes('application/emp-id') && !e.dataTransfer.types.includes('application/furn-id')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const pos = getGridPos(e.clientX, e.clientY);
+    if (!pos) return;
+    if (e.dataTransfer.types.includes('application/emp-id')) {
+      const collision = draggedEmpId && employees.some(emp => emp.id !== draggedEmpId && emp.gridX === pos.x && emp.gridY === pos.y);
+      if (collision) return;
+    }
+    setDragOverPos(pos);
+  };
+
+  const handleGridDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const furnId = e.dataTransfer.getData('application/furn-id');
+    if (furnId) {
+      const pos = getGridPos(e.clientX, e.clientY);
+      if (pos) moveFurniture(furnId, pos.x, pos.y);
+      setDragOverPos(null);
+      setDraggedFurnId(null);
+      return;
+    }
+    const empId = e.dataTransfer.getData('application/emp-id');
+    if (!empId) return;
+    const pos = getGridPos(e.clientX, e.clientY);
+    if (!pos) return;
+    const collision = employees.some(emp => emp.id !== empId && emp.gridX === pos.x && emp.gridY === pos.y);
+    if (collision) return;
+    moveEmployee(empId, pos.x, pos.y);
+    setDragOverPos(null);
+    setDraggedEmpId(null);
+  };
+
+  const handleGridMouseMove = (e: React.MouseEvent) => {
+    if (!placementFurnitureId) return;
+    const pos = getGridPos(e.clientX, e.clientY);
+    setPlaceHover(pos);
+  };
+
+  const handleGridClick = (e: React.MouseEvent) => {
+    if (!placementFurnitureId) return;
+    const pos = getGridPos(e.clientX, e.clientY);
+    if (!pos) return;
+    placeFurniture(pos.x, pos.y);
+  };
+
+  const totalCells = officeGridCols * officeGridRows;
+  const placeDefId = placementFurnitureId
+    ? furnitureInventory.find(i => i.id === placementFurnitureId)?.defId
+    : undefined;
+  const placeValid = placeDefId && placeHover
+    ? isValidPlacement(placeDefId, placeHover.x, placeHover.y, officeGridCols, officeGridRows, employees, furniture)
+    : false;
 
   return (
     <div className="card p-5 flex-1">
       <div className="flex items-start justify-between mb-4">
         <div>
           <h2 className="text-[18px] font-extrabold tracking-tight">Office Grid</h2>
-          <p className="text-xs text-ink-soft mt-0.5">{employees.length} / {TOTAL_CELLS} meja terisi</p>
+          <p className="text-xs text-ink-soft mt-0.5">{employees.length} / {totalCells} meja terisi</p>
         </div>
       </div>
 
-      <div>
-        <div className="grid grid-cols-6 md:grid-cols-8 gap-2.5 mx-auto" style={{ maxWidth: 560 }}>
-          {cells.map((cell) => {
-            const emp = cell.employee;
-            if (!emp) {
-              return (
+      {placementFurnitureId && placeDefId && (
+        <div className="flex items-center gap-2 mb-3 p-2 rounded-lg bg-amber-soft border border-amber/30">
+          <span className="text-[11px] font-semibold text-amber flex-1">
+            Placing {getFurnitureDef(placeDefId)?.name} — click a {getFurnitureDef(placeDefId)?.placement === 'desk' ? 'desk' : 'tile'}
+          </span>
+          <button
+            onClick={cancelFurniturePlacement}
+            className="p-1 rounded hover:bg-red-soft hover:text-red cursor-pointer text-ink-soft transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      <div className="relative pl-5 pb-5 flex justify-center">
+        <div
+          ref={gridRef}
+          className={`relative border-2 rounded-lg transition-colors box-border ${dragOverPos ? 'border-indigo bg-indigo-soft/30' : 'border-border bg-surface'}`}
+          style={{ width: officeGridCols * CELL_SIZE, height: officeGridRows * CELL_SIZE }}
+          onDrop={handleGridDrop}
+          onDragOver={handleGridDragOver}
+          onDragLeave={() => setDragOverPos(null)}
+          onMouseMove={handleGridMouseMove}
+          onMouseLeave={() => setPlaceHover(null)}
+          onClick={handleGridClick}
+        >
+          {Array.from({ length: officeGridRows }, (_, row) =>
+            Array.from({ length: officeGridCols }, (_, col) => (
+              <div key={`${row}-${col}`} className="absolute border border-border/30"
+                style={{ left: col * CELL_SIZE, top: row * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }}
+              />
+            ))
+          )}
+
+          {Array.from({ length: officeGridCols }, (_, i) => (
+            <div key={`cl${i}`} className="absolute -bottom-5 text-[9px] text-ink-soft font-mono text-center"
+              style={{ left: i * CELL_SIZE, width: CELL_SIZE }}>{i}</div>
+          ))}
+          {Array.from({ length: officeGridRows }, (_, i) => (
+            <div key={`rl${i}`} className="absolute -left-5 text-[9px] text-ink-soft font-mono leading-none"
+              style={{ top: i * CELL_SIZE + 2, width: 16, textAlign: 'right' }}>{i}</div>
+          ))}
+
+          {furniture.map(furn => {
+            const def = getFurnitureDef(furn.defId);
+            if (!def) return null;
+            const Icon = FURNITURE_ICON[furn.defId] ?? Coffee;
+            const color = FURNITURE_COLOR[furn.defId] ?? '#B7791F';
+            return (
+              <div key={furn.id}>
+                {def.radius > 0 && (
+                  <div
+                    className="absolute bg-amber/10 border border-amber/30 pointer-events-none"
+                    style={{
+                      left: 0,
+                      top: furn.gridY * CELL_SIZE,
+                      width: officeGridCols * CELL_SIZE,
+                      height: 2 * CELL_SIZE,
+                    }}
+                  />
+                )}
                 <div
-                  key={cell.index}
-                  className="aspect-square rounded-lg bg-surface-2 border border-dashed border-border"
-                />
-              );
-            }
+                  draggable
+                  onDragStart={(e) => handleFurnDragStart(e, furn.id)}
+                  onDragEnd={handleFurnDragEnd}
+                  className="absolute border rounded-lg box-border border-amber/40 bg-amber-soft flex items-center justify-center cursor-grab active:cursor-grabbing hover:bg-amber-soft/70"
+                  style={{
+                    left: furn.gridX * CELL_SIZE,
+                    top: furn.gridY * CELL_SIZE,
+                    width: CELL_SIZE - 4,
+                    height: CELL_SIZE - 4,
+                    margin: 2,
+                    zIndex: 5,
+                  }}
+                  onClick={() => { if (!placementFurnitureId && !draggedFurnId) unplaceFurniture(furn.id); }}
+                  title={`${def.name}${def.placement === 'desk' ? ' (on desk)' : ` (radius ${def.radius})`} — drag to move, click to pick up`}
+                >
+                  <Icon className="w-7 h-7" style={{ color }} strokeWidth={1.8} />
+                </div>
+              </div>
+            );
+          })}
+
+          {dragOverPos && (
+            <div className="absolute border-2 rounded-lg z-10 border-indigo bg-indigo/20 transition-all duration-100"
+              style={{ left: dragOverPos.x * CELL_SIZE, top: dragOverPos.y * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }}
+            />
+          )}
+
+          {placementFurnitureId && placeHover && (
+            <div
+              className={`absolute border-2 rounded-lg z-10 transition-all duration-75 ${placeValid ? 'border-green bg-green/20' : 'border-red bg-red/20'}`}
+              style={{ left: placeHover.x * CELL_SIZE, top: placeHover.y * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }}
+            />
+          )}
+
+          {employees.map(emp => {
             const deskClass = getDeskClass(emp.currentTask, emp.happiness);
             const progress = emp.currentTask
               ? Math.min(100, Math.round((emp.taskProgress / (getComponentDef(emp.currentTask)?.baseTicks ?? 1)) * 100))
@@ -66,35 +287,48 @@ export function OfficeGrid() {
             const avatarColor = deskClass === 'working' ? (darkMode ? '#34D399' : '#17A366') : deskClass === 'low' ? (darkMode ? '#F87171' : '#D1453B') : (darkMode ? '#94A3B8' : '#4F5EFF');
 
             return (
-              <button
-                key={cell.index}
-                onClick={() => focusEmployee(emp.id)}
-                className={`aspect-square rounded-lg border flex flex-col items-center justify-center relative transition-colors cursor-pointer group ${deskClass === 'empty' ? 'border-dashed border-border bg-surface-2' :
-                    deskClass === 'working' ? `${borderColorWorking} ${bgColorWorking}` :
-                      deskClass === 'low' ? `${borderColorLow} ${bgColorLow}` :
-                        `${borderColorIdle} ${bgColorIdle}`
-                  }${emp.role === 'Lead_Developer' ? ' ring-2 ring-indigo/60' : ''}`}
+              <div
+                key={emp.id}
+                draggable
+                onDragStart={(e) => handleEmpDragStart(e, emp.id)}
+                onDragEnd={handleEmpDragEnd}
+                className={`absolute border rounded-lg transition-colors cursor-grab active:cursor-grabbing group box-border
+                  ${emp.role === 'Lead_Developer' ? 'ring-2 ring-indigo/60' : ''}
+                  ${deskClass === 'working' ? `${borderColorWorking} ${bgColorWorking}` :
+                    deskClass === 'low' ? `${borderColorLow} ${bgColorLow}` :
+                    `${borderColorIdle} ${bgColorIdle}`}`}
+                style={{
+                  left: emp.gridX * CELL_SIZE,
+                  top: emp.gridY * CELL_SIZE,
+                  width: CELL_SIZE - 4,
+                  height: CELL_SIZE - 4,
+                  margin: 2,
+                  zIndex: draggedEmpId === emp.id ? 20 : 10,
+                }}
+                onClick={() => { if (!placementFurnitureId) focusEmployee(emp.id); }}
                 title={`${emp.name} (${emp.role.replace('_', ' ')})${emp.supervisedBy ? ' (supervised)' : ''} - ${getStatusText(emp.currentTask)} - ${emp.happiness.toFixed(0)}% happiness`}
               >
-                <div className="w-[22px] h-[22px] rounded-md" style={{ backgroundColor: avatarColor, opacity: deskClass === 'idle' ? 0.55 : 1 }} />
-                <span className="text-[9px] font-semibold mt-1 truncate max-w-full px-0.5" style={{ color: roleColor(emp.role) }}>
-                  {emp.name}
-                </span>
-                {emp.currentTask && (
-                  <div className="absolute bottom-1 left-2 right-2 h-1 bg-ink/10 rounded-full overflow-hidden">
-                    <div className="h-full bg-indigo rounded-full transition-all duration-300 ease-out" style={{ width: `${progress}%` }} />
-                  </div>
-                )}
-                {emp.happiness < 15 && (
-                  <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red rounded-full animate-pulse z-10" title="Resign risk!" />
-                )}
-                {emp.role === 'Lead_Developer' && (
-                  <Star className="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 text-indigo drop-shadow z-20" strokeWidth={2.5} />
-                )}
-                {emp.supervisedBy && (
-                  <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-indigo rounded-full z-10" title="Supervised" />
-                )}
-              </button>
+                <div className="flex flex-col items-center justify-center h-full relative p-1">
+                  <div className="w-[22px] h-[22px] rounded-md" style={{ backgroundColor: avatarColor, opacity: deskClass === 'idle' ? 0.55 : 1 }} />
+                  <span className="text-[9px] font-semibold mt-1 truncate max-w-full px-0.5" style={{ color: roleColor(emp.role) }}>
+                    {emp.name}
+                  </span>
+                  {emp.currentTask && (
+                    <div className="absolute bottom-1 left-2 right-2 h-1 bg-ink/10 rounded-full overflow-hidden">
+                      <div className="h-full bg-indigo rounded-full transition-all duration-300 ease-out" style={{ width: `${progress}%` }} />
+                    </div>
+                  )}
+                  {emp.happiness < 15 && (
+                    <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red rounded-full animate-pulse z-10" title="Resign risk!" />
+                  )}
+                  {emp.role === 'Lead_Developer' && (
+                    <Star className="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 text-indigo drop-shadow z-20" strokeWidth={2.5} />
+                  )}
+                  {emp.supervisedBy && (
+                    <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-indigo rounded-full z-10" title="Supervised" />
+                  )}
+                </div>
+              </div>
             );
           })}
         </div>

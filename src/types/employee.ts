@@ -20,6 +20,30 @@ export interface Applicant {
   status: 'pending' | 'countered' | 'rejected' | 'hired';
 }
 
+export type OfficeOccupantType = 'employee' | 'furniture' | 'empty';
+
+export interface OfficeSlot {
+  x: number;
+  y: number;
+  occupantType: OfficeOccupantType;
+  occupantId?: string;
+}
+
+export type FurnitureEffect = 'coffee_decay' | 'ergonomic_overwork' | 'water_recovery';
+export type FurniturePlacement = 'tile' | 'desk';
+
+export interface FurnitureInventoryItem {
+  id: string;
+  defId: string;
+}
+
+export interface PlacedFurniture {
+  id: string;
+  defId: string;
+  gridX: number;
+  gridY: number;
+}
+
 export interface Employee {
   id: string;
   name: string;
@@ -31,7 +55,8 @@ export interface Employee {
   currentTask: string | null;
   taskProgress: number;
   resignTicks: number;
-  deskIndex: number;
+  gridX: number;
+  gridY: number;
   isPlayer: boolean;
   isTraining: boolean;
   trainingProgress: number;

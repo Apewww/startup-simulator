@@ -184,3 +184,80 @@ Server tidak dibeli langsung — pemain harus beli **rack** dulu, lalu pasang **
 - [ ] EmployeesPanel.tsx — tooltip dev: "Supervised by [Name] (+X% output)"
 - [ ] HudBar.tsx — supervision active indicator
 - [ ] Build sukses (typecheck + lint)
+
+---
+
+## V1.4.3 — Office Grid Refactor: Modular Positioning
+
+- [ ] `employee.ts`: hapus `deskIndex`, tambah `gridX`/`gridY` + `OfficeSlot` type
+- [ ] `gameStore.ts`: state `officeGridCols: 8`, `officeGridRows: 8`
+- [ ] `gameStore.ts`: action `moveEmployee(empId, x, y)` — validasi bounds & collision
+- [ ] `gameStore.ts`: update `hireEmployee` — pakai `gridX`/`gridY` cari slot kosong
+- [ ] `gameStore.ts`: update `restartGame` — reset grid size
+- [ ] `OfficeGrid.tsx`: refactor ke coordinate-based grid (absolute positioning, drag & drop)
+- [ ] `OfficeGrid.tsx`: ghost overlay + collision check saat drag
+- [ ] `OfficeGrid.tsx`: grid labels (col/row numbers)
+- [ ] `OfficeGrid.tsx`: pertahankan visual dari v1.4.2 (star, dot, ring, progress bar)
+- [ ] `gameDB.ts`: bump Dexie version to 9, tambah field di `GameSave`
+- [ ] `saveLoad.ts`: migrasi `deskIndex` → `gridX`/`gridY` untuk save lama
+- [ ] `saveLoad.ts`: save/load `officeGridCols`/`officeGridRows`
+- [ ] Build sukses (typecheck + lint)
+
+---
+
+## V1.4.4 — Furniture Perk/Unlock System (Perk Points)
+
+- [ ] `data/milestones.ts`: `MILESTONES` (10 fixed + 1 repeatable `survival_6mo`) + `PerkContext`
+- [ ] `data/perks.ts`: `PERKS` (Coffee Machine, Ergonomic Chair, Water Dispenser, cost 1) + `PerkDef`
+- [ ] `gameStore.ts`: state `perkPoints` / `earnedMilestones` / `unlockedPerks`
+- [ ] `gameStore.ts`: action `checkMilestones` (fixed + repeatable, award point + notif)
+- [ ] `gameStore.ts`: action `unlockPerk(perkId)` (guard + spend + notif)
+- [ ] `gameStore.ts`: `incrementTick` panggil `checkMilestones`
+- [ ] `gameStore.ts`: `restartGame` reset perk state
+- [ ] `gameStore.ts`: `PanelId` + `'perks'` di panelOpen/Minimized
+- [ ] `PerksPanel.tsx`: tab Milestones (progress bar + clear state)
+- [ ] `PerksPanel.tsx`: tab Unlock (buy button + owned state)
+- [ ] `Dock.tsx`: tombol Perks (shortcut 6)
+- [ ] `App.tsx`: `FloatingPanel` Perks
+- [ ] `gameDB.ts`: bump Dexie v10 + field `GameSave`
+- [ ] `saveLoad.ts`: save/load 3 field baru
+- [ ] Build sukses (typecheck + lint)
+- [ ] Test: hire 5 employee → notif "+1 Perk Point"
+- [ ] Test: unlock perk → point turun, masuk `unlockedPerks`
+- [ ] Test: save/load perk state persist
+- [ ] Test: restart → perk state reset
+
+---
+
+## V1.4.5 — Furniture Shop & Placement
+
+- [ ] `data/furniture.ts`: `FURNITURE` (Coffee Machine $300 r2, Ergonomic Chair $150 desk, Water Dispenser $250 r2) + `FurnitureDef` + `PlacedFurniture` + `getFurnitureDef`
+- [ ] `systems/radiusEffect.ts`: `computeFurnitureEffects` (Manhattan radius; chair same-tile)
+- [ ] `employee.ts`: type `FurnitureEffect` / `FurniturePlacement` / `FurnitureInventoryItem` / `PlacedFurniture`
+- [ ] `types/index.ts`: export type baru
+- [ ] `gameStore.ts`: state `furnitureInventory` / `furniture` / `placementFurnitureId`
+- [ ] `gameStore.ts`: action `buyFurniture` (guard perk + cash, masuk inventory)
+- [ ] `gameStore.ts`: action `startFurniturePlacement(invId)` (chair-needs-employee)
+- [ ] `gameStore.ts`: action `cancelFurniturePlacement`
+- [ ] `gameStore.ts`: action `placeFurniture(x, y)` (tarik inventory, bounds + tile/desk valid)
+- [ ] `gameStore.ts`: action `unplaceFurniture(furnId)` (balik inventory)
+- [ ] `gameStore.ts`: action `moveFurniture(furnId, x, y)` (drag geser, validasi tile/desk)
+- [ ] `gameStore.ts`: action `sellFurnitureItem(id)` (50% refund)
+- [ ] `gameStore.ts`: `incrementTick` panggil `computeFurnitureEffects` + terapkan coffee/water/chair
+- [ ] `gameStore.ts`: `hireEmployee` / `moveEmployee` / `negotiateSalary` collision cek furniture
+- [ ] `gameStore.ts`: `restartGame` reset furniture
+- [ ] `OfficeGrid.tsx`: render layer furniture + indikator radius persegi panjang (lebar grid penuh)
+- [ ] `OfficeGrid.tsx`: drag furniture → `moveFurniture`; klik sekali → `unplaceFurniture`
+- [ ] `OfficeGrid.tsx`: placement mode (onClick → placeFurniture + ghost + banner cancel)
+- [ ] `OfficeGrid.tsx`: drop collision tolak tile furniture
+- [ ] `FurnitureShop.tsx`: Buy per def (tombol Buy, count owned/placed)
+- [ ] `FurnitureInventory.tsx`: daftar owned (inventory → Place/Sell; placed → Pick up/Sell)
+- [ ] `PerksPanel.tsx`: 4 tab (Milestones / Unlock Perks / Shop / Inventory)
+- [ ] `gameDB.ts`: bump Dexie v11 + field `furnitureInventory` / `furniture`
+- [ ] `saveLoad.ts`: save/load `furnitureInventory` / `furniture`
+- [ ] Build sukses (typecheck + lint)
+- [ ] Test: unlock perk → Shop → Buy → Place → efek happiness/overwork terlihat
+- [ ] Test: klik furniture ter-place → unplace balik inventory → place lagi
+- [ ] Test: save/load furniture + inventory persist
+- [ ] Test: restart → furniture + inventory reset
+

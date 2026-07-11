@@ -1,6 +1,8 @@
 import { db } from '../db/gameDB';
 import { useGameStore } from '../store/gameStore';
 
+const GRID_COLS = 8;
+
 export async function saveGame(): Promise<void> {
   const state = useGameStore.getState();
   await db.saves.put({
@@ -32,6 +34,13 @@ export async function saveGame(): Promise<void> {
     selectedHrId: state.selectedHrId,
     currentUsers: state.currentUsers,
     events: state.events,
+    officeGridCols: state.officeGridCols,
+    officeGridRows: state.officeGridRows,
+    perkPoints: state.perkPoints,
+    earnedMilestones: state.earnedMilestones,
+    unlockedPerks: state.unlockedPerks,
+    furnitureInventory: state.furnitureInventory,
+    furniture: state.furniture,
   });
 }
 
@@ -39,12 +48,20 @@ export async function loadGame(): Promise<boolean> {
   const save = await db.saves.get(1);
   if (!save) return false;
 
+  const employees = save.employees.map(emp => {
+    if (emp.gridX === undefined && emp.gridY === undefined) {
+      const dk = (emp as any).deskIndex ?? 0;
+      return { ...emp, gridX: dk % GRID_COLS, gridY: Math.floor(dk / GRID_COLS) };
+    }
+    return emp;
+  });
+
   useGameStore.setState({
     tick: save.tick,
     speed: save.speed,
     cash: save.cash,
     month: save.month,
-    employees: save.employees,
+    employees,
     resources: save.resources,
     features: save.features,
     racks: save.racks,
@@ -66,6 +83,13 @@ export async function loadGame(): Promise<boolean> {
     selectedHrId: save.selectedHrId ?? null,
     currentUsers: save.currentUsers ?? 0,
     events: save.events ?? [],
+    officeGridCols: save.officeGridCols ?? 8,
+    officeGridRows: save.officeGridRows ?? 8,
+    perkPoints: save.perkPoints ?? 0,
+    earnedMilestones: save.earnedMilestones ?? [],
+    unlockedPerks: save.unlockedPerks ?? [],
+    furnitureInventory: save.furnitureInventory ?? [],
+    furniture: save.furniture ?? [],
   });
 
   return true;
