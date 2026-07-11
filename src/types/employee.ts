@@ -29,6 +29,21 @@ export interface OfficeSlot {
   occupantId?: string;
 }
 
+export type FurnitureEffect = 'coffee_decay' | 'ergonomic_overwork' | 'water_recovery';
+export type FurniturePlacement = 'tile' | 'desk';
+
+export interface FurnitureInventoryItem {
+  id: string;
+  defId: string;
+}
+
+export interface PlacedFurniture {
+  id: string;
+  defId: string;
+  gridX: number;
+  gridY: number;
+}
+
 export interface Employee {
   id: string;
   name: string;

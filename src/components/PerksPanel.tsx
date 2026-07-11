@@ -3,6 +3,8 @@ import { Users, DollarSign, TrendingUp, LayoutGrid, Server, Clock, Coffee, Armch
 import { useGameStore } from '../store/gameStore';
 import { MILESTONES, type PerkContext, type MilestoneDef } from '../data/milestones';
 import { PERKS } from '../data/perks';
+import { FurnitureShop } from './FurnitureShop';
+import { FurnitureInventory } from './FurnitureInventory';
 
 const ICONS: Record<string, typeof Users> = {
   Users, DollarSign, TrendingUp, LayoutGrid, Server, Clock, Coffee, Armchair, Droplets, Gift,
@@ -95,7 +97,7 @@ function PerkRow({ perkId, points, owned, onUnlock }: { perkId: string; points: 
 }
 
 export function PerksPanel() {
-  const [tab, setTab] = useState<'milestones' | 'unlock'>('milestones');
+  const [tab, setTab] = useState<'milestones' | 'unlock' | 'shop' | 'inventory'>('milestones');
   const perkPoints = useGameStore((s) => s.perkPoints);
   const earnedMilestones = useGameStore((s) => s.earnedMilestones);
   const unlockedPerks = useGameStore((s) => s.unlockedPerks);
@@ -132,6 +134,18 @@ export function PerksPanel() {
         >
           Unlock Perks
         </button>
+        <button
+          onClick={() => setTab('shop')}
+          className={`flex-1 py-1.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${tab === 'shop' ? 'bg-surface text-ink shadow-sm' : 'text-ink-soft hover:text-ink'}`}
+        >
+          Shop
+        </button>
+        <button
+          onClick={() => setTab('inventory')}
+          className={`flex-1 py-1.5 rounded-md text-[11px] font-semibold transition-colors cursor-pointer ${tab === 'inventory' ? 'bg-surface text-ink shadow-sm' : 'text-ink-soft hover:text-ink'}`}
+        >
+          Inventory
+        </button>
       </div>
 
       {tab === 'milestones' ? (
@@ -140,15 +154,19 @@ export function PerksPanel() {
             <MilestoneRow key={m.id} m={m} ctx={ctx} earned={earnedMilestones} />
           ))}
         </div>
-      ) : (
+      ) : tab === 'unlock' ? (
         <div className="flex flex-col gap-2">
           <p className="text-[10px] text-ink-soft leading-snug">
-            Spend Perk Points to unlock furniture. Unlocked items appear in the Furniture Shop (Phase 6).
+            Spend Perk Points to unlock furniture. Unlocked items appear in the Furniture Shop tab.
           </p>
           {PERKS.map((p) => (
             <PerkRow key={p.id} perkId={p.id} points={perkPoints} owned={unlockedPerks.includes(p.id)} onUnlock={unlockPerk} />
           ))}
         </div>
+      ) : tab === 'shop' ? (
+        <FurnitureShop />
+      ) : (
+        <FurnitureInventory />
       )}
     </div>
   );

@@ -227,3 +227,37 @@ Server tidak dibeli langsung — pemain harus beli **rack** dulu, lalu pasang **
 - [ ] Test: save/load perk state persist
 - [ ] Test: restart → perk state reset
 
+---
+
+## V1.4.5 — Furniture Shop & Placement
+
+- [ ] `data/furniture.ts`: `FURNITURE` (Coffee Machine $300 r2, Ergonomic Chair $150 desk, Water Dispenser $250 r2) + `FurnitureDef` + `PlacedFurniture` + `getFurnitureDef`
+- [ ] `systems/radiusEffect.ts`: `computeFurnitureEffects` (Manhattan radius; chair same-tile)
+- [ ] `employee.ts`: type `FurnitureEffect` / `FurniturePlacement` / `FurnitureInventoryItem` / `PlacedFurniture`
+- [ ] `types/index.ts`: export type baru
+- [ ] `gameStore.ts`: state `furnitureInventory` / `furniture` / `placementFurnitureId`
+- [ ] `gameStore.ts`: action `buyFurniture` (guard perk + cash, masuk inventory)
+- [ ] `gameStore.ts`: action `startFurniturePlacement(invId)` (chair-needs-employee)
+- [ ] `gameStore.ts`: action `cancelFurniturePlacement`
+- [ ] `gameStore.ts`: action `placeFurniture(x, y)` (tarik inventory, bounds + tile/desk valid)
+- [ ] `gameStore.ts`: action `unplaceFurniture(furnId)` (balik inventory)
+- [ ] `gameStore.ts`: action `moveFurniture(furnId, x, y)` (drag geser, validasi tile/desk)
+- [ ] `gameStore.ts`: action `sellFurnitureItem(id)` (50% refund)
+- [ ] `gameStore.ts`: `incrementTick` panggil `computeFurnitureEffects` + terapkan coffee/water/chair
+- [ ] `gameStore.ts`: `hireEmployee` / `moveEmployee` / `negotiateSalary` collision cek furniture
+- [ ] `gameStore.ts`: `restartGame` reset furniture
+- [ ] `OfficeGrid.tsx`: render layer furniture + indikator radius persegi panjang (lebar grid penuh)
+- [ ] `OfficeGrid.tsx`: drag furniture → `moveFurniture`; klik sekali → `unplaceFurniture`
+- [ ] `OfficeGrid.tsx`: placement mode (onClick → placeFurniture + ghost + banner cancel)
+- [ ] `OfficeGrid.tsx`: drop collision tolak tile furniture
+- [ ] `FurnitureShop.tsx`: Buy per def (tombol Buy, count owned/placed)
+- [ ] `FurnitureInventory.tsx`: daftar owned (inventory → Place/Sell; placed → Pick up/Sell)
+- [ ] `PerksPanel.tsx`: 4 tab (Milestones / Unlock Perks / Shop / Inventory)
+- [ ] `gameDB.ts`: bump Dexie v11 + field `furnitureInventory` / `furniture`
+- [ ] `saveLoad.ts`: save/load `furnitureInventory` / `furniture`
+- [ ] Build sukses (typecheck + lint)
+- [ ] Test: unlock perk → Shop → Buy → Place → efek happiness/overwork terlihat
+- [ ] Test: klik furniture ter-place → unplace balik inventory → place lagi
+- [ ] Test: save/load furniture + inventory persist
+- [ ] Test: restart → furniture + inventory reset
+

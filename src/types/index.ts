@@ -1,4 +1,4 @@
-export type { Employee, EmployeeRole, SourcingCampaign, Applicant, ApplicantMood, FundingRound, OfficeSlot, OfficeOccupantType } from './employee';
+export type { Employee, EmployeeRole, SourcingCampaign, Applicant, ApplicantMood, FundingRound, OfficeSlot, OfficeOccupantType, FurnitureEffect, FurniturePlacement, FurnitureInventoryItem, PlacedFurniture } from './employee';
 export type { ComponentResource } from './resource';
 export type {
   ServerNode, NodeTypeId, NodeCategory, NodeDef,

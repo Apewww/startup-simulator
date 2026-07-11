@@ -83,7 +83,7 @@ Tujuan: Ubah OfficeGrid dari layout statis jadi grid modular seperti ServerRoomV
 
 ---
 
-### **Phase 5 — Furniture Perk/Unlock System** 🚧 `v1.4.4` (in progress)
+### **Phase 5 — Furniture Perk/Unlock System** ✅ `v1.4.4`
 **Difficulty: 🟡 Menengah**
 
 > **Desain final (v1.4.4):** pakai **Perk Point system** (bukan auto-unlock pasif). Milestone kasih Perk Point, player spend point buat unlock perk/furniture. Sumber hybrid: fixed milestone (early game) + repeatable (`survival_6mo`, late game). Detail di `docs/update_v1.4.4.md`.
@@ -97,22 +97,22 @@ Tujuan: Ubah OfficeGrid dari layout statis jadi grid modular seperti ServerRoomV
 - [x] Tick loop hook: `checkMilestones()` di `incrementTick`.
 - [x] Dexie v10 + save/load 3 field baru.
 
-> **Belum dikerjakan (Phase 6):** efek furniture radius/decay aktual. Phase 5 cuma unlock gate.
+> **Belum dikerjakan (Phase 6):** efek furniture radius/decay aktual. Phase 5 cuma unlock gate. ✅ Selesai di `v1.4.5`.
 
 ---
 
-### **Phase 6 — Furniture Shop & Placement**
+### **Phase 6 — Furniture Shop & Placement** ✅ `v1.4.5`
 **Difficulty: 🟡 Menengah**
 
-- [ ] Buat `data/furniture.ts` — daftar furniture, harga, efek, radius:
+- [x] Buat `data/furniture.ts` — daftar furniture, harga, efek, radius:
   | Furniture | Harga | Efek | Radius |
   |---|---|---|---|
   | Coffee Machine | $300 | -50% happiness decay (kerja) | 2 tile |
   | Ergonomic Chair | $150/unit | Overwork threshold 50→80 tick | Per-tile (attached ke meja) |
   | Water Dispenser | $250 | +0.2/tick happiness recovery saat idle | 2 tile |
-- [ ] Buat komponen `FurnitureShop.tsx` (mirip pattern `ServerShop.tsx`) — hanya tampil item yang sudah di-unlock via Perks.
-- [ ] Placement logic: reuse grid system dari Phase 4 — klik item di shop → mode placement → klik slot kosong di `OfficeGrid`.
-- [ ] Efek radius: hitung jarak Manhattan/Euclidean dari furniture ke tiap employee slot, terapkan efek kalau dalam radius (logic mirip rencana Cooling Grid radius — bisa reuse helper function yang sama, disarankan ekstrak jadi shared utility `systems/radiusEffect.ts`).
+- [x] Buat komponen `FurnitureShop.tsx` (mirip pattern `ServerShop.tsx`) — hanya tampil item yang sudah di-unlock via Perks.
+- [x] Placement logic: reuse grid system dari Phase 4 — klik item di shop → mode placement → klik slot kosong di `OfficeGrid`.
+- [x] Efek radius: hitung jarak Manhattan/Euclidean dari furniture ke tiap employee slot, terapkan efek kalau dalam radius (logic mirip rencana Cooling Grid radius — bisa reuse helper function yang sama, disarankan ekstrak jadi shared utility `systems/radiusEffect.ts`).
 
 **Risk/Notes:** Menyentuh tick loop lagi (happiness decay calculation) — testing balancing diperlukan supaya furniture worth dibeli tapi gak trivialisasi happiness management yang sudah ada.
 
@@ -136,8 +136,8 @@ Tujuan: Ubah OfficeGrid dari layout statis jadi grid modular seperti ServerRoomV
 | ~~2~~ ✅ | ~~Lead Dev — Production Boost Logic~~ | 🔴 | Phase 1 ✅ |
 | ~~3~~ ✅ ~~v1.4.2~~ | ~~Lead Dev — UI Polish~~ | 🟢 | Phase 2 |
 | ~~4~~ ✅ ~~v1.4.3~~ | ~~Office Grid — Modular Refactor~~ | 🔴 | - |
-| 5 🚧 `v1.4.4` | Furniture — Perk/Unlock System (Perk Points) | 🟡 | - |
-| 6 | Furniture — Shop & Placement | 🟡 | Phase 4, Phase 5 |
+| 5 ✅ `v1.4.4` | Furniture — Perk/Unlock System (Perk Points) | 🟡 | - |
+| 6 ✅ `v1.4.5` | Furniture — Shop & Placement | 🟡 | Phase 4, Phase 5 |
 | 7 | Balancing & QA Gabungan | 🔴 | Semua phase di atas |
 
 **Catatan urutan kerja realistis:**

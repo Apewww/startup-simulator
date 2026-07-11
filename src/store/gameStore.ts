@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound, SourcingCampaign, Applicant, GameEvent } from '../types';
+import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem } from '../types';
 import { calcFundingOffer, calcMaxSupervised } from '../types/employee';
 import { getComponentDef, COMPONENTS } from '../data/components';
 import { getProductDef } from '../data/products';
@@ -9,6 +9,8 @@ import { getNodeDef, getRackDef } from '../data/servers';
 import { calculateNodeLoads, calcMonthlyServerCost } from '../systems/server';
 import { getPlatformStats, getAppliedEffects } from '../systems/platform';
 import { getSupervisionBoost } from '../systems/leadDeveloper';
+import { computeFurnitureEffects } from '../systems/radiusEffect';
+import { getFurnitureDef } from '../data/furniture';
 import { calculateRevenue } from '../systems/monetization';
 import { generateApplicant, CAMPAIGN_COST, getCampaignTicks, negotiate, applicantToEmployee } from '../systems/recruitment';
 import { checkEventTrigger, processEvents, calcSecurityLevel } from '../systems/events';
@@ -145,6 +147,16 @@ interface GameState {
   unlockedPerks: string[];
   checkMilestones: () => void;
   unlockPerk: (perkId: string) => void;
+  furnitureInventory: FurnitureInventoryItem[];
+  furniture: PlacedFurniture[];
+  placementFurnitureId: string | null;
+  buyFurniture: (defId: string) => void;
+  startFurniturePlacement: (invId: string) => void;
+  cancelFurniturePlacement: () => void;
+  placeFurniture: (x: number, y: number) => void;
+  unplaceFurniture: (furnId: string) => void;
+  moveFurniture: (furnId: string, x: number, y: number) => void;
+  sellFurnitureItem: (id: string) => void;
 }
 
 function calcTotalSalary(employees: Employee[]): number {
@@ -161,6 +173,10 @@ const EMPLOYEE_NAMES: Record<EmployeeRole, string[]> = {
 
 let rackCounter = 0;
 let nodeCounter = 0;
+
+function newFurnitureId(): string {
+  return `finv-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
 export const useGameStore = create<GameState>((set, get) => ({
   tick: 0,
@@ -203,6 +219,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       perkPoints: 0,
       earnedMilestones: [],
       unlockedPerks: [],
+      furnitureInventory: [],
+      furniture: [],
+      placementFurnitureId: null,
 
   setScreen: (screen) => set({ screen }),
   togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
@@ -221,6 +240,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     const id = `emp-${state.employees.length + 1}`;
 
     const occupied = new Set(state.employees.map(e => `${e.gridX},${e.gridY}`));
+    for (const f of state.furniture) {
+      if (f.defId !== 'ergonomic_chair') occupied.add(`${f.gridX},${f.gridY}`);
+    }
     let gridX = 0, gridY = 0;
     for (let y = 0; y < state.officeGridRows; y++) {
       for (let x = 0; x < state.officeGridCols; x++) {
@@ -269,6 +291,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const newResources = resources.map(r => ({ ...r }));
     const resignedIds: string[] = [];
+    const fx = computeFurnitureEffects(state.furniture, state.employees);
     const newEmployees = employees
       .map(emp => {
         const def = emp.currentTask ? getComponentDef(emp.currentTask) : undefined;
@@ -315,7 +338,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         const isWorking = newCurrentTask !== null || newIsTraining;
         if (newOnVacation) {
         } else if (isWorking) {
-          newHappiness -= 0.05;
+          newHappiness -= fx.coffee.has(emp.id) ? 0.025 : 0.05;
+        } else if (fx.water.has(emp.id)) {
+          newHappiness += 0.2;
         } else {
           newHappiness -= 0.005;
         }
@@ -330,12 +355,13 @@ export const useGameStore = create<GameState>((set, get) => ({
           newSpeed = emp.level;
         }
 
+        const overworkThreshold = fx.chair.has(emp.id) ? 80 : 50;
         if (newHappiness < 20 && isWorking) {
           newOverworkTicks += 1;
         } else {
           newOverworkTicks = 0;
         }
-        if (newOverworkTicks >= 50) {
+        if (newOverworkTicks >= overworkThreshold) {
           newSpeed = Math.floor(newSpeed * 0.7);
         }
 
@@ -671,6 +697,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       updated.expectedSalary = result.newExpectedSalary ?? offer;
       updated.status = 'hired';
       const occupied = new Set(state.employees.map(e => `${e.gridX},${e.gridY}`));
+      for (const f of state.furniture) {
+        if (f.defId !== 'ergonomic_chair') occupied.add(`${f.gridX},${f.gridY}`);
+      }
       let gridX = 0, gridY = 0;
       for (let y = 0; y < state.officeGridRows; y++) {
         for (let x = 0; x < state.officeGridCols; x++) {
@@ -1497,6 +1526,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (x < 0 || x >= state.officeGridCols || y < 0 || y >= state.officeGridRows) return;
     const collision = state.employees.some(e => e.id !== empId && e.gridX === x && e.gridY === y);
     if (collision) return;
+    const furnitureCollision = state.furniture.some(f => f.defId !== 'ergonomic_chair' && f.gridX === x && f.gridY === y);
+    if (furnitureCollision) return;
     set({
       employees: state.employees.map(e => e.id === empId ? { ...e, gridX: x, gridY: y } : e),
     });
@@ -1555,6 +1586,141 @@ export const useGameStore = create<GameState>((set, get) => ({
     get().addNotification(`Perk Unlocked: ${perk.name}!`, 'success');
   },
 
+  buyFurniture: (defId: string) => {
+    const state = get();
+    const def = getFurnitureDef(defId);
+    if (!def) return;
+    if (!state.unlockedPerks.includes(def.unlockPerk)) {
+      get().addNotification(`Unlock the ${def.name} perk first`, 'warning');
+      return;
+    }
+    if (state.cash < def.price) {
+      get().addNotification(`Not enough cash for ${def.name}`, 'warning');
+      return;
+    }
+    const id = newFurnitureId();
+    set({
+      cash: state.cash - def.price,
+      furnitureInventory: [...state.furnitureInventory, { id, defId }],
+    });
+    get().addNotification(`Bought ${def.name}`, 'success');
+  },
+
+  startFurniturePlacement: (invId: string) => {
+    const state = get();
+    const item = state.furnitureInventory.find(i => i.id === invId);
+    if (!item) return;
+    const def = getFurnitureDef(item.defId);
+    if (!def) return;
+    if (def.placement === 'desk' && state.employees.length === 0) {
+      get().addNotification('Hire an employee first to place a chair', 'warning');
+      return;
+    }
+    set({ placementFurnitureId: invId });
+  },
+
+  cancelFurniturePlacement: () => set({ placementFurnitureId: null }),
+
+  placeFurniture: (x: number, y: number) => {
+    const state = get();
+    const invId = state.placementFurnitureId;
+    if (!invId) return;
+    const item = state.furnitureInventory.find(i => i.id === invId);
+    if (!item) return;
+    const def = getFurnitureDef(item.defId);
+    if (!def) return;
+    if (x < 0 || x >= state.officeGridCols || y < 0 || y >= state.officeGridRows) return;
+
+    if (def.placement === 'tile') {
+      const empHere = state.employees.some(e => e.gridX === x && e.gridY === y);
+      const furnHere = state.furniture.some(f => f.gridX === x && f.gridY === y);
+      if (empHere || furnHere) {
+        get().addNotification('That tile is occupied', 'warning');
+        return;
+      }
+    } else {
+      const empHere = state.employees.find(e => e.gridX === x && e.gridY === y);
+      if (!empHere) {
+        get().addNotification('Place the chair on an employee desk', 'warning');
+        return;
+      }
+      const chairHere = state.furniture.some(f => f.defId === 'ergonomic_chair' && f.gridX === x && f.gridY === y);
+      if (chairHere) {
+        get().addNotification('That desk already has a chair', 'warning');
+        return;
+      }
+    }
+
+    set({
+      furnitureInventory: state.furnitureInventory.filter(i => i.id !== invId),
+      furniture: [...state.furniture, { id: invId, defId: item.defId, gridX: x, gridY: y }],
+      placementFurnitureId: null,
+    });
+    get().addNotification(`Placed ${def.name}`, 'success');
+  },
+
+  unplaceFurniture: (furnId: string) => {
+    const state = get();
+    const furn = state.furniture.find(f => f.id === furnId);
+    if (!furn) return;
+    const def = getFurnitureDef(furn.defId);
+    set({
+      furniture: state.furniture.filter(f => f.id !== furnId),
+      furnitureInventory: [...state.furnitureInventory, { id: furn.id, defId: furn.defId }],
+    });
+    get().addNotification(`Picked up ${def?.name ?? 'furniture'}`, 'info');
+  },
+
+  sellFurnitureItem: (id: string) => {
+    const state = get();
+    const invItem = state.furnitureInventory.find(i => i.id === id);
+    const placed = state.furniture.find(f => f.id === id);
+    const target = invItem ?? placed;
+    if (!target) return;
+    const def = getFurnitureDef(target.defId);
+    if (!def) return;
+    const refund = Math.floor(def.price * 0.5);
+    get().addNotification(`Sold ${def.name} — refund $${refund}`, 'warning');
+    set({
+      cash: state.cash + refund,
+      furnitureInventory: state.furnitureInventory.filter(i => i.id !== id),
+      furniture: state.furniture.filter(f => f.id !== id),
+    });
+  },
+
+  moveFurniture: (furnId: string, x: number, y: number) => {
+    const state = get();
+    const furn = state.furniture.find(f => f.id === furnId);
+    if (!furn) return;
+    const def = getFurnitureDef(furn.defId);
+    if (!def) return;
+    if (x < 0 || x >= state.officeGridCols || y < 0 || y >= state.officeGridRows) return;
+
+    if (def.placement === 'tile') {
+      const empHere = state.employees.some(e => e.gridX === x && e.gridY === y);
+      const furnHere = state.furniture.some(f => f.id !== furnId && f.gridX === x && f.gridY === y);
+      if (empHere || furnHere) {
+        get().addNotification('That tile is occupied', 'warning');
+        return;
+      }
+    } else {
+      const empHere = state.employees.find(e => e.gridX === x && e.gridY === y);
+      if (!empHere) {
+        get().addNotification('Place the chair on an employee desk', 'warning');
+        return;
+      }
+      const chairHere = state.furniture.some(f => f.id !== furnId && f.defId === 'ergonomic_chair' && f.gridX === x && f.gridY === y);
+      if (chairHere) {
+        get().addNotification('That desk already has a chair', 'warning');
+        return;
+      }
+    }
+
+    set({
+      furniture: state.furniture.map(f => f.id === furnId ? { ...f, gridX: x, gridY: y } : f),
+    });
+  },
+
   restartGame: () => {
     set({
       tick: 0, isPaused: false, speed: 1, cash: 15000, month: 0,
@@ -1578,6 +1744,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       perkPoints: 0,
       earnedMilestones: [],
       unlockedPerks: [],
+      furnitureInventory: [],
+      furniture: [],
+      placementFurnitureId: null,
     });
   },
 }));

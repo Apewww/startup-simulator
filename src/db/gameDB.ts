@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Employee, ComponentResource, PlatformFeature, ServerRack, Plot, RentedServer, ServerNode, FundingRound, SourcingCampaign, Applicant, GameEvent } from '../types';
+import type { Employee, ComponentResource, PlatformFeature, ServerRack, Plot, RentedServer, ServerNode, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem } from '../types';
 import type { GameSpeed, GameScreen, MonthlySnapshot } from '../store/gameStore';
 
 export interface GameSave {
@@ -36,6 +36,8 @@ export interface GameSave {
   perkPoints?: number;
   earnedMilestones?: string[];
   unlockedPerks?: string[];
+  furnitureInventory?: FurnitureInventoryItem[];
+  furniture?: PlacedFurniture[];
 }
 
 export class GameDB extends Dexie {
@@ -53,6 +55,7 @@ export class GameDB extends Dexie {
     this.version(8).stores({ saves: '++id, timestamp' });
     this.version(9).stores({ saves: '++id, timestamp' });
     this.version(10).stores({ saves: '++id, timestamp' });
+    this.version(11).stores({ saves: '++id, timestamp' });
   }
 }
 

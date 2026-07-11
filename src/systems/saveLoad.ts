@@ -39,6 +39,8 @@ export async function saveGame(): Promise<void> {
     perkPoints: state.perkPoints,
     earnedMilestones: state.earnedMilestones,
     unlockedPerks: state.unlockedPerks,
+    furnitureInventory: state.furnitureInventory,
+    furniture: state.furniture,
   });
 }
 
@@ -86,6 +88,8 @@ export async function loadGame(): Promise<boolean> {
     perkPoints: save.perkPoints ?? 0,
     earnedMilestones: save.earnedMilestones ?? [],
     unlockedPerks: save.unlockedPerks ?? [],
+    furnitureInventory: save.furnitureInventory ?? [],
+    furniture: save.furniture ?? [],
   });
 
   return true;

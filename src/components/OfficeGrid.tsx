@@ -1,10 +1,23 @@
 import { useState, useRef, useCallback } from 'react';
-import { Star } from 'lucide-react';
+import { Star, Coffee, Armchair, Droplets, X } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import { getComponentDef } from '../data/components';
+import { getFurnitureDef } from '../data/furniture';
 import { roleColor } from './CharacterAvatar';
 
 const CELL_SIZE = 72;
+
+const FURNITURE_ICON: Record<string, typeof Coffee> = {
+  coffee_machine: Coffee,
+  ergonomic_chair: Armchair,
+  water_dispenser: Droplets,
+};
+
+const FURNITURE_COLOR: Record<string, string> = {
+  coffee_machine: '#B7791F',
+  ergonomic_chair: '#4F5EFF',
+  water_dispenser: '#0EA5E9',
+};
 
 function getStatusText(task: string | null): string {
   if (!task) return 'Idle';
@@ -18,16 +31,46 @@ function getDeskClass(task: string | null, happiness: number): string {
   return 'idle';
 }
 
+function isValidPlacement(
+  defId: string,
+  x: number,
+  y: number,
+  cols: number,
+  rows: number,
+  employees: { gridX: number; gridY: number }[],
+  furniture: { defId: string; gridX: number; gridY: number }[],
+): boolean {
+  if (x < 0 || x >= cols || y < 0 || y >= rows) return false;
+  const def = getFurnitureDef(defId);
+  if (!def) return false;
+  if (def.placement === 'tile') {
+    return !employees.some(e => e.gridX === x && e.gridY === y)
+      && !furniture.some(f => f.gridX === x && f.gridY === y);
+  }
+  const empHere = employees.some(e => e.gridX === x && e.gridY === y);
+  const chairHere = furniture.some(f => f.defId === 'ergonomic_chair' && f.gridX === x && f.gridY === y);
+  return empHere && !chairHere;
+}
+
 export function OfficeGrid() {
   const employees = useGameStore((s) => s.employees);
+  const furniture = useGameStore((s) => s.furniture);
+  const furnitureInventory = useGameStore((s) => s.furnitureInventory);
   const focusEmployee = useGameStore((s) => s.focusEmployee);
   const moveEmployee = useGameStore((s) => s.moveEmployee);
+  const moveFurniture = useGameStore((s) => s.moveFurniture);
   const darkMode = useGameStore((s) => s.darkMode);
   const officeGridCols = useGameStore((s) => s.officeGridCols);
   const officeGridRows = useGameStore((s) => s.officeGridRows);
+  const placementFurnitureId = useGameStore((s) => s.placementFurnitureId);
+  const placeFurniture = useGameStore((s) => s.placeFurniture);
+  const unplaceFurniture = useGameStore((s) => s.unplaceFurniture);
+  const cancelFurniturePlacement = useGameStore((s) => s.cancelFurniturePlacement);
   const gridRef = useRef<HTMLDivElement>(null);
   const [dragOverPos, setDragOverPos] = useState<{ x: number; y: number } | null>(null);
   const [draggedEmpId, setDraggedEmpId] = useState<string | null>(null);
+  const [draggedFurnId, setDraggedFurnId] = useState<string | null>(null);
+  const [placeHover, setPlaceHover] = useState<{ x: number; y: number } | null>(null);
 
   const getGridPos = useCallback((clientX: number, clientY: number) => {
     if (!gridRef.current) return null;
@@ -52,19 +95,45 @@ export function OfficeGrid() {
     setDraggedEmpId(null);
   };
 
+  const handleFurnDragStart = (e: React.DragEvent, furnId: string) => {
+    if (placementFurnitureId) return;
+    e.dataTransfer.setData('application/furn-id', furnId);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedFurnId(furnId);
+    const el = e.currentTarget as HTMLElement;
+    setTimeout(() => el.style.opacity = '0.3', 0);
+  };
+
+  const handleFurnDragEnd = (e: React.DragEvent) => {
+    const el = e.currentTarget as HTMLElement;
+    el.style.opacity = '';
+    setDragOverPos(null);
+    setDraggedFurnId(null);
+  };
+
   const handleGridDragOver = (e: React.DragEvent) => {
-    if (!e.dataTransfer.types.includes('application/emp-id')) return;
+    if (!e.dataTransfer.types.includes('application/emp-id') && !e.dataTransfer.types.includes('application/furn-id')) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     const pos = getGridPos(e.clientX, e.clientY);
     if (!pos) return;
-    const collision = draggedEmpId && employees.some(emp => emp.id !== draggedEmpId && emp.gridX === pos.x && emp.gridY === pos.y);
-    if (collision) return;
+    if (e.dataTransfer.types.includes('application/emp-id')) {
+      const collision = draggedEmpId && employees.some(emp => emp.id !== draggedEmpId && emp.gridX === pos.x && emp.gridY === pos.y);
+      if (collision) return;
+    }
     setDragOverPos(pos);
   };
 
   const handleGridDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    const furnId = e.dataTransfer.getData('application/furn-id');
+    if (furnId) {
+      const pos = getGridPos(e.clientX, e.clientY);
+      if (pos) moveFurniture(furnId, pos.x, pos.y);
+      setDragOverPos(null);
+      setDraggedFurnId(null);
+      return;
+    }
     const empId = e.dataTransfer.getData('application/emp-id');
     if (!empId) return;
     const pos = getGridPos(e.clientX, e.clientY);
@@ -76,7 +145,26 @@ export function OfficeGrid() {
     setDraggedEmpId(null);
   };
 
+  const handleGridMouseMove = (e: React.MouseEvent) => {
+    if (!placementFurnitureId) return;
+    const pos = getGridPos(e.clientX, e.clientY);
+    setPlaceHover(pos);
+  };
+
+  const handleGridClick = (e: React.MouseEvent) => {
+    if (!placementFurnitureId) return;
+    const pos = getGridPos(e.clientX, e.clientY);
+    if (!pos) return;
+    placeFurniture(pos.x, pos.y);
+  };
+
   const totalCells = officeGridCols * officeGridRows;
+  const placeDefId = placementFurnitureId
+    ? furnitureInventory.find(i => i.id === placementFurnitureId)?.defId
+    : undefined;
+  const placeValid = placeDefId && placeHover
+    ? isValidPlacement(placeDefId, placeHover.x, placeHover.y, officeGridCols, officeGridRows, employees, furniture)
+    : false;
 
   return (
     <div className="card p-5 flex-1">
@@ -87,6 +175,20 @@ export function OfficeGrid() {
         </div>
       </div>
 
+      {placementFurnitureId && placeDefId && (
+        <div className="flex items-center gap-2 mb-3 p-2 rounded-lg bg-amber-soft border border-amber/30">
+          <span className="text-[11px] font-semibold text-amber flex-1">
+            Placing {getFurnitureDef(placeDefId)?.name} — click a {getFurnitureDef(placeDefId)?.placement === 'desk' ? 'desk' : 'tile'}
+          </span>
+          <button
+            onClick={cancelFurniturePlacement}
+            className="p-1 rounded hover:bg-red-soft hover:text-red cursor-pointer text-ink-soft transition-colors"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       <div className="relative pl-5 pb-5 flex justify-center">
         <div
           ref={gridRef}
@@ -95,6 +197,9 @@ export function OfficeGrid() {
           onDrop={handleGridDrop}
           onDragOver={handleGridDragOver}
           onDragLeave={() => setDragOverPos(null)}
+          onMouseMove={handleGridMouseMove}
+          onMouseLeave={() => setPlaceHover(null)}
+          onClick={handleGridClick}
         >
           {Array.from({ length: officeGridRows }, (_, row) =>
             Array.from({ length: officeGridCols }, (_, col) => (
@@ -113,9 +218,56 @@ export function OfficeGrid() {
               style={{ top: i * CELL_SIZE + 2, width: 16, textAlign: 'right' }}>{i}</div>
           ))}
 
+          {furniture.map(furn => {
+            const def = getFurnitureDef(furn.defId);
+            if (!def) return null;
+            const Icon = FURNITURE_ICON[furn.defId] ?? Coffee;
+            const color = FURNITURE_COLOR[furn.defId] ?? '#B7791F';
+            return (
+              <div key={furn.id}>
+                {def.radius > 0 && (
+                  <div
+                    className="absolute bg-amber/10 border border-amber/30 pointer-events-none"
+                    style={{
+                      left: 0,
+                      top: furn.gridY * CELL_SIZE,
+                      width: officeGridCols * CELL_SIZE,
+                      height: 2 * CELL_SIZE,
+                    }}
+                  />
+                )}
+                <div
+                  draggable
+                  onDragStart={(e) => handleFurnDragStart(e, furn.id)}
+                  onDragEnd={handleFurnDragEnd}
+                  className="absolute border rounded-lg box-border border-amber/40 bg-amber-soft flex items-center justify-center cursor-grab active:cursor-grabbing hover:bg-amber-soft/70"
+                  style={{
+                    left: furn.gridX * CELL_SIZE,
+                    top: furn.gridY * CELL_SIZE,
+                    width: CELL_SIZE - 4,
+                    height: CELL_SIZE - 4,
+                    margin: 2,
+                    zIndex: 5,
+                  }}
+                  onClick={() => { if (!placementFurnitureId && !draggedFurnId) unplaceFurniture(furn.id); }}
+                  title={`${def.name}${def.placement === 'desk' ? ' (on desk)' : ` (radius ${def.radius})`} — drag to move, click to pick up`}
+                >
+                  <Icon className="w-7 h-7" style={{ color }} strokeWidth={1.8} />
+                </div>
+              </div>
+            );
+          })}
+
           {dragOverPos && (
             <div className="absolute border-2 rounded-lg z-10 border-indigo bg-indigo/20 transition-all duration-100"
               style={{ left: dragOverPos.x * CELL_SIZE, top: dragOverPos.y * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }}
+            />
+          )}
+
+          {placementFurnitureId && placeHover && (
+            <div
+              className={`absolute border-2 rounded-lg z-10 transition-all duration-75 ${placeValid ? 'border-green bg-green/20' : 'border-red bg-red/20'}`}
+              style={{ left: placeHover.x * CELL_SIZE, top: placeHover.y * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }}
             />
           )}
 
@@ -153,7 +305,7 @@ export function OfficeGrid() {
                   margin: 2,
                   zIndex: draggedEmpId === emp.id ? 20 : 10,
                 }}
-                onClick={() => focusEmployee(emp.id)}
+                onClick={() => { if (!placementFurnitureId) focusEmployee(emp.id); }}
                 title={`${emp.name} (${emp.role.replace('_', ' ')})${emp.supervisedBy ? ' (supervised)' : ''} - ${getStatusText(emp.currentTask)} - ${emp.happiness.toFixed(0)}% happiness`}
               >
                 <div className="flex flex-col items-center justify-center h-full relative p-1">
