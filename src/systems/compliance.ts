@@ -31,7 +31,11 @@ export function calcRequirements(features: PlatformFeature[]): { compute: number
     data += DATA_RATES[f.group] * f.level;
     network += NETWORK_RATES[f.group] * f.level;
   }
-  return { compute, data, network };
+  return {
+    compute: Math.round(compute * 10) / 10,
+    data: Math.round(data * 10) / 10,
+    network: Math.round(network * 10) / 10,
+  };
 }
 
 export function calcProvidedPoints(racks: ServerRack[], rentedServers: RentedServer[] = []): { compute: number; data: number; network: number; security: number } {

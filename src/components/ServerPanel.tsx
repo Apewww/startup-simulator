@@ -6,6 +6,11 @@ import { LandMap } from './LandMap';
 import { Plus, Minus } from 'lucide-react';
 import { getComplianceStatus } from '../systems/compliance';
 
+function fmt(n: number): string {
+  const s = n.toFixed(1);
+  return s.endsWith('.0') ? s.slice(0, -2) : s;
+}
+
 function ComplianceBar({ label, value, max }: { label: string; value: number; max: number }) {
   const pct = max > 0 ? Math.min(Math.round((value / max) * 100), 500) : 0;
   const displayPct = max > 0 ? Math.round((value / max) * 100) : 100;
@@ -17,7 +22,7 @@ function ComplianceBar({ label, value, max }: { label: string; value: number; ma
         <div className={`h-full rounded transition-all ${color}`} style={{ width: `${Math.min(pct, 100)}%` }} />
       </div>
       <span className={`font-mono w-12 text-right ${displayPct >= 100 ? 'text-green' : displayPct >= 50 ? 'text-amber' : 'text-red'}`}>
-        {value}/{max}
+        {fmt(value)}/{fmt(max)}
       </span>
     </div>
   );
