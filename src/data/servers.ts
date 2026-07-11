@@ -46,6 +46,7 @@ export const NODE_DEFS: NodeDef[] = [
     power: 5,
     price: 100,
     monthlyCost: 15,
+    compute: 2, data: 0, network: 0, security: 0,
     description: 'Entry-level web server untuk traffic kecil.',
   },
   {
@@ -57,6 +58,7 @@ export const NODE_DEFS: NodeDef[] = [
     power: 10,
     price: 250,
     monthlyCost: 35,
+    compute: 4, data: 0, network: 0, security: 0,
     description: 'Web server kelas menengah untuk traffic sedang.',
   },
   {
@@ -68,6 +70,7 @@ export const NODE_DEFS: NodeDef[] = [
     power: 20,
     price: 500,
     monthlyCost: 70,
+    compute: 8, data: 0, network: 0, security: 0,
     description: 'Web server performa tinggi untuk traffic besar.',
   },
   {
@@ -79,6 +82,7 @@ export const NODE_DEFS: NodeDef[] = [
     power: 8,
     price: 150,
     monthlyCost: 25,
+    compute: 0, data: 2, network: 0, security: 0,
     description: 'Database server entry-level.',
   },
   {
@@ -90,6 +94,7 @@ export const NODE_DEFS: NodeDef[] = [
     power: 16,
     price: 350,
     monthlyCost: 55,
+    compute: 0, data: 5, network: 0, security: 0,
     description: 'Database server performa tinggi untuk data besar.',
   },
   {
@@ -101,6 +106,7 @@ export const NODE_DEFS: NodeDef[] = [
     power: 3,
     price: 80,
     monthlyCost: 10,
+    compute: 0, data: 0, network: 2, security: 0,
     description: 'Caching server mereduksi beban web server.',
   },
   {
@@ -112,6 +118,7 @@ export const NODE_DEFS: NodeDef[] = [
     power: 8,
     price: 200,
     monthlyCost: 25,
+    compute: 0, data: 0, network: 5, security: 0,
     description: 'Caching server performa tinggi untuk traffic besar.',
   },
   {
@@ -123,6 +130,7 @@ export const NODE_DEFS: NodeDef[] = [
     power: 5,
     price: 120,
     monthlyCost: 20,
+    compute: 0, data: 0, network: 1, security: 0,
     description: 'Router mendistribusi traffic & efisiensi. Diperlukan jika >3 node.',
   },
   {
@@ -134,6 +142,7 @@ export const NODE_DEFS: NodeDef[] = [
     power: 2,
     price: 50,
     monthlyCost: 8,
+    compute: 0, data: 0, network: 0, security: 0,
     description: 'Kipas pendingin menambah cooling capacity +30.',
   },
   {
@@ -145,18 +154,8 @@ export const NODE_DEFS: NodeDef[] = [
     power: 4,
     price: 120,
     monthlyCost: 15,
+    compute: 0, data: 0, network: 0, security: 0,
     description: 'Pendingin industri menambah cooling capacity +60.',
-  },
-  {
-    typeId: 'storage',
-    label: 'Storage',
-    category: 'storage',
-    capacity: 50,
-    heat: 8,
-    power: 6,
-    price: 90,
-    monthlyCost: 12,
-    description: 'Storage node menambah kapasitas database +50.',
   },
   {
     typeId: 'liquid_cooling',
@@ -167,7 +166,20 @@ export const NODE_DEFS: NodeDef[] = [
     power: 6,
     price: 250,
     monthlyCost: 30,
+    compute: 0, data: 0, network: 0, security: 0,
     description: 'Pendingin cair performa tinggi +100 cooling.',
+  },
+  {
+    typeId: 'storage',
+    label: 'Storage',
+    category: 'storage',
+    capacity: 50,
+    heat: 8,
+    power: 6,
+    price: 90,
+    monthlyCost: 12,
+    compute: 0, data: 1, network: 0, security: 0,
+    description: 'Storage node menambah kapasitas database +50.',
   },
   {
     typeId: 'firewall_t1',
@@ -178,6 +190,7 @@ export const NODE_DEFS: NodeDef[] = [
     power: 3,
     price: 150,
     monthlyCost: 20,
+    compute: 0, data: 0, network: 0, security: 2,
     description: 'Menyaring traffic berbahaya. Security +1, -20% DDoS chance.',
   },
   {
@@ -189,6 +202,7 @@ export const NODE_DEFS: NodeDef[] = [
     power: 6,
     price: 350,
     monthlyCost: 45,
+    compute: 0, data: 0, network: 0, security: 5,
     description: 'Firewall enterprise. Security +2, -35% DDoS chance.',
   },
   {
@@ -200,6 +214,7 @@ export const NODE_DEFS: NodeDef[] = [
     power: 2,
     price: 80,
     monthlyCost: 12,
+    compute: 0, data: 0, network: 1, security: 0,
     description: 'Membatasi request mencurigakan. DDoS durasi -50%.',
   },
   {
@@ -211,6 +226,7 @@ export const NODE_DEFS: NodeDef[] = [
     power: 4,
     price: 200,
     monthlyCost: 30,
+    compute: 1, data: 0, network: 1, security: 0,
     description: 'Distribusi traffic merata. -10% chance overload.',
   },
 ];

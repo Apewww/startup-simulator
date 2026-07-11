@@ -95,6 +95,20 @@ export function checkEventTrigger(
 
   if (activeTypes.has(chosen)) return null;
 
+  // Security level reduces DDoS bias — reroll if DDoS chosen and high security
+  if (chosen === 'ddos' && securityLevel > 0 && Math.random() < securityLevel * 0.15) {
+    const nonDdos = (Object.entries(EVENT_RATES) as [EventType, number][])
+      .filter(([t]) => t !== 'ddos' && !activeTypes.has(t));
+    if (nonDdos.length > 0) {
+      const total = nonDdos.reduce((s, [, r]) => s + r, 0);
+      let r2 = Math.random() * total;
+      for (const [t, r] of nonDdos) {
+        r2 -= r;
+        if (r2 <= 0) { chosen = t; break; }
+      }
+    }
+  }
+
   eventCounter++;
   const tmpl = EVENT_TEMPLATES[chosen];
   const duration = chosen === 'ddos' ? 15 + Math.floor(Math.random() * 16)

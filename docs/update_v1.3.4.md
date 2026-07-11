@@ -153,40 +153,82 @@ Node baru untuk mitigasi event & extra protection.
 
 ---
 
-## 8. Perubahan File
+## 8. Server Compliance System
 
-| File | Perubahan |
-|---|---|
-| `types/feature.ts` | Tambah `group: 'core'\|'business'\|'engagement'` |
-| `types/event.ts` | **BARU** — `GameEvent`, `EventType`, `EventEffects` |
-| `types/server.ts` | Tambah `scaleLevel: number` di ServerNode; `'security'` kategori; `firewall_t1\|firewall_t2\|rate_limiter\|load_balancer` NodeTypeId |
-| `types/index.ts` | Export event types |
-| `data/products.ts` | Tambah `group` di FeatureDef; `synergyPairs` per produk |
-| `data/servers.ts` | Tambah 4 node security + Liquid Cooling |
-| `systems/traffic.ts` | **RENAME** → `systems/platform.ts`. `getPlatformStats()` return cohesion, targetUsers, effectiveRPS, etc |
-| `systems/events.ts` | **BARU** — event trigger, tick progression, effect calculation |
-| `systems/server.ts` | Terima `effectiveRPS` dari platform; apply `scaleLevel` ke capacity/heat/power; hitung `securityLevel` |
-| `systems/monetization.ts` | Terima `currentUsers` + cohesion multiplier |
-| `store/gameStore.ts` | Tambah `currentUsers`, `events[]`; dynamic user logic; event check; cohesion multiplier; scale actions |
-| `components/HudBar.tsx` | Ganti `trafficStats.users` → `currentUsers`; tambah **Platform Health** meter; event badge |
-| `components/FeaturesPanel.tsx` | Group label (C/B/E); synergy badge; cohesion tooltip per fitur |
-| `components/ServerPanel.tsx` | Scale ± button di NodeSlot |
-| `components/ServerShop.tsx` | Tampilkan node security |
-| `components/EventBanner.tsx` | **BARU** — banner untuk active events |
-| `db/gameDB.ts` | DB v7: currentUsers, events |
-| `systems/saveLoad.ts` | Save/load currentUsers, events |
+### Node Points
+
+Setiap node punya 4 point category yang menentukan kecukupan hardware.
+
+| Node | Compute | Data | Network | Security |
+|---|---|---|---|---|
+| Web T1 | 2 | 0 | 0 | 0 |
+| Web T2 | 4 | 0 | 0 | 0 |
+| Web T3 | 8 | 0 | 0 | 0 |
+| DB T1 | 0 | 2 | 0 | 0 |
+| DB T2 | 0 | 5 | 0 | 0 |
+| Cache T1 | 0 | 0 | 2 | 0 |
+| Cache T2 | 0 | 0 | 5 | 0 |
+| Router | 0 | 0 | 1 | 0 |
+| Load Balancer | 1 | 0 | 1 | 0 |
+| Firewall T1 | 0 | 0 | 0 | 2 |
+| Firewall T2 | 0 | 0 | 0 | 5 |
+| Storage | 0 | 1 | 0 | 0 |
+
+### Feature Requirements (per level)
+
+| Group | Compute/level | Data/level | Network/level |
+|---|---|---|---|
+| Core | 0.5 | 0.3 | 0.3 |
+| Business | 0.3 | 0.3 | 0 |
+| Engagement | 0.3 | 0 | 0.3 |
+
+`required = sum(feature.rate × feature.level)` untuk semua fitur yang sudah dibangun.
+
+Contoh — 3 Core Lv.5 + 2 Business Lv.3:
+- Compute: 3×2.5 + 2×0.9 = 9.3
+- 3×Web T1 (6) → 6/9.3 = 64% → partial, users capped
+
+### Compliance Tiers
+
+| Ratio | Status | Effect |
+|---|---|---|
+| < 0.5 | **Critical** | users = 0 (service mati) |
+| 0.5 – 0.99 | **Partial** | users capped di ratio × targetUsers, revenue × ratio |
+| ≥ 1.0 | **OK** | full service |
+
+**Network shortage**: Jika network ratio < 1, `effectiveRps` × (1 + (1 - ratio) × 0.5) — server ekstra beban.
+
+**Security → event mitigation**: Jika security high dan DDoS terpilih, ada chance reroll ke event lain (`securityLevel × 0.15`).
+
+### UI
+
+- **ServerPanel**: Compliance bars (Compute/Data/Network/Security) muncul di atas LandMap, dengan status label (OK/Partial/Critical).
+- **HudBar**: Dot `● HW OK` / `HW ⚠` / `HW ✗` di sebelah kanan Platform Health meter.
 
 ---
 
-## 9. Checklist
+## 9. Perubahan File (Lanjutan)
 
-- [x] Types: feature group, event, scaleLevel, security
-- [x] Data: products group/synergy, servers security/scaling
+| File | Perubahan |
+|---|---|
+| `types/server.ts` | Tambah `compute/data/network/security` fields di `NodeDef` |
+| `data/servers.ts` | Tambah point values ke semua node def |
+| `systems/compliance.ts` | **BARU** — `calcPoints()`, `calcRequirements()`, `getComplianceStatus()` |
+| `systems/events.ts` | DDoS bias reduction: reroll jika securityLevel tinggi |
+| `store/gameStore.ts` | Compliance check di `incrementTick`: apply userCap, revenueMult, rpsPenalty |
+| `components/ServerPanel.tsx` | Compliance bars section |
+| `components/HudBar.tsx` | Compliance status dot (`Circle`) |
+
+## 10. Checklist
+
+- [x] Types: feature group, event, scaleLevel, security, point fields
+- [x] Data: products group/synergy, servers security/scaling/points
 - [x] Systems: platform stats, events, server scaling, monetization cohesion
-- [x] Store: dynamic users, events, cohesion multiplier, scale actions
-- [x] HudBar: Platform Health meter, event badge, dynamic users display
+- [x] Systems: compliance — point calc, requirement calc, user cap, RPS penalty
+- [x] Store: dynamic users, events, cohesion multiplier, scale actions, compliance check
+- [x] HudBar: Platform Health meter, event badge, dynamic users display, compliance dot
 - [x] FeaturesPanel: group, synergy badge
-- [x] ServerPanel: scale buttons, security node display
+- [x] ServerPanel: scale buttons, security node display, compliance bars section
 - [x] EventBanner component
 - [x] DB v7 + save/load
 - [x] Build sukses (typecheck + lint)

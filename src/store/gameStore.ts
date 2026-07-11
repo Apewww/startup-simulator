@@ -9,6 +9,7 @@ import { getPlatformStats, getAppliedEffects } from '../systems/platform';
 import { calculateRevenue } from '../systems/monetization';
 import { generateApplicant, CAMPAIGN_COST, getCampaignTicks, negotiate, applicantToEmployee } from '../systems/recruitment';
 import { checkEventTrigger, processEvents, calcSecurityLevel } from '../systems/events';
+import { getComplianceStatus } from '../systems/compliance';
 
 export type GameSpeed = 1 | 2 | 4;
 export const TICKS_PER_MONTH = 600;
@@ -343,11 +344,15 @@ export const useGameStore = create<GameState>((set, get) => ({
     let newCurrentUsers = currentUsers + (userDelta * eventEffects.userGrowthMult) - crashPenalty - churn;
     newCurrentUsers = Math.max(0, Math.round(newCurrentUsers));
 
-    // Server calculation with effectiveRPS
+    // Server calculation with effectiveRPS — first check compliance for RPS penalty
+    const complianceBefore = features.some(f => f.level > 0) ? getComplianceStatus(features, placedRacks) : null;
+    const rpsMult = complianceBefore?.rpsPenalty ?? 1;
+    const adjustedRps = Math.round(platformStats.effectiveRps * rpsMult);
+
     const sysAdminLevel = employees
       .filter(e => e.role === 'SysAdmin' && e.happiness >= 15)
       .reduce((max, e) => Math.max(max, e.level), 0);
-    const { racks: updatedPlacedRacks, rentedServers: updatedRentedServers } = calculateNodeLoads(placedRacks, platformStats.effectiveRps, rentedServers, sysAdminLevel);
+    const { racks: updatedPlacedRacks, rentedServers: updatedRentedServers } = calculateNodeLoads(placedRacks, adjustedRps, rentedServers, sysAdminLevel);
 
     // If no web capacity at all, users drop fast
     const hasWebCapacity = updatedPlacedRacks.some(r =>
@@ -357,6 +362,18 @@ export const useGameStore = create<GameState>((set, get) => ({
     ) || updatedRentedServers.some(r => r.capacityRps > 0);
     if (platformStats.effectiveRps > 0 && !hasWebCapacity) {
       newCurrentUsers = Math.max(0, Math.floor(newCurrentUsers * 0.92));
+    }
+
+    // Compliance check — hardware must meet feature requirements
+    const compliance = features.some(f => f.level > 0)
+      ? getComplianceStatus(features, [...unplacedRacks, ...updatedPlacedRacks])
+      : null;
+    if (compliance) {
+      if (compliance.overall === 'critical') {
+        newCurrentUsers = 0;
+      } else if (compliance.userCap < 1) {
+        newCurrentUsers = Math.min(newCurrentUsers, Math.round(platformStats.targetUsers * compliance.userCap));
+      }
     }
 
     // Event trigger & processing
@@ -408,7 +425,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (newMonth > oldMonth) {
       newTotalSalary = calcTotalSalary(newEmployees);
       const serverCost = calcMonthlyServerCost(finalRacks, rentedServers);
-      const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore, platformStats.synergyRevenueBonus);
+      const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore * (compliance?.revenueMult ?? 1), platformStats.synergyRevenueBonus);
       cashChange = revenue.total - (newTotalSalary + serverCost);
 
       const cashAfter = state.cash + cashChange;
@@ -433,7 +450,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     let newPendingFunding = state.pendingFunding;
     if (newMonth > oldMonth && !newPendingFunding) {
-      const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore, platformStats.synergyRevenueBonus);
+      const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore * (compliance?.revenueMult ?? 1), platformStats.synergyRevenueBonus);
       const offer = calcFundingOffer(newMonth, newCurrentUsers, revenue.total);
       if (offer) {
         const lastRound = state.fundingRounds[state.fundingRounds.length - 1];
@@ -502,7 +519,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (monthsSinceLast < 6) return;
 
     const traffic = getPlatformStats(state.features, state.events, state.selectedProduct);
-    const revenue = calculateRevenue(state.currentUsers, state.features, state.racks, traffic.cohesionScore, traffic.synergyRevenueBonus);
+    const compliance = state.features.some(f => f.level > 0) ? getComplianceStatus(state.features, state.racks) : null;
+    const revenue = calculateRevenue(state.currentUsers, state.features, state.racks, traffic.cohesionScore * (compliance?.revenueMult ?? 1), traffic.synergyRevenueBonus);
     const offer = calcFundingOffer(state.month, state.currentUsers, revenue.total);
     if (!offer) return;
     const round: FundingRound = {

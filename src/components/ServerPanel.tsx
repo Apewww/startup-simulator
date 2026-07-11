@@ -4,6 +4,24 @@ import type { ServerRack, ServerNode } from '../types';
 import { ServerShop } from './ServerShop';
 import { LandMap } from './LandMap';
 import { Plus, Minus } from 'lucide-react';
+import { getComplianceStatus } from '../systems/compliance';
+
+function ComplianceBar({ label, value, max }: { label: string; value: number; max: number }) {
+  const pct = max > 0 ? Math.min(Math.round((value / max) * 100), 500) : 0;
+  const displayPct = max > 0 ? Math.round((value / max) * 100) : 100;
+  const color = displayPct >= 100 ? 'bg-green' : displayPct >= 50 ? 'bg-amber' : 'bg-red';
+  return (
+    <div className="flex items-center gap-2 text-[10px]">
+      <span className="w-14 text-ink-soft font-semibold shrink-0">{label}</span>
+      <div className="flex-1 bg-surface-2 rounded h-2 overflow-hidden">
+        <div className={`h-full rounded transition-all ${color}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+      </div>
+      <span className={`font-mono w-12 text-right ${displayPct >= 100 ? 'text-green' : displayPct >= 50 ? 'text-amber' : 'text-red'}`}>
+        {value}/{max}
+      </span>
+    </div>
+  );
+}
 
 function NodeSlot({ node, rackId, slotIndex }: { node: ServerNode | null; rackId: string; slotIndex: number }) {
   const sellNode = useGameStore(s => s.sellNode);
@@ -140,7 +158,12 @@ export function RackCard({ rack }: { rack: ServerRack }) {
 export function ServerPanel() {
   const rentedServers = useGameStore(s => s.rentedServers);
   const cancelRental = useGameStore(s => s.cancelRental);
+  const features = useGameStore(s => s.features);
+  const racks = useGameStore(s => s.racks);
   const [shopOpen, setShopOpen] = useState(false);
+
+  const hasFeatures = features.some(f => f.level > 0);
+  const compliance = hasFeatures ? getComplianceStatus(features, racks) : null;
 
   return (
     <div className="space-y-3">
@@ -153,6 +176,27 @@ export function ServerPanel() {
           {shopOpen ? 'Close' : 'Shop'}
         </button>
       </div>
+
+      {/* Compliance bars */}
+      {compliance && (
+        <div className="card p-3 space-y-1.5">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-semibold text-ink-soft uppercase tracking-wider">Server Compliance</span>
+            <span className={`text-[10px] font-semibold ${compliance.overall === 'ok' ? 'text-green' : compliance.overall === 'partial' ? 'text-amber' : 'text-red'}`}>
+              {compliance.overall === 'ok' ? 'OK' : compliance.overall === 'partial' ? 'Partial' : 'Critical'}
+            </span>
+          </div>
+          <ComplianceBar label="Compute" value={compliance.compute.provided} max={compliance.compute.required} />
+          <ComplianceBar label="Data" value={compliance.data.provided} max={compliance.data.required} />
+          <ComplianceBar label="Network" value={compliance.network.provided} max={compliance.network.required} />
+          <ComplianceBar label="Security" value={compliance.security.provided} max={compliance.security.provided || 1} />
+          {compliance.overall !== 'ok' && (
+            <div className="text-[10px] text-ink-soft pt-1 border-t border-border mt-1">
+              {compliance.overall === 'critical' ? 'Service offline — insufficient hardware' : 'Users capped — upgrade hardware'}
+            </div>
+          )}
+        </div>
+      )}
 
       {shopOpen ? (
         <ServerShop onClose={() => setShopOpen(false)} />

@@ -16,7 +16,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 let zCounter = 100;
 
-function InventoryPanel({ onClose }: { onClose: () => void }) {
+function InventoryPanel({ onClose, rackId }: { onClose: () => void; rackId?: string | null }) {
   const racks = useGameStore((s) => s.racks);
   const inventoryNodes = useGameStore((s) => s.inventoryNodes);
   const activeView = useGameStore((s) => s.activeView);
@@ -129,7 +129,19 @@ function InventoryPanel({ onClose }: { onClose: () => void }) {
                 <div key={node.id} draggable
                   onDragStart={(e) => handleNodeDragStart(e, node.id)}
                   onDragEnd={handleNodeDragEnd}
-                  onClick={() => useGameStore.getState().autoPlaceNode(node.id)}
+                  onClick={() => {
+                    if (rackId) {
+                      const rack = useGameStore.getState().racks.find(r => r.id === rackId);
+                      if (rack) {
+                        const emptySlot = rack.slots.find(s => !s.node);
+                        if (emptySlot) {
+                          useGameStore.getState().placeNode(node.id, rackId, emptySlot.index);
+                          return;
+                        }
+                      }
+                    }
+                    useGameStore.getState().autoPlaceNode(node.id);
+                  }}
                   className="flex items-center gap-2 px-2 py-1.5 bg-surface-2 border border-border rounded-lg cursor-pointer hover:border-indigo transition-colors active:bg-indigo-soft"
                   title="Click to auto-place in first empty slot">
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CATEGORY_COLORS[node.category] || '#666' }} />
@@ -429,7 +441,7 @@ function PlotGrid() {
       </div>
 
       {selectedRackId && <RackSlotView rackId={selectedRackId} onClose={() => setSelectedRackId(null)} />}
-      {showInventory && <InventoryPanel onClose={() => setShowInventory(false)} />}
+      {showInventory && <InventoryPanel onClose={() => setShowInventory(false)} rackId={selectedRackId} />}
     </div>
   );
 }

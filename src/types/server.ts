@@ -87,6 +87,10 @@ export interface NodeDef {
   power: number;
   price: number;
   monthlyCost: number;
+  compute: number;
+  data: number;
+  network: number;
+  security: number;
   description: string;
 }
 

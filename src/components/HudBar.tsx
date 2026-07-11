@@ -1,8 +1,9 @@
-import { Play, Pause, Save, AlertTriangle, Handshake, Moon, Sun, TrendingUp, TrendingDown, Activity, Shield } from 'lucide-react';
+import { Play, Pause, Save, AlertTriangle, Handshake, Moon, Sun, TrendingUp, TrendingDown, Activity, Shield, Circle } from 'lucide-react';
 import { useGameStore, TICKS_PER_MONTH, TICKS_PER_DAY } from '../store/gameStore';
 import { getPlatformStats } from '../systems/platform';
 import { calculateRevenue } from '../systems/monetization';
 import { calcMonthlyServerCost } from '../systems/server';
+import { getComplianceStatus } from '../systems/compliance';
 
 const DAY_NAMES = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
@@ -95,6 +96,18 @@ export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps
             <span className="text-[10px] text-ink-soft font-mono">{healthPct}%</span>
           </div>
         )}
+
+        {/* Compliance status dot */}
+        {features.some(f => f.level > 0) && (() => {
+          const comp = getComplianceStatus(features, racks);
+          const dotColor = comp.overall === 'ok' ? 'text-green' : comp.overall === 'partial' ? 'text-amber' : 'text-red';
+          const dotLabel = comp.overall === 'ok' ? 'Hardware OK' : comp.overall === 'partial' ? `Partial (${Math.round(Math.min(comp.userCap, 1) * 100)}% cap)` : 'Critical — no service';
+          return (
+            <span className={`flex items-center gap-1 text-[10px] ${dotColor}`} title={dotLabel}>
+              <Circle className="w-2 h-2 fill-current" />{comp.overall === 'ok' ? 'HW OK' : comp.overall === 'partial' ? 'HW ⚠' : 'HW ✗'}
+            </span>
+          );
+        })()}
 
         {/* Right — stats */}
         <div className="flex items-center gap-4 text-ink-soft">
