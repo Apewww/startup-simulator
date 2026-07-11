@@ -37,38 +37,21 @@ Skala kesulitan: 🟢 Mudah | 🟡 Menengah | 🔴 Sulit | ⚫ Sangat Kompleks
 
 Tujuan: Implementasi efek boost ke tick loop.
 
-- [ ] Di `systems/platform.ts` (atau buat `systems/leadDeveloper.ts` baru untuk isolasi logic):
-  ```
+- [x] Di `systems/leadDeveloper.ts` — `getSupervisionBoost(lead)`:
+  ```ts
   function getSupervisionBoost(lead: Employee): number {
     return lead.speed * 0.1
   }
   ```
-- [ ] Modifikasi kalkulasi produksi komponen developer di tick loop:
-  - Jika developer punya `supervisedBy`, cari lead-nya, hitung boost, terapkan ke output produksi tick tersebut.
+- [x] Modifikasi kalkulasi produksi komponen developer di tick loop:
+  - Jika developer punya `supervisedBy`, cari lead-nya, hitung boost, terapkan ke `newSpeed`.
   - **Keputusan final: TANPA penalti/diminishing return.** Setiap developer yang disupervisi dapat boost penuh `leadSpeed × 0.1`, terlepas dari berapa banyak developer lain yang disupervisi lead yang sama. Opportunity cost (lead gak produksi sendiri) sudah jadi balancing natural, tidak perlu penalti buatan tambahan.
-    ```
-    outputBoost = lead.speed × 0.1
-    finalOutput = developer.baseOutput × (1 + outputBoost)
-    ```
-- [ ] **Cap jumlah developer per lead — scale sesuai level lead.** Formula yang direkomendasikan (linear sederhana, mudah dibalance):
-  ```
-  maxSupervised = baseCap + (lead.level - 1) × capPerLevel
-  ```
-  Contoh nilai awal untuk playtest (`baseCap = 2`, `capPerLevel = 1`):
-
-  | Lead Level | Max Developer Disupervisi |
-  |---|---|
-  | 1 | 2 |
-  | 2 | 3 |
-  | 3 | 4 |
-  | 4 | 5 |
-  | 5 | 6 |
-
-  - Cap ini otomatis naik saat lead level up (training selesai) — perlu handle di action `levelUpEmployee`/hasil training: kalau lead sudah supervise developer melebihi cap baru... (tidak relevan di sini karena cap **naik**, jadi tidak ada developer yang perlu di-unassign otomatis. Hanya perlu update `maxSupervised` yang ditampilkan di UI).
-  - UI assignment (Phase 1) harus baca `maxSupervised` ini secara dinamis — disable opsi assign kalau lead sudah di cap.
-- [ ] Tambahkan **soft cap global** di luar level scaling (misal hard limit 10, jaga-jaga kalau lead level sangat tinggi di late game) — cukup sebagai safety net, bukan constraint utama.
-- [ ] Update save/load schema (Dexie v8) — tambah field `supervisedBy`/`supervising` ke persisted state.
-- [ ] Balancing pass: karena boost tanpa penalti + cap naik seiring level, lead level tinggi berpotensi jadi sangat kuat (misal lead level 5, speed tinggi, supervise 6 developer semua dapat boost penuh). Playtest fokus ke:
+  - Boost diterapkan unconditional (produksi + training) — mentorship effect.
+  - 1-tick delay: boost di `newSpeed` (dipakai tick berikutnya).
+- [x] **Cap jumlah developer per lead — scale sesuai level lead.** (Phase 1 — `calcMaxSupervised`)
+- [x] Tambahkan **soft cap global** (Phase 1 — 10)
+- [x] Update save/load schema Dexie v8 (Phase 1)
+- [ ] **Balancing pass** (dilakukan di Phase 7): karena boost tanpa penalti + cap naik seiring level, lead level tinggi berpotensi jadi sangat kuat. Playtest fokus ke:
   - Apakah salary Lead Developer + training cost cukup mahal untuk balance power ini?
   - Apakah perlu diminishing return di level lead yang sangat tinggi nanti (v2, di luar scope Phase 2 ini)?
 
@@ -142,7 +125,7 @@ Tujuan: Ubah OfficeGrid dari layout statis jadi grid modular seperti ServerRoomV
 | Phase | Fitur | Difficulty | Dependency |
 |---|---|---|---|---|
 | ~~1~~ ✅ | ~~Lead Dev — Data & Assignment UI~~ | 🟡 | - |
-| 2 | Lead Dev — Production Boost Logic | 🔴 | Phase 1 ✅ |
+| ~~2~~ ✅ | ~~Lead Dev — Production Boost Logic~~ | 🔴 | Phase 1 ✅ |
 | 3 | Lead Dev — UI Polish | 🟢 | Phase 2 |
 | 4 | Office Grid — Modular Refactor | 🔴 | - |
 | 5 | Furniture — Perk/Unlock System | 🟡 | - |

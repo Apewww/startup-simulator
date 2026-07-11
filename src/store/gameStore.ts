@@ -6,6 +6,7 @@ import { getProductDef } from '../data/products';
 import { getNodeDef, getRackDef } from '../data/servers';
 import { calculateNodeLoads, calcMonthlyServerCost } from '../systems/server';
 import { getPlatformStats, getAppliedEffects } from '../systems/platform';
+import { getSupervisionBoost } from '../systems/leadDeveloper';
 import { calculateRevenue } from '../systems/monetization';
 import { generateApplicant, CAMPAIGN_COST, getCampaignTicks, negotiate, applicantToEmployee } from '../systems/recruitment';
 import { checkEventTrigger, processEvents, calcSecurityLevel } from '../systems/events';
@@ -317,6 +318,13 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
         if (newOverworkTicks >= 50) {
           newSpeed = Math.floor(newSpeed * 0.7);
+        }
+
+        if (emp.supervisedBy) {
+          const lead = employees.find(e => e.id === emp.supervisedBy);
+          if (lead && lead.role === 'Lead_Developer') {
+            newSpeed = newSpeed * (1 + getSupervisionBoost(lead));
+          }
         }
 
         if (!emp.isPlayer && newHappiness < 15) {

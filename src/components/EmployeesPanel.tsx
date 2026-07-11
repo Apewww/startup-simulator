@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Users, Lock, Unlock, Crown, GraduationCap, XCircle, AlertTriangle, Gift, Plane, ChevronDown, ChevronUp, Star, UserPlus, UserMinus, Hammer } from 'lucide-react';
+import { Users, Lock, Unlock, Crown, GraduationCap, XCircle, AlertTriangle, Gift, Plane, ChevronDown, ChevronUp, Star, UserMinus, Hammer } from 'lucide-react';
 import { useGameStore, getAvailableComponents, getLockedComponents } from '../store/gameStore';
 import { getComponentDef } from '../data/components';
 import { calcMaxSupervised } from '../types/employee';
