@@ -1,19 +1,6 @@
-# 🚀 Startup Simulator
+# Startup Simulator
 
 Game simulasi manajemen startup teknologi berbasis desktop. Dibangun dengan Tauri + React + TypeScript. Terinspirasi dari *Startup Company* (Hovgaard Games).
-
----
-
-## 📋 Daftar Isi
-
-- [Tech Stack](#tech-stack)
-- [Cara Menjalankan](#cara-menjalankan)
-- [Struktur Project](#struktur-project)
-- [Tampilan & UI](#tampilan--ui)
-- [Sistem & Logika Game](#sistem--logika-game)
-- [Alur Data (Game Loop)](#alur-data-game-loop)
-- [Data & Balancing](#data--balancing)
-- [Roadmap](#roadmap)
 
 ---
 
@@ -34,17 +21,10 @@ Game simulasi manajemen startup teknologi berbasis desktop. Dibangun dengan Taur
 ## Cara Menjalankan
 
 ```bash
-# Install dependencies
 npm install
-
-# Jalankan dev server (browser)
-npm run dev
-
-# Jalankan sebagai aplikasi Tauri desktop
-npm run tauri dev
-
-# Build production .exe
-npm run tauri build
+npm run dev          # Dev server (browser)
+npm run tauri dev    # Desktop app
+npm run tauri build  # Build .exe
 ```
 
 ---
@@ -53,144 +33,63 @@ npm run tauri build
 
 ```
 src/
-├── App.tsx                  # Root — routing antar screen (menu/select/playing)
-├── main.tsx                 # Entry point React
-├── index.css                # Global CSS + scanlines effect
+├── App.tsx                   # Root — routing antar screen
+├── main.tsx                  # Entry point
+├── index.css                 # Global CSS + dark theme vars
 │
-├── components/              # Semua UI components
-│   ├── MainMenu.tsx         # Halaman awal game
-│   ├── ProductSelect.tsx    # Layar pemilihan produk
-│   ├── HudBar.tsx           # Toolbar atas (cash, stats, speed)
-│   ├── Dock.tsx             # Sidebar kiri navigasi
-│   ├── MainViewport.tsx     # Area konten utama
-│   ├── OfficeGrid.tsx       # Visual kantor (grid 2D karyawan)
-│   ├── LandMap.tsx          # Peta plot server room
-│   ├── ServerRoomView.tsx   # View server room + rack management
-│   ├── EmployeesPanel.tsx   # Panel daftar karyawan
-│   ├── FeaturesPanel.tsx    # Panel build/upgrade fitur produk
-│   ├── ServerPanel.tsx      # Shop & panel server rental
-│   ├── FinancePanel.tsx     # Laporan keuangan bulanan
-│   ├── FloatingPanel.tsx    # Container panel mengambang (draggable)
-│   ├── PanelTaskbar.tsx     # Taskbar bawah untuk toggle panel
-│   ├── DevPanel.tsx         # Dev mode cheat panel
-│   └── CharacterAvatar.tsx  # Sprite karakter karyawan
+├── components/               # UI components
+│   ├── MainMenu.tsx          # Halaman awal
+│   ├── ProductSelect.tsx     # Pemilihan produk
+│   ├── PlayerSetup.tsx       # Input username
+│   ├── HudBar.tsx            # Toolbar (cash, stats, speed, compliance dot)
+│   ├── Dock.tsx              # Sidebar navigasi
+│   ├── MainViewport.tsx      # Area konten utama
+│   ├── OfficeGrid.tsx        # Visual kantor grid 2D
+│   ├── EmployeesPanel.tsx    # Panel karyawan: assign, train, vacation
+│   ├── FeaturesPanel.tsx     # Panel fitur: build/upgrade, group label, synergy
+│   ├── RecruitmentPanel.tsx  # Panel rekrutmen: campaign, negotiate
+│   ├── ServerPanel.tsx       # Panel server: compliance bars, racks, rental
+│   ├── FinancePanel.tsx      # Laporan keuangan, cash flow chart
+│   ├── FundingPanel.tsx      # Funding round offers
+│   ├── CashFlowChart.tsx     # Bar chart cash flow inline SVG
+│   ├── FloatingPanel.tsx     # Container panel draggable
+│   ├── PanelTaskbar.tsx      # Taskbar toggle panel
+│   ├── EventBanner.tsx       # Banner untuk active events (DDoS, dll)
+│   ├── LandMap.tsx           # Peta plot server room
+│   ├── ServerRoomView.tsx    # Grid server room + rack placement
+│   ├── ServerShop.tsx        # Shop beli rack, node, rental
+│   ├── CharacterAvatar.tsx   # Sprite karakter
+│   └── DevPanel.tsx          # Dev mode cheat panel
 │
 ├── store/
-│   └── gameStore.ts         # Zustand store — seluruh state & actions
+│   └── gameStore.ts          # Zustand — seluruh state & actions
 │
-├── systems/                 # Business logic murni
-│   ├── server.ts            # Kalkulasi beban server, panas, crash
-│   ├── traffic.ts           # Konversi fitur → users & RPS
-│   ├── monetization.ts      # Kalkulasi pemasukan ads & subscription
-│   └── saveLoad.ts          # Fungsi save/load ke IndexedDB
+├── systems/                  # Business logic
+│   ├── platform.ts           # Cohesion score, synergy, event effects
+│   ├── server.ts             # Water-fill RPS distribution, overheat, crash
+│   ├── compliance.ts         # Point system: compute/data/network/security
+│   ├── events.ts             # Random events: DDoS, traffic spike, PR crisis
+│   ├── monetization.ts       # Revenue kalkulasi
+│   ├── recruitment.ts        # Applicant generation, negotiation
+│   └── saveLoad.ts           # Save/load IndexedDB
 │
-├── data/                    # Data statis game
-│   ├── products.ts          # Definisi 3 produk + fitur per produk
-│   ├── servers.ts           # Definisi rack tiers & node types
-│   └── components.ts        # Definisi komponen software yang diproduksi
+├── data/                     # Data statis
+│   ├── products.ts           # 3 produk + fitur + synergy pairs
+│   ├── servers.ts            # Rack tiers, node types + point values
+│   └── components.ts         # Komponen software + min level
 │
-├── types/                   # TypeScript interfaces
-│   ├── employee.ts
-│   ├── server.ts
-│   ├── feature.ts
-│   ├── resource.ts
-│   ├── company.ts
-│   └── index.ts
+├── types/                    # TypeScript interfaces
+│   ├── employee.ts           # Employee, Applicant, FundingRound
+│   ├── feature.ts            # PlatformFeature, FeatureGroup
+│   ├── event.ts              # GameEvent, EventType
+│   ├── server.ts             # ServerNode, ServerRack, RentedServer, NodeDef
+│   ├── resource.ts           # ComponentResource
+│   ├── company.ts            # Company aggregate
+│   └── index.ts              # Barrel export
 │
 └── db/
-    └── gameDB.ts            # Dexie.js schema (IndexedDB)
+    └── gameDB.ts             # Dexie schema (IndexedDB, v7)
 ```
-
----
-
-## Tampilan & UI
-
-### 1. Main Menu
-
-Halaman pertama yang muncul saat game dibuka.
-
-```
-┌─────────────────────────────┐
-│                             │
-│      Startup Simulator      │  ← Judul dengan efek neon glow
-│  Build your tech empire...  │
-│                             │
-│  ┌───────────────────────┐  │
-│  │  New Game          ▶  │  │  ← Menuju layar pilih produk
-│  └───────────────────────┘  │
-│  ┌───────────────────────┐  │
-│  │  Load Game         ⟳  │  │  ← Disabled jika tidak ada save
-│  └───────────────────────┘  │
-│                             │
-│  ┌───────────────────────┐  │
-│  │  Keluar            ⏻  │  │  ← Menutup window Tauri
-│  └───────────────────────┘  │
-│                    v1.1.4   │
-└─────────────────────────────┘
-```
-
-### 2. Layar Pilih Produk (`ProductSelect`)
-
-Pemain memilih satu dari 3 jenis produk yang akan dibangun sepanjang game. Pilihan ini **permanen** dan menentukan daftar fitur yang tersedia.
-
-| Produk | Tagline | Fitur Utama |
-|---|---|---|
-| **Social Media** | Connect the world | User Profiles, News Feed, Messaging, Photo Sharing, Stories |
-| **E-Commerce** | Shop smarter | Product Listing, Shopping Cart, Payment Gateway, Review System, Recommendation Engine |
-| **Search Engine** | Find anything | Web Crawler, Search Algorithm, Index Builder, Image Search, Maps |
-
-### 3. HUD Bar (Toolbar Atas)
-
-Selalu tampil saat game berjalan. Menampilkan:
-
-```
-STARTUPSIM │ CASH $10,000 │ USERS 0 │ RPS 0 │ MONTH 0 │ DAY 1/30 │ [Pause] [1x][2x][4x] │ [Save]
-```
-
-- **CASH** — Saldo perusahaan (merah jika negatif)
-- **USERS** — Total pengguna aktif platform
-- **RPS** — Request Per Second yang masuk ke server
-- **MONTH / DAY** — Waktu in-game
-- **Speed controls** — Pause / 1x / 2x / 4x
-- **Save** — Menyimpan game ke IndexedDB
-- **Peringatan bangkrut** — Muncul animasi pulse jika cash negatif
-
-### 4. Dock (Sidebar Kiri)
-
-Navigasi utama dengan ikon untuk berpindah view:
-- 🏢 **Office** — Grid kantor 2D
-- 🗺️ **Land Map** — Peta plot server room
-- 📋 **Panel Taskbar** (bawah) — Toggle panel mengambang
-
-### 5. Office Grid
-
-Tampilan visual kantor dalam grid 8×8. Setiap karyawan punya meja. Status karyawan tercermin secara visual:
-- 💚 Hijau = Sedang bekerja (ada task)
-- 🔵 Biru = Idle (tidak ada task)
-- 🔴 Merah = Happiness sangat rendah (risiko resign)
-
-### 6. Server Room View
-
-Tampilan grid server room tempat rack ditempatkan. Interaksi utama:
-- **Drag & drop rack** dari Inventory ke grid
-- **Klik rack** untuk membuka panel slot node
-- **Drag & drop node** dari inventory ke slot rack kosong
-- **Tombol `✕`** di node yang terpasang → unequip (kembalikan ke inventory)
-- **Indikator warna rack:**
-  - 🟣 Ungu = Normal
-  - 🔴 Merah = Overheat (cooling used > capacity)
-  - ⬜ Abu-abu = Kosong (belum ada node)
-
-### 7. Panel Mengambang
-
-4 panel bisa dibuka bersamaan, bisa di-drag, di-minimize, atau di-maximize:
-
-| Panel | Isi |
-|---|---|
-| **Employees** | List karyawan, assign task, status happiness |
-| **Features** | Build & upgrade fitur produk |
-| **Server** | Server Shop (beli rack/node/rental), daftar rented server |
-| **Finance** | Laporan pemasukan vs pengeluaran per bulan |
 
 ---
 
@@ -198,250 +97,248 @@ Tampilan grid server room tempat rack ditempatkan. Interaksi utama:
 
 ### Game Loop
 
-Game berjalan dengan sistem tick berbasis `setInterval`:
+Tick-based simulation via `setInterval(incrementTick, 2000 / speed)`:
 
-```
-setInterval(incrementTick, 2000 / speed)
-```
-
-- 1 tick ≈ 1 jam in-game
-- **30 tick = 1 bulan** in-game
-- Speed 1x = tick tiap 2 detik real-time
-- Speed 4x = tick tiap 500ms
+- 1 tick = 1 jam in-game
+- 20 tick = 1 hari, 600 tick = 1 bulan
+- Speed 1x/2x/4x, bisa pause
 
 Setiap tick:
-1. Semua karyawan yang punya task memproses progress
-2. Jika progress selesai → komponen ditambahkan ke inventory
-3. Happiness semua karyawan diupdate (turun saat bekerja)
-4. Beban server dikalkulasi ulang dari total RPS
-5. Overheat & crash node dicek
-6. Setiap bulan → payroll + biaya server dipotong dari cash, revenue ditambahkan
+1. Produksi komponen karyawan
+2. Happiness decay + overwork check + resign check
+3. Training progress
+4. Dynamic user pool: `currentUsers` bergerak gradual menuju `targetUsers`
+5. Platform stats: cohesion, synergy, event effects
+6. Compliance check: compute/data/network ratio → user cap, revenue mult
+7. Water-fill RPS distribution ke semua web server (owned + rented)
+8. Overheat + crash detection
+9. Event trigger + processing (DDoS, traffic spike, dll)
+10. Setiap bulan: payroll, server cost, revenue, funding check
 
-### Sistem Karyawan
+### Player Character (CEO)
 
-**Roles & Output:**
+- `isPlayer: true` — tidak bisa resign/dipecat
+- Role dinamis: Developer / Designer / HR (dropdown di EmployeeCard)
+- Bisa training dan assign task seperti karyawan lain
+- Overwork penalty: happiness < 20 selama ≥50 tick → speed -30%
 
-| Role | Menghasilkan |
+### Karyawan
+
+**Roles:** Developer, Designer, Lead_Developer, SysAdmin, HR
+
+| Role | Fungsi |
 |---|---|
-| Designer | `ui_component`, `graphics_component` |
-| Developer | `backend_code`, `network_module` |
-| Lead Developer | Merakit komponen → Platform Feature |
-| SysAdmin | Maintenance server, kurangi risiko crash |
+| Designer | Produksi UI Component, Graphics Component, Brand Identity |
+| Developer | Produksi Backend Code, Network Module, Security Protocol |
+| Lead Developer | Merakit komponen jadi fitur (not implemented as separate mechanic yet) |
+| SysAdmin | Recovery node crash lebih cepat, kurangi crash chance |
+| HR | Recruitment boost: campaign lebih cepat, applicant quality lebih tinggi |
 
-**Atribut Employee:**
-- `level (1–10)` — memengaruhi kecepatan produksi
-- `happiness (0–100)` — turun saat bekerja, naik dari bonus
-- `speed` — pengali produksi, dipengaruhi level × happiness:
-  - happiness ≥ 80 → `speed = level × 1.2` (bonus)
-  - happiness 30–79 → `speed = level × 1.0` (normal)
-  - happiness < 30 → `speed = level × 0.5` (penalti)
-- `resignTicks` — counter tick saat happiness < 15; setelah 10 tick, ada 20% chance resign per tick
+**Atribut:** level (1+), happiness (0-100), speed, salary, currentTask, isTraining, onVacation
 
-**Happiness decay per tick:**
-- Sedang mengerjakan task: **-1/tick**
-- Idle (tidak ada task): **-0.2/tick**
+**Training:** `level × 400` tick, progress bar kuning, cancel anytime (progress reset)
+**Vacation:** 1-7 hari, happiness recovery +0.1/tick, progress bar hijau
+**Bonus:** $200 → +20 happiness
 
-### Sistem Produksi Komponen
+### Feature System
 
-Karyawan mengerjakan 1 komponen pada satu waktu. Progress dihitung per tick:
+3 produk: Social Media, E-Commerce, Search Engine — masing-masing 7 fitur.
 
-```
-progress += employee.speed
-if (progress >= componentDef.baseTicks) → komponen selesai, stok +1
-```
+**Feature Groups (v1.3.4):**
+- **Core** (weight ×3) — fitur utama
+- **Business** (weight ×2) — fitur monetisasi/support
+- **Engagement** (weight ×1) — fitur tambahan
 
-Base production time tiap komponen adalah **20 tick** (≈ level 1 tanpa bonus).
+**Cohesion Score:** Weighted variance — core tertinggal = penalty besar. Mempengaruhi revenue multiplier & user growth.
 
-### Sistem Fitur Platform
+**Synergy Pairs:** Fitur tertentu dapet bonus jika level seimbang (±2 level, min Lv.3):
+- Social Media: News Feed + User Profiles → +15% traffic
+- E-Commerce: Shopping Cart + Payment Gateway → +10% revenue
+- Search Engine: Search Algorithm + Index Builder → +15% traffic
 
-Lead Developer merakit komponen menjadi fitur:
+### Dynamic Users (v1.3.4)
 
-```
-buildFeature(featureId):
-  cek requiredComponents tersedia di stok
-  kurangi stok
-  feature.level = 1
-  feature.trafficGenerated = featDef.baseTraffic
-
-upgradeFeature(featureId):
-  cost = requiredComponents × (level + 1)
-  feature.level++
-  feature.trafficGenerated = baseTraffic × level
-```
-
-### Sistem Traffic
+`currentUsers` dipisah dari `targetUsers` (raw traffic). Gerak gradual:
 
 ```
-trafficGenerated (sum semua fitur aktif)
-  ↓
-users = totalTraffic
-  ↓
-rps   = totalTraffic
+delta = (targetUsers - currentUsers) × 0.005 × cohesionScore
+crashPenalty = ada node crash → -5% currentUsers
+churn = currentUsers × (1 - cohesionScore) × 0.0002
+currentUsers += (delta × eventEffect) - crashPenalty - churn
 ```
 
-RPS ini yang masuk ke server tiap tick untuk dikalkulasi bebannya.
+- Naik perlahan kalau platform bagus & balanced
+- Turun kalau cohesion jelek atau server crash
+- Revenue & RPS pakai `currentUsers`, bukan `targetUsers`
 
-### Sistem Infrastruktur Server
+### Server Compliance System (v1.3.4)
 
-#### Hierarki
-```
-Plot (lahan) → Rack (rak fisik) → Node (komponen server)
-```
+Hardware harus memenuhi requirement fitur. Setiap node punya point:
 
-#### Rack Tiers
+| Node | Compute | Data | Network | Security |
+|---|---|---|---|---|
+| Web T1 | 2 | 0 | 0 | 0 |
+| Web T2 | 4 | 0 | 0 | 0 |
+| Web T3 | 8 | 0 | 0 | 0 |
+| DB T1 | 0 | 2 | 0 | 0 |
+| DB T2 | 0 | 5 | 0 | 0 |
+| Cache T1 | 0 | 0 | 2 | 0 |
+| Cache T2 | 0 | 0 | 5 | 0 |
+| Router | 0 | 0 | 1 | 0 |
+| Load Balancer | 1 | 0 | 1 | 0 |
+| Firewall T1 | 0 | 0 | 0 | 2 |
+| Firewall T2 | 0 | 0 | 0 | 5 |
 
-| Tier | Slot | Cooling Cap. | Harga | Biaya/bulan |
+Feature requirements per level: Core (0.5C, 0.3D, 0.3N), Business (0.3C, 0.3D), Engagement (0.3C, 0.3N)
+
+| Ratio | Status | Efek |
+|---|---|---|
+| < 50% | **Critical** | users = 0 (service mati) |
+| 50-99% | **Partial** | users capped, revenue × ratio |
+| ≥ 100% | **OK** | full service |
+
+Network shortage → revenue penalty (80-100%).
+Security → mengurangi DDoS chance (reroll event).
+
+### Server Infrastructure
+
+**Rack Tiers:**
+
+| Tier | Slot | Cooling | Price | /mo |
 |---|---|---|---|---|
 | Basic | 4 | 40 | $200 | $20 |
 | Advanced | 6 | 80 | $500 | $50 |
 | Enterprise | 8 | 150 | $1,200 | $100 |
 
-#### Node Types
+**Node Types:** Web T1-T3, DB T1-T2, Cache T1-T2, Router, Cooling Fan, Industrial Fan, Liquid Cooling, Storage, Firewall T1-T2, Rate Limiter, Load Balancer
 
-| Node | Fungsi | Kapasitas | Heat | Harga |
-|---|---|---|---|---|
-| Web Server T1 | Handle HTTP request | 100 RPS | 10 | $100 |
-| Web Server T2 | Handle HTTP request | 250 RPS | 20 | $250 |
-| Web Server T3 | Handle HTTP request | 500 RPS | 35 | $500 |
-| Database T1 | Menyimpan data | 200 RPS | 15 | $150 |
-| Database T2 | Menyimpan data | 500 RPS | 30 | $350 |
-| Caching T1 | Offload web server | 200 RPS | 5 | $80 |
-| Caching T2 | Offload web server | 500 RPS | 12 | $200 |
-| Router | Distribusi traffic | — | 3 | $120 |
-| Cooling Fan | +30 cooling cap | — | 0 | $50 |
-| Industrial Fan | +60 cooling cap | — | 0 | $120 |
-| Storage | +50 DB capacity | — | 8 | $90 |
-
-#### Mekanik Beban & Panas
-
+**Water-fill RPS Distribution (v1.3.4):**
 ```
-1. RPS total masuk ke semua rack
-2. Caching server mengurangi RPS efektif (offload)
-3. Sisa RPS dibagi rata ke semua Web Server aktif
-   load = (RPS diterima / capacity) × 100%
-4. Total heat semua node dikumpulkan per rack
-5. Jika totalHeat > coolingCapacity → rack.isOverheating = true
-6. Jika overheat ≥ 5 tick berturut → 5% chance crash per node per tick
-7. Node crashed → load = 0, tidak handle RPS → users turun → revenue turun
+1. Kumpulin semua kapasitas web (owned + rented) dalam antrian
+2. Isi server pertama sampai penuh (100%), spill ke server berikutnya
+3. Server terakhir dapet sisanya
 ```
+Bukan dibagi rata — server pertama menanggung beban dulu sebelum server baru kena.
 
-**Biaya listrik:** `node.power × $2/bulan` per node (ditambah ke biaya bulanan).
+**Node Scaling (Overclock):** Level 1-5, naikkan capacity tapi heat & power naik nonlinear.
 
-#### Unequip vs Sell Node
-- **Unequip** (tombol `✕` di slot) → node dikembalikan ke inventory, tidak ada refund/charge
-- **Sell** (dari inventory panel) → node dijual, refund 50% dari harga beli
+**Rented Server Scaling:** Cloud/Dedicated/VPS bisa di-scale (Lv.1-5), naikkan capacity, points, dan biaya.
 
-### Sistem Monetisasi
+### Events System (v1.3.4)
 
-Pemasukan dihitung tiap akhir bulan:
+Events random, frekuensi dipengaruhi ukuran platform & security level:
 
-```
-Ads Revenue    = (users / 1000) × $2 × uptimePenalty
-Subscription   = users × $0.5   (hanya jika Payment Gateway aktif)
-Total Revenue  = Ads + Subscription
-
-uptimePenalty  = 0.5 jika ada node crashed, 1.0 jika semua normal
-```
-
-### Sistem Keuangan
-
-Tiap akhir bulan:
-```
-cashChange = Revenue - (totalSalary + serverCost)
-cash += cashChange
-
-serverCost = Σ(rack.monthlyCost) + Σ(node.monthlyCost) + Σ(node.power × 2) + Σ(rentedServer.monthlyCost)
-```
-
-**Kondisi Game Over (Bangkrut):**
-- Jika `cash < 0` → `negativeCashMonths++`
-- Jika `negativeCashMonths >= 3` → `isBankrupt = true` → Game Over Screen
-
-### Sistem Save/Load
-
-Data disimpan ke **IndexedDB** via Dexie.js. Field yang disimpan:
-
-| Field | Keterangan |
+| Event | Efek |
 |---|---|
-| `tick`, `speed`, `month` | State waktu |
-| `cash`, `totalSalary` | Keuangan |
-| `employees` | Semua data karyawan |
-| `resources` | Stok komponen |
-| `features` | Status build fitur |
-| `racks` | Semua rack + node di dalamnya |
-| `plots` | Lahan server room |
-| `rentedServers` | Server yang disewa |
-| `inventoryNodes` | Node di inventory (belum dipasang) |
-| `activeView` | View terakhir (kantor/server room) |
-| `visitedPlots` | Plot yang pernah dikunjungi |
-| `screen` | State screen (menu/select/playing) |
-| `isBankrupt`, `negativeCashMonths` | Status bangkrut |
+| DDoS Attack | RPS × 2.5, revenue × 0.5, crash chance +15% |
+| Traffic Spike | User growth +50% |
+| Server Outage | 1 random rack crash |
+| PR Crisis | User growth = 0 (50-100 tick) |
+| Viral Growth | +10% users instan |
 
-Autosave berjalan tiap **60 detik** real-time saat game aktif.
+Mitigasi: Firewall turunkan DDoS chance, Rate Limiter pendekkan durasi DDoS.
+
+### Monetisasi
+
+```
+Ads Revenue    = (users / 100) × $2 × uptimePenalty
+Subscription   = users × $2 (perlu Payment Gateway)
+Revenue Mult   = cohesionScore × complianceRevenueMult
+```
+
+### Recruitment
+
+- Campaign: Basic / Pro / Headhunter, butuh HR lead assigned
+- HR level mempengaruhi campaign speed & applicant quality
+- Negosiasi gaji: applicant bisa counter / reject / accept
+- Owner bisa switch ke role HR via dropdown
+
+### Save/Load
+
+IndexedDB via Dexie.js. Autosave tiap 60 detik. Field: tick, cash, employees, resources, features, racks, plots, rentedServers, inventoryNodes, currentUsers, events, fundingRounds, dll.
 
 ---
 
-## Alur Data (Game Loop)
+## UI Components
 
-```
-incrementTick()  [dipanggil tiap interval]
-       │
-       ├── Update progress & produksi komponen tiap karyawan
-       ├── Update happiness & speed tiap karyawan
-       ├── Cek resign (happiness < 15 selama 10 tick)
-       │
-       ├── calculateNodeLoads(racks, rps)
-       │       ├── calcServerStats() → total web capacity, cache offload
-       │       ├── Distribusi RPS → load per web server
-       │       ├── Hitung heat total per rack
-       │       └── Trigger overheat / crash logic
-       │
-       └── (Jika bulan baru):
-               ├── calcTotalSalary()
-               ├── calcMonthlyServerCost()
-               ├── calculateRevenue(users, features, racks)
-               ├── cash += revenue - (salary + serverCost)
-               └── Cek bankruptcy condition
-```
+### HUD Bar
+- Date/time, speed controls
+- **Current Users** (dynamic, bukan target)
+- **Platform Health** meter (cohesion score)
+- **Compliance dot** — HW OK (hijau) / HW ⚠ (kuning) / HW ✗ (merah)
+- **Event badge** — DDoS (merah animate), event lain (kuning)
+- Funding offer badge
+- Bankrupt warning
+- Cash + profit indicator
+
+### Server Panel
+- **Compliance Bars** — Compute/Data/Network/Security with progress bars
+- **Data Center (LandMap)** — list plot + racks per plot
+- **Rented Servers** — load bar + scale ± buttons
+- **Node Inventory** (di grid view) — click node → auto-place ke slot kosong pertama
+
+### Features Panel
+- Group label: CORE / BIZ / ENG
+- Synergy badge: ⚡ Synergy
+- Build/Upgrade buttons
+
+### Office Grid
+- Grid 2D kantor, tiap karyawan punya meja
+- Warna status: hijau (bekerja), biru (idle), merah (happiness rendah)
+
+### Server Room Grid
+- Drag & drop rack dari inventory ke grid
+- Klik rack → buka slot detail + inventory panel otomatis
+- Water-fill load distribution
+- Overheat indicator (border merah)
+
+### Events Banner
+- Muncul di tengah bawah saat event aktif
+- Progress bar durasi + nama event
 
 ---
 
 ## Data & Balancing
 
-*(Baseline awal, bisa dituning setelah playtest)*
-
 | Parameter | Nilai |
 |---|---|
-| Cash awal | $10,000 |
-| Gaji karyawan level 1 | $500/bulan |
-| Ticks per bulan | 30 tick |
-| Base produksi 1 komponen | 20 tick |
-| Happiness decay (kerja) | -1/tick |
-| Happiness decay (idle) | -0.2/tick |
-| Threshold resign | < 15 happiness selama 10 tick |
-| Chance resign | 20% per tick setelah threshold |
-| Overheat threshold | 5 tick berturut-turut |
-| Crash chance (overheat) | 5% per node per tick |
-| Ads revenue | $2 per 1000 users/bulan |
-| Subscription revenue | $0.5 per user/bulan |
-| Uptime penalty (crash) | 50% revenue |
-| Bangkrut setelah | 3 bulan cash negatif |
-| Node sell refund | 50% dari harga beli |
-| Rack sell refund | 50% dari harga beli (harus kosong) |
+| Cash awal | $15,000 |
+| Gaji level 1 | $500/bulan |
+| Ticks/bulan | 600 (20/hari × 30 hari) |
+| Base produksi komponen | 400-800 tick |
+| Happiness decay (kerja) | -0.05/tick |
+| Happiness decay (idle) | -0.005/tick |
+| Bonus happiness >80 | speed × 1.3 |
+| Penalty happiness <30 | speed × 0.6 |
+| Overwork threshold | happiness <20 selama 50 tick → -30% speed |
+| User growth rate | 0.005/tick × cohesion |
+| Churn rate | (1 - cohesion) × 0.0002/tick |
+| Ads revenue | $2 per 100 users/bulan |
+| Subscription | $2 per user/bulan (dengan Payment Gateway) |
+| Crash penalty | 50% revenue |
+| Node crash chance | max(1%, 5% - sysAdminLevel × 0.8%)/tick saat overheat |
+| DDoS crash bonus | +15% crash chance |
+| Bangkrut | 3 bulan cash negatif |
+| Sell refund | 50% harga |
+| DB version | 7 |
 
 ---
 
 ## Roadmap
 
-Lihat [`docs/01_PLAN.md`](docs/01_PLAN.md) untuk rencana lengkap, dan [`docs/02_TASK.md`](docs/02_TASK.md) untuk checklist per fase.
-
-| Fase | Status | Keterangan |
-|---|---|---|
-| Fase 1 — Excel Phase | ✅ Selesai | Game loop, karyawan, komponen, keuangan |
-| Fase 2 — Server Management | ✅ Selesai | Rack, node, overheat, monetisasi, happiness |
-| Fase 3 — Visual Kantor | ✅ Selesai | Office grid 2D, sprite karyawan |
-| Fase 4 — Tauri & Desktop | ✅ Selesai | Save/Load IndexedDB, build .exe |
-| Post-MVP | 🔄 Ongoing | Balancing, Polish UI, Main Menu, fitur tambahan |
+| Fase | Status |
+|---|---|
+| Fase 1 — Excel Phase | ✅ |
+| Fase 2 — Server Management | ✅ |
+| Fase 3 — Visual Kantor | ✅ |
+| Fase 4 — Tauri & Desktop | ✅ |
+| v1.3 — Balancing & Polish | ✅ |
+| v1.3.1 — Cash Flow Chart | ✅ |
+| v1.3.2 — SysAdmin & Funding | ✅ |
+| v1.3.3 — Player Character, HR, Training | ✅ |
+| v1.3.4 — Cohesion, Events, Compliance | ✅ |
+| Kompetitor AI | 📝 Planned |
+| Cooling Grid Refactor | 📝 Planned |
 
 ---
 
@@ -455,3 +352,10 @@ Lihat [`docs/01_PLAN.md`](docs/01_PLAN.md) untuk rencana lengkap, dan [`docs/02_
 | v1.1.2 | [docs/update_v1.1.2.md](docs/update_v1.1.2.md) |
 | v1.1.3 | [docs/update_v1.1.3.md](docs/update_v1.1.3.md) |
 | v1.1.4 | [docs/update_v1.1.4.md](docs/update_v1.1.4.md) |
+| v1.2 | [docs/update_v1.2.md](docs/update_v1.2.md) |
+| v1.3 | [docs/update_v1.3.md](docs/update_v1.3.md) |
+| v1.3.1 | [docs/update_v1.3.1.md](docs/update_v1.3.1.md) |
+| v1.3.2 | [docs/update_v1.3.2.md](docs/update_v1.3.2.md) |
+| v1.3.3 | [docs/update_v1.3.3.md](docs/update_v1.3.3.md) |
+| v1.3.4 | [docs/update_v1.3.4.md](docs/update_v1.3.4.md) |
+| Upcoming | [docs/upcoming_features.md](docs/upcoming_features.md) |
