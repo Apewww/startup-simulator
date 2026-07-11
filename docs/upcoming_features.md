@@ -59,12 +59,12 @@ Tujuan: Implementasi efek boost ke tick loop.
 
 ---
 
-### **Phase 3 — Lead Developer: UI Polish & Visual Feedback**
+### **Phase 3 — Lead Developer: UI Polish & Visual Feedback** ✅ `v1.4.2`
 **Difficulty: 🟢 Mudah**
 
-- [ ] Badge visual di `OfficeGrid.tsx` — garis penghubung/ikon kecil antara Lead dan developer yang disupervisi (opsional, bisa simple color-coding dulu).
-- [ ] Tooltip di `EmployeeCard` — tampilkan "Supervised by [Lead Name] (+X% output)" untuk developer, dan "Supervising: 3/5 developers" untuk lead.
-- [ ] Indicator di HUD/Panel Fitur kalau production rate naik akibat supervisi (opsional, nice-to-have).
+- [x] Badge visual di `OfficeGrid.tsx` — ikon/indicator visual untuk Lead & developer yang disupervisi.
+- [x] Tooltip di `EmployeeCard` — tampilkan "Supervised by [Lead Name] (+X% output)" untuk developer, dan "Supervising: X/Y (+X% boost each)" untuk lead.
+- [x] Indicator di HUD — supervision active indicator saat ada developer yang disupervisi.
 
 ---
 
@@ -126,7 +126,7 @@ Tujuan: Ubah OfficeGrid dari layout statis jadi grid modular seperti ServerRoomV
 |---|---|---|---|---|
 | ~~1~~ ✅ | ~~Lead Dev — Data & Assignment UI~~ | 🟡 | - |
 | ~~2~~ ✅ | ~~Lead Dev — Production Boost Logic~~ | 🔴 | Phase 1 ✅ |
-| 3 | Lead Dev — UI Polish | 🟢 | Phase 2 |
+| ~~3~~ ✅ ~~v1.4.2~~ | ~~Lead Dev — UI Polish~~ | 🟢 | Phase 2 |
 | 4 | Office Grid — Modular Refactor | 🔴 | - |
 | 5 | Furniture — Perk/Unlock System | 🟡 | - |
 | 6 | Furniture — Shop & Placement | 🟡 | Phase 4, Phase 5 |

@@ -1,3 +1,4 @@
+import { Star } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import { getComponentDef } from '../data/components';
 import { roleColor } from './CharacterAvatar';
@@ -38,7 +39,7 @@ export function OfficeGrid() {
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div>
         <div className="grid grid-cols-6 md:grid-cols-8 gap-2.5 mx-auto" style={{ maxWidth: 560 }}>
           {cells.map((cell) => {
             const emp = cell.employee;
@@ -72,8 +73,8 @@ export function OfficeGrid() {
                     deskClass === 'working' ? `${borderColorWorking} ${bgColorWorking}` :
                       deskClass === 'low' ? `${borderColorLow} ${bgColorLow}` :
                         `${borderColorIdle} ${bgColorIdle}`
-                  }`}
-                title={`${emp.name} (${emp.role.replace('_', ' ')}) - ${getStatusText(emp.currentTask)} - ${emp.happiness.toFixed(0)}% happiness`}
+                  }${emp.role === 'Lead_Developer' ? ' ring-2 ring-indigo/60' : ''}`}
+                title={`${emp.name} (${emp.role.replace('_', ' ')})${emp.supervisedBy ? ' (supervised)' : ''} - ${getStatusText(emp.currentTask)} - ${emp.happiness.toFixed(0)}% happiness`}
               >
                 <div className="w-[22px] h-[22px] rounded-md" style={{ backgroundColor: avatarColor, opacity: deskClass === 'idle' ? 0.55 : 1 }} />
                 <span className="text-[9px] font-semibold mt-1 truncate max-w-full px-0.5" style={{ color: roleColor(emp.role) }}>
@@ -85,7 +86,13 @@ export function OfficeGrid() {
                   </div>
                 )}
                 {emp.happiness < 15 && (
-                  <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red rounded-full animate-pulse" title="Resign risk!" />
+                  <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red rounded-full animate-pulse z-10" title="Resign risk!" />
+                )}
+                {emp.role === 'Lead_Developer' && (
+                  <Star className="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 text-indigo drop-shadow z-20" strokeWidth={2.5} />
+                )}
+                {emp.supervisedBy && (
+                  <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-indigo rounded-full z-10" title="Supervised" />
                 )}
               </button>
             );

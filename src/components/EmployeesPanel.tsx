@@ -3,6 +3,7 @@ import { Users, Lock, Unlock, Crown, GraduationCap, XCircle, AlertTriangle, Gift
 import { useGameStore, getAvailableComponents, getLockedComponents } from '../store/gameStore';
 import { getComponentDef } from '../data/components';
 import { calcMaxSupervised } from '../types/employee';
+import { getSupervisionBoost } from '../systems/leadDeveloper';
 import type { Employee, EmployeeRole } from '../types';
 
 const ROLES: EmployeeRole[] = ['Developer', 'Designer', 'HR'];
@@ -82,10 +83,14 @@ function EmployeeCard({ employee }: { employee: Employee }) {
         <span>{employee.speed.toFixed(1)}x speed</span>
         {employee.role === 'Lead_Developer' && employee.supervising && (
           <span className="flex items-center gap-0.5 text-indigo">
-            <Star className="w-2.5 h-2.5" /> Supervising: {employee.supervising.length}/{calcMaxSupervised(employee.level)}
+            <Star className="w-2.5 h-2.5" /> Supervising: {employee.supervising.length}/{calcMaxSupervised(employee.level)} (+{Math.round(getSupervisionBoost(employee) * 100)}% boost each)
           </span>
         )}
-        {employee.supervisedBy && <span className="text-indigo font-semibold">Supervised by {allEmployees.find(e => e.id === employee.supervisedBy)?.name ?? '—'}</span>}
+        {employee.supervisedBy && (() => {
+          const lead = allEmployees.find(e => e.id === employee.supervisedBy);
+          const boost = lead ? Math.round(getSupervisionBoost(lead) * 100) : 0;
+          return <span className="text-indigo font-semibold">Supervised by {lead?.name ?? '—'} (+{boost}% output)</span>;
+        })()}
         {isOverworked && <span className="flex items-center gap-0.5 text-amber font-bold"><AlertTriangle className="w-3 h-3" /> OVERWORKED</span>}
         {!employee.isPlayer && employee.happiness < 15 && <span className="text-red font-bold">RESIGN RISK</span>}
       </div>

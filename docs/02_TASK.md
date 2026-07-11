@@ -173,3 +173,14 @@ Server tidak dibeli langsung — pemain harus beli **rack** dulu, lalu pasang **
 - [ ] UI: disable assign saat cap penuh
 - [ ] Save/load: Dexie version 8
 - [ ] Build sukses (typecheck + lint)
+
+---
+
+## V1.4.2 — Lead Developer: UI Polish & Visual Feedback
+
+- [ ] OfficeGrid.tsx — lead desk: star icon + indigo border
+- [ ] OfficeGrid.tsx — supervised desk: dot indicator + tooltip update
+- [ ] EmployeesPanel.tsx — tooltip lead: "Supervising: X/Y (+X% boost each)"
+- [ ] EmployeesPanel.tsx — tooltip dev: "Supervised by [Name] (+X% output)"
+- [ ] HudBar.tsx — supervision active indicator
+- [ ] Build sukses (typecheck + lint)

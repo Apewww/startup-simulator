@@ -1,4 +1,4 @@
-import { Play, Pause, Save, AlertTriangle, Handshake, Moon, Sun, TrendingUp, TrendingDown, Activity, Shield, Circle } from 'lucide-react';
+import { Play, Pause, Save, AlertTriangle, Handshake, Moon, Sun, TrendingUp, TrendingDown, Activity, Shield, Circle, Star } from 'lucide-react';
 import { useGameStore, TICKS_PER_MONTH, TICKS_PER_DAY } from '../store/gameStore';
 import { getPlatformStats } from '../systems/platform';
 import { calculateRevenue } from '../systems/monetization';
@@ -27,7 +27,7 @@ interface HudBarProps {
 }
 
 export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps) {
-  const { tick, isPaused, speed, cash, month, features, racks, rentedServers, totalSalary, togglePause, setSpeed, negativeCashMonths, pendingFunding, currentUsers, events, selectedProduct } = useGameStore();
+  const { tick, isPaused, speed, cash, month, features, racks, rentedServers, totalSalary, togglePause, setSpeed, negativeCashMonths, pendingFunding, currentUsers, events, selectedProduct, employees } = useGameStore();
   const platformStats = getPlatformStats(features, events, selectedProduct);
   const bankruptWarning = negativeCashMonths > 0;
 
@@ -64,6 +64,13 @@ export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps
           <span className="w-1.5 h-1.5 rounded-sm bg-indigo" />
           <span className="text-ink">{dayName} — Day {day}, Month {displayMonth}, Year {year}</span>
         </div>
+
+        {/* Supervision indicator */}
+        {employees.some(e => e.supervisedBy) && (
+          <span className="flex items-center gap-1 text-[10px] text-indigo font-semibold shrink-0" title="Supervision active — devs under lead get production boost">
+            <Star className="w-3 h-3" strokeWidth={2.5} /> +{employees.filter(e => e.supervisedBy).length}
+          </span>
+        )}
 
         {/* Alerts */}
         {bankruptWarning && (
