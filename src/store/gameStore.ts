@@ -172,7 +172,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false },
   maximizedPanel: null,
   selectedEmployeeId: null,
-  darkMode: false,
+  darkMode: (() => { try { return localStorage.getItem('ss-dark') === '1'; } catch { return false; } })(),
   notifications: [],
   cashFlowHistory: [],
   fundingRounds: [],
@@ -186,7 +186,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   setScreen: (screen) => set({ screen }),
   togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
   setSpeed: (speed) => set({ speed }),
-  toggleDarkMode: () => set((state) => ({ darkMode: !state.darkMode })),
+  toggleDarkMode: () => set((state) => {
+    const next = !state.darkMode;
+    try { localStorage.setItem('ss-dark', next ? '1' : '0'); } catch {}
+    return { darkMode: next };
+  }),
 
   hireEmployee: (role: EmployeeRole) => {
     const state = get();
@@ -215,7 +219,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => ({
       employees: state.employees.map(emp =>
         emp.id === employeeId
-          ? { ...emp, currentTask: componentId, taskProgress: 0 }
+          ? emp.onVacation ? emp : { ...emp, currentTask: componentId, taskProgress: 0 }
           : emp
       ),
     }));
@@ -345,12 +349,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     let newCurrentUsers = currentUsers + (userDelta * eventEffects.userGrowthMult) - crashPenalty - churn;
     newCurrentUsers = Math.max(0, Math.round(newCurrentUsers));
 
-    // Server calculation with effectiveRPS — first check compliance for RPS penalty
+    // Server calculation with effectiveRPS — compliance load mult untuk compute/data shortage
     const complianceBefore = features.some(f => f.level > 0) ? getComplianceStatus(features, placedRacks, rentedServers) : null;
-    const rpsMult = complianceBefore?.rpsPenalty ?? 1;
     const computeLoadMult = complianceBefore ? Math.max(1, complianceBefore.compute.required / Math.max(complianceBefore.compute.provided, 0.1)) : 1;
     const dataLoadMult = complianceBefore ? Math.max(1, complianceBefore.data.required / Math.max(complianceBefore.data.provided, 0.1)) : 1;
-    const adjustedRps = Math.round(platformStats.effectiveRps * rpsMult * computeLoadMult * dataLoadMult);
+    const adjustedRps = Math.round(platformStats.effectiveRps * computeLoadMult * dataLoadMult);
 
     const sysAdminLevel = employees
       .filter(e => e.role === 'SysAdmin' && e.happiness >= 15)
@@ -657,6 +660,12 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   setSelectedHr: (id) => {
+    if (id === null) { set({ selectedHrId: null }); return; }
+    const emp = get().employees.find(e => e.id === id);
+    if (emp && emp.onVacation) {
+      get().addNotification(`${emp.name} is on vacation — cannot assign as HR lead`, 'warning');
+      return;
+    }
     set({ selectedHrId: id });
   },
 
@@ -1338,7 +1347,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false },
       maximizedPanel: null,
       selectedEmployeeId: null,
-      darkMode: false,
+  darkMode: (() => { try { return localStorage.getItem('ss-dark') === '1'; } catch { return false; } })(),
       fundingRounds: [], pendingFunding: null,
       sourcingCampaign: null, applicants: [],
       selectedHrId: null,

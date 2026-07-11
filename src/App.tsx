@@ -146,19 +146,35 @@ function App() {
   }, []);
 
   if (isBankrupt) {
-    return <GameOverScreen />;
+    return (
+      <div data-theme={darkMode ? 'dark' : undefined} className="bg-bg text-ink min-h-screen">
+        <GameOverScreen />
+      </div>
+    );
   }
 
   if (screen === 'menu') {
-    return <MainMenu />;
+    return (
+      <div data-theme={darkMode ? 'dark' : undefined} className="bg-bg text-ink min-h-screen">
+        <MainMenu />
+      </div>
+    );
   }
 
   if (screen === 'select') {
-    return <ProductSelect />;
+    return (
+      <div data-theme={darkMode ? 'dark' : undefined} className="bg-bg text-ink min-h-screen">
+        <ProductSelect />
+      </div>
+    );
   }
 
   if (screen === 'playerSetup') {
-    return <PlayerSetup />;
+    return (
+      <div data-theme={darkMode ? 'dark' : undefined} className="bg-bg text-ink min-h-screen">
+        <PlayerSetup />
+      </div>
+    );
   }
 
   return (

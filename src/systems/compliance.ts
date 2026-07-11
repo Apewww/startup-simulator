@@ -19,7 +19,6 @@ export interface ComplianceStatus {
   overall: 'critical' | 'partial' | 'ok';
   userCap: number;
   revenueMult: number;
-  rpsPenalty: number;
 }
 
 export function calcRequirements(features: PlatformFeature[]): { compute: number; data: number; network: number } {
@@ -76,9 +75,7 @@ export function getComplianceStatus(features: PlatformFeature[], racks: ServerRa
   const revenueMult = Math.min(
     computeRatio < 0.5 ? 0 : computeRatio >= 1 ? 1 : computeRatio,
     dataRatio < 0.5 ? 0 : dataRatio >= 1 ? 1 : dataRatio,
-  );
-
-  const rpsPenalty = networkRatio < 1 ? 1 + (1 - networkRatio) * 0.5 : 1;
+  ) * (networkRatio < 1 ? 0.8 + 0.2 * networkRatio : 1);
 
   let overall: 'critical' | 'partial' | 'ok' = 'ok';
   if (computeRatio < 0.5 || dataRatio < 0.5) overall = 'critical';
@@ -89,6 +86,6 @@ export function getComplianceStatus(features: PlatformFeature[], racks: ServerRa
     data: { provided: prov.data, required: req.data, ratio: dataRatio },
     network: { provided: prov.network, required: req.network, ratio: networkRatio },
     security: { provided: prov.security, required: 0, ratio: prov.security > 0 ? 1 : 0 },
-    overall, userCap, revenueMult, rpsPenalty,
+    overall, userCap, revenueMult,
   };
 }
