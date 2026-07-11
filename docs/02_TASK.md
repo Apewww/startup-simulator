@@ -184,3 +184,21 @@ Server tidak dibeli langsung — pemain harus beli **rack** dulu, lalu pasang **
 - [ ] EmployeesPanel.tsx — tooltip dev: "Supervised by [Name] (+X% output)"
 - [ ] HudBar.tsx — supervision active indicator
 - [ ] Build sukses (typecheck + lint)
+
+---
+
+## V1.4.3 — Office Grid Refactor: Modular Positioning
+
+- [ ] `employee.ts`: hapus `deskIndex`, tambah `gridX`/`gridY` + `OfficeSlot` type
+- [ ] `gameStore.ts`: state `officeGridCols: 8`, `officeGridRows: 8`
+- [ ] `gameStore.ts`: action `moveEmployee(empId, x, y)` — validasi bounds & collision
+- [ ] `gameStore.ts`: update `hireEmployee` — pakai `gridX`/`gridY` cari slot kosong
+- [ ] `gameStore.ts`: update `restartGame` — reset grid size
+- [ ] `OfficeGrid.tsx`: refactor ke coordinate-based grid (absolute positioning, drag & drop)
+- [ ] `OfficeGrid.tsx`: ghost overlay + collision check saat drag
+- [ ] `OfficeGrid.tsx`: grid labels (col/row numbers)
+- [ ] `OfficeGrid.tsx`: pertahankan visual dari v1.4.2 (star, dot, ring, progress bar)
+- [ ] `gameDB.ts`: bump Dexie version to 9, tambah field di `GameSave`
+- [ ] `saveLoad.ts`: migrasi `deskIndex` → `gridX`/`gridY` untuk save lama
+- [ ] `saveLoad.ts`: save/load `officeGridCols`/`officeGridRows`
+- [ ] Build sukses (typecheck + lint)

@@ -142,7 +142,7 @@ export function negotiate(applicant: Applicant, offer: number): NegotiationResul
 
 let empCounter = 0;
 
-export function applicantToEmployee(applicant: Applicant, deskIndex: number): Employee {
+export function applicantToEmployee(applicant: Applicant, gridX: number, gridY: number): Employee {
   empCounter++;
   return {
     id: `emp-hired-${Date.now()}-${empCounter}`,
@@ -155,7 +155,8 @@ export function applicantToEmployee(applicant: Applicant, deskIndex: number): Em
     currentTask: null,
     taskProgress: 0,
     resignTicks: 0,
-    deskIndex,
+    gridX,
+    gridY,
     isPlayer: false,
     isTraining: false,
     trainingProgress: 0,

@@ -135,6 +135,9 @@ interface GameState {
   currentUsers: number;
   events: GameEvent[];
   setNodeScale: (rackId: string, slotIndex: number, delta: number) => void;
+  officeGridCols: number;
+  officeGridRows: number;
+  moveEmployee: (empId: string, x: number, y: number) => void;
 }
 
 function calcTotalSalary(employees: Employee[]): number {
@@ -188,7 +191,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   selectedHrId: null,
   currentUsers: 0,
   events: [],
-
+  officeGridCols: 8,
+  officeGridRows: 8,
+ 
   setScreen: (screen) => set({ screen }),
   togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
   setSpeed: (speed) => set({ speed }),
@@ -205,13 +210,17 @@ export const useGameStore = create<GameState>((set, get) => ({
     const name = roleNames[roleCount % roleNames.length];
     const id = `emp-${state.employees.length + 1}`;
 
-    const usedDesks = new Set(state.employees.map(e => e.deskIndex));
-    let deskIndex = 0;
-    while (usedDesks.has(deskIndex)) deskIndex++;
+    const occupied = new Set(state.employees.map(e => `${e.gridX},${e.gridY}`));
+    let gridX = 0, gridY = 0;
+    for (let y = 0; y < state.officeGridRows; y++) {
+      for (let x = 0; x < state.officeGridCols; x++) {
+        if (!occupied.has(`${x},${y}`)) { gridX = x; gridY = y; y = state.officeGridRows; break; }
+      }
+    }
     const newEmp: Employee = {
       id, name, role, level: 1, salary: 500,
       happiness: 80, speed: 1, currentTask: null, taskProgress: 0,
-      resignTicks: 0, deskIndex, isPlayer: false,
+      resignTicks: 0, gridX, gridY, isPlayer: false,
       isTraining: false, trainingProgress: 0, overworkTicks: 0,
       onVacation: false, vacationTicksLeft: 0,
     };
@@ -649,10 +658,14 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (result.status === 'hired') {
       updated.expectedSalary = result.newExpectedSalary ?? offer;
       updated.status = 'hired';
-      const usedDesks = new Set(state.employees.map(e => e.deskIndex));
-      let deskIndex = 0;
-      while (usedDesks.has(deskIndex)) deskIndex++;
-      const emp = applicantToEmployee(updated, deskIndex);
+      const occupied = new Set(state.employees.map(e => `${e.gridX},${e.gridY}`));
+      let gridX = 0, gridY = 0;
+      for (let y = 0; y < state.officeGridRows; y++) {
+        for (let x = 0; x < state.officeGridCols; x++) {
+          if (!occupied.has(`${x},${y}`)) { gridX = x; gridY = y; y = state.officeGridRows; break; }
+        }
+      }
+      const emp = applicantToEmployee(updated, gridX, gridY);
       const newApplicants = state.applicants.map((a, i) => i === idx ? updated : a);
       const newEmployees = [...state.employees, emp];
       get().addNotification(`Hired ${emp.name} (${emp.role.replace('_', ' ')}) — $${emp.salary.toLocaleString('en-US')}/mo`, 'success');
@@ -696,7 +709,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       currentTask: null,
       taskProgress: 0,
       resignTicks: 0,
-      deskIndex: 0,
+      gridX: 0,
+      gridY: 0,
       isPlayer: true,
       isTraining: false,
       trainingProgress: 0,
@@ -1466,6 +1480,16 @@ export const useGameStore = create<GameState>((set, get) => ({
     get().addNotification(`${dev.name} unassigned from lead`, 'info');
   },
 
+  moveEmployee: (empId: string, x: number, y: number) => {
+    const state = get();
+    if (x < 0 || x >= state.officeGridCols || y < 0 || y >= state.officeGridRows) return;
+    const collision = state.employees.some(e => e.id !== empId && e.gridX === x && e.gridY === y);
+    if (collision) return;
+    set({
+      employees: state.employees.map(e => e.id === empId ? { ...e, gridX: x, gridY: y } : e),
+    });
+  },
+
   restartGame: () => {
     set({
       tick: 0, isPaused: false, speed: 1, cash: 15000, month: 0,
@@ -1484,6 +1508,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       selectedHrId: null,
       currentUsers: 0,
       events: [],
+      officeGridCols: 8,
+      officeGridRows: 8,
     });
   },
 }));

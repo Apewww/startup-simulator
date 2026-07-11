@@ -68,14 +68,14 @@ Tujuan: Implementasi efek boost ke tick loop.
 
 ---
 
-### **Phase 4 — Office Grid Refactor: Modular Positioning**
+### **Phase 4 — Office Grid Refactor: Modular Positioning** 🟡 `v1.4.3`
 **Difficulty: 🔴 Sulit**
 
 Tujuan: Ubah OfficeGrid dari layout statis jadi grid modular seperti ServerRoomView.
 
 - [ ] Definisikan tipe grid baru: `OfficeSlot { x, y, occupantType: 'employee' | 'furniture' | 'empty', occupantId?: string }`.
 - [ ] Refactor `OfficeGrid.tsx` — render grid berbasis koordinat, bukan list statis per employee.
-- [ ] Implementasi drag & drop (reuse pattern dari `ServerRoomView.tsx` kalau sudah ada drag & drop rack — konsisten UX).
+- [ ] Implementasi drag & drop (reuse pattern dari `ServerRoomView.tsx` — konsisten UX).
 - [ ] Migrasi data existing: employee lama yang belum punya posisi grid → auto-assign ke slot kosong pertama saat load save lama (migration script, bump Dexie version).
 - [ ] Validasi: slot yang sudah terisi tidak bisa ditumpuk; batas grid size ditentukan sesuai luas kantor (bisa dikaitkan ke office upgrade/expansion nanti).
 
@@ -127,7 +127,7 @@ Tujuan: Ubah OfficeGrid dari layout statis jadi grid modular seperti ServerRoomV
 | ~~1~~ ✅ | ~~Lead Dev — Data & Assignment UI~~ | 🟡 | - |
 | ~~2~~ ✅ | ~~Lead Dev — Production Boost Logic~~ | 🔴 | Phase 1 ✅ |
 | ~~3~~ ✅ ~~v1.4.2~~ | ~~Lead Dev — UI Polish~~ | 🟢 | Phase 2 |
-| 4 | Office Grid — Modular Refactor | 🔴 | - |
+| 🟡 ~~v1.4.3~~ | Office Grid — Modular Refactor | 🔴 | - |
 | 5 | Furniture — Perk/Unlock System | 🟡 | - |
 | 6 | Furniture — Shop & Placement | 🟡 | Phase 4, Phase 5 |
 | 7 | Balancing & QA Gabungan | 🔴 | Semua phase di atas |
