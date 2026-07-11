@@ -68,16 +68,16 @@ Tujuan: Implementasi efek boost ke tick loop.
 
 ---
 
-### **Phase 4 — Office Grid Refactor: Modular Positioning** 🟡 `v1.4.3`
+### **Phase 4 — Office Grid Refactor: Modular Positioning** ✅ `v1.4.3`
 **Difficulty: 🔴 Sulit**
 
 Tujuan: Ubah OfficeGrid dari layout statis jadi grid modular seperti ServerRoomView.
 
-- [ ] Definisikan tipe grid baru: `OfficeSlot { x, y, occupantType: 'employee' | 'furniture' | 'empty', occupantId?: string }`.
-- [ ] Refactor `OfficeGrid.tsx` — render grid berbasis koordinat, bukan list statis per employee.
-- [ ] Implementasi drag & drop (reuse pattern dari `ServerRoomView.tsx` — konsisten UX).
-- [ ] Migrasi data existing: employee lama yang belum punya posisi grid → auto-assign ke slot kosong pertama saat load save lama (migration script, bump Dexie version).
-- [ ] Validasi: slot yang sudah terisi tidak bisa ditumpuk; batas grid size ditentukan sesuai luas kantor (bisa dikaitkan ke office upgrade/expansion nanti).
+- [x] Definisikan tipe grid baru: `OfficeSlot { x, y, occupantType: 'employee' | 'furniture' | 'empty', occupantId?: string }`.
+- [x] Refactor `OfficeGrid.tsx` — render grid berbasis koordinat, bukan list statis per employee.
+- [x] Implementasi drag & drop (reuse pattern dari `ServerRoomView.tsx` — konsisten UX).
+- [x] Migrasi data existing: employee lama dengan `deskIndex` → auto-convert ke `gridX`/`gridY` saat load (Dexie v9).
+- [x] Validasi: slot terisi tidak bisa ditumpuk; grid size dari store (`officeGridCols`/`officeGridRows`).
 
 **Risk/Notes:** Ini refactor besar terhadap komponen existing yang sudah stabil (OfficeGrid). Rekomendasi kerjakan di branch terpisah + migration testing dengan save file lama.
 
@@ -123,17 +123,17 @@ Tujuan: Ubah OfficeGrid dari layout statis jadi grid modular seperti ServerRoomV
 ## 📊 Ringkasan Urutan & Effort
 
 | Phase | Fitur | Difficulty | Dependency |
-|---|---|---|---|---|
+|---|---|---|---|---|---|
 | ~~1~~ ✅ | ~~Lead Dev — Data & Assignment UI~~ | 🟡 | - |
 | ~~2~~ ✅ | ~~Lead Dev — Production Boost Logic~~ | 🔴 | Phase 1 ✅ |
 | ~~3~~ ✅ ~~v1.4.2~~ | ~~Lead Dev — UI Polish~~ | 🟢 | Phase 2 |
-| 🟡 ~~v1.4.3~~ | Office Grid — Modular Refactor | 🔴 | - |
+| ~~4~~ ✅ ~~v1.4.3~~ | ~~Office Grid — Modular Refactor~~ | 🔴 | - |
 | 5 | Furniture — Perk/Unlock System | 🟡 | - |
 | 6 | Furniture — Shop & Placement | 🟡 | Phase 4, Phase 5 |
 | 7 | Balancing & QA Gabungan | 🔴 | Semua phase di atas |
 
 **Catatan urutan kerja realistis:**
-Phase 2-3 (Lead Dev) dan Phase 4-5 (Office Grid + Perks) bisa dikerjakan **paralel** karena tidak saling bergantung. Phase 6 baru bisa mulai setelah Phase 4 & 5 selesai. Phase 7 di akhir sebagai integrasi & polish penuh.
+Phase 2-3 (Lead Dev) sudah selesai. Phase 5 (Perks) bisa dikerjakan **paralel** dengan Phase 6 (Shop & Placement) karena grid sudah modular. Phase 6 butuh Phase 5 selesai. Phase 7 di akhir sebagai integrasi & polish penuh.
 
 ---
 
@@ -145,5 +145,5 @@ Phase 2-3 (Lead Dev) dan Phase 4-5 (Office Grid + Perks) bisa dikerjakan **paral
 ## ⚠️ Keputusan Desain yang Masih Perlu Difinalisasi
 
 1. **Radius furniture**: pakai grid distance (tile-based) atau area tetap (3x3, dsb) — konsisten dengan rencana Cooling Grid supaya bisa reuse logic yang sama?
-2. **Migration strategy**: auto-placement grid lama pakai algoritma apa (baris demi baris? spiral?) supaya tidak ada employee yang "hilang" posisinya saat migrasi save lama.
+2. ~~**Migration strategy**:~~ ✅ Resolved — konversi `deskIndex` → `gridX = deskIndex % 8, gridY = floor(deskIndex / 8)` di saveLoad.ts.
 3. **Nilai `baseCap`/`capPerLevel` final**: angka di tabel Phase 2 masih tentatif untuk playtest awal — perlu divalidasi setelah balancing pass di Phase 7, terutama terhadap salary cost Lead Developer supaya power scaling-nya gak OP di late game.
