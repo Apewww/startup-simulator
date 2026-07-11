@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound, SourcingCampaign, Applicant, GameEvent } from '../types';
-import { calcFundingOffer } from '../types/employee';
+import { calcFundingOffer, calcMaxSupervised } from '../types/employee';
 import { getComponentDef, COMPONENTS } from '../data/components';
 import { getProductDef } from '../data/products';
 import { getNodeDef, getRackDef } from '../data/servers';
@@ -126,6 +126,10 @@ interface GameState {
   giveBonus: (employeeId: string) => void;
   startVacation: (employeeId: string, days: number) => void;
   cancelVacation: (employeeId: string) => void;
+  toggleFeature: (featureId: string) => void;
+  downgradeFeature: (featureId: string) => void;
+  assignDeveloperToLead: (leadId: string, devId: string) => void;
+  unassignDeveloperFromLead: (devId: string) => void;
   restartGame: () => void;
   currentUsers: number;
   events: GameEvent[];
@@ -342,6 +346,31 @@ export const useGameStore = create<GameState>((set, get) => ({
         };
       })
       .filter((emp): emp is Employee => emp !== null);
+
+    // Edge case: handle supervision cleanup for resigned employees
+    for (const resignedId of resignedIds) {
+      const resigned = employees.find(e => e.id === resignedId);
+      if (!resigned) continue;
+      if (resigned.supervisedBy) {
+        // Developer resigned → remove from lead's supervising list
+        const leadIdx = newEmployees.findIndex(e => e.id === resigned.supervisedBy);
+        if (leadIdx !== -1 && newEmployees[leadIdx].supervising) {
+          newEmployees[leadIdx] = {
+            ...newEmployees[leadIdx],
+            supervising: newEmployees[leadIdx].supervising!.filter(id => id !== resignedId),
+          };
+        }
+      }
+      if (resigned.role === 'Lead_Developer' && resigned.supervising) {
+        // Lead resigned → unassign all developers under them
+        for (const devId of resigned.supervising) {
+          const devIdx = newEmployees.findIndex(e => e.id === devId);
+          if (devIdx !== -1) {
+            newEmployees[devIdx] = { ...newEmployees[devIdx], supervisedBy: undefined };
+          }
+        }
+      }
+    }
 
     const placedRacks = racks.filter(r => r.plotId !== null);
     const unplacedRacks = racks.filter(r => r.plotId === null);
@@ -642,7 +671,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const features: PlatformFeature[] = product.features.map((f) => ({
       id: f.id, name: f.name, level: 0,
       group: f.group,
-      requiredComponents: f.requiredComponents, trafficGenerated: 0,
+      requiredComponents: f.requiredComponents, trafficGenerated: 0, enabled: true,
     }));
     set({ selectedProduct: productId, features, screen: 'playerSetup', currentUsers: 0 });
   },
@@ -767,7 +796,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const newFeatures = state.features.map(f =>
       f.id === featureId
-        ? { ...f, level: 1, trafficGenerated: featDef.baseTraffic, group: featDef.group }
+        ? { ...f, level: 1, trafficGenerated: featDef.baseTraffic, group: featDef.group, enabled: true }
         : f
     );
 
@@ -1302,7 +1331,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const newFeatures = state.features.map(f => {
       const featDef = product.features.find(pf => pf.id === f.id);
       if (!featDef || f.level > 0) return f;
-      return { ...f, level: 1, trafficGenerated: featDef.baseTraffic, group: featDef.group };
+      return { ...f, level: 1, trafficGenerated: featDef.baseTraffic, group: featDef.group, enabled: true };
     });
     set({ features: newFeatures });
   },
@@ -1348,6 +1377,85 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
 
     set({ racks: newRacks });
+  },
+
+  assignDeveloperToLead: (leadId: string, devId: string) => {
+    const state = get();
+    const lead = state.employees.find(e => e.id === leadId);
+    const dev = state.employees.find(e => e.id === devId);
+    if (!lead || !dev) return;
+    if (lead.role !== 'Lead_Developer' || dev.role !== 'Developer') return;
+    if (dev.supervisedBy) return;
+    if (devId === leadId) return;
+
+    const maxSupervised = calcMaxSupervised(lead.level);
+    const currentSupervising = lead.supervising?.length ?? 0;
+    if (currentSupervising >= maxSupervised) return;
+
+    set({
+      employees: state.employees.map(emp => {
+        if (emp.id === leadId) {
+          return { ...emp, supervising: [...(emp.supervising ?? []), devId] };
+        }
+        if (emp.id === devId) {
+          return { ...emp, supervisedBy: leadId };
+        }
+        return emp;
+      }),
+    });
+    get().addNotification(`${dev.name} assigned under ${lead.name}`, 'info');
+  },
+
+  toggleFeature: (featureId: string) => {
+    set((state) => ({
+      features: state.features.map(f =>
+        f.id === featureId && f.level > 0 ? { ...f, enabled: !f.enabled } : f
+      ),
+    }));
+    const state = get();
+    const feat = state.features.find(f => f.id === featureId);
+    if (feat) {
+      get().addNotification(`${feat.enabled ? 'Disabled' : 'Enabled'} ${feat.name}`, feat.enabled ? 'warning' : 'info');
+    }
+  },
+
+  downgradeFeature: (featureId: string) => {
+    const state = get();
+    const feature = state.features.find(f => f.id === featureId);
+    if (!feature || feature.level < 2) return;
+
+    const newResources = state.resources.map(r => {
+      const req = feature.requiredComponents.find(req => req.componentId === r.id);
+      return req ? { ...r, quantity: r.quantity + req.amount * (feature.level - 1) } : r;
+    });
+    const newFeatures = state.features.map(f =>
+      f.id === featureId
+        ? { ...f, level: feature.level - 1, trafficGenerated: Math.round(f.trafficGenerated * (feature.level - 1) / feature.level) }
+        : f
+    );
+
+    get().addNotification(`Downgraded ${feature.name} to Lv.${feature.level - 1}`, 'info');
+    set({ resources: newResources, features: newFeatures });
+  },
+
+  unassignDeveloperFromLead: (devId: string) => {
+    const state = get();
+    const dev = state.employees.find(e => e.id === devId);
+    if (!dev || !dev.supervisedBy) return;
+
+    const leadId = dev.supervisedBy;
+    set({
+      employees: state.employees.map(emp => {
+        if (emp.id === devId) {
+          return { ...emp, supervisedBy: undefined };
+        }
+        if (emp.id === leadId && emp.supervising) {
+          return { ...emp, supervising: emp.supervising.filter(id => id !== devId) };
+        }
+        return emp;
+      }),
+    });
+    get().addNotification(`${dev.name} unassigned from lead`, 'info');
   },
 
   restartGame: () => {

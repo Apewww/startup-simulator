@@ -26,7 +26,7 @@ export function calcRequirements(features: PlatformFeature[]): { compute: number
   let data = 0;
   let network = 0;
   for (const f of features) {
-    if (f.level <= 0) continue;
+    if (f.level <= 0 || !f.enabled) continue;
     compute += COMPUTE_RATES[f.group] * f.level;
     data += DATA_RATES[f.group] * f.level;
     network += NETWORK_RATES[f.group] * f.level;

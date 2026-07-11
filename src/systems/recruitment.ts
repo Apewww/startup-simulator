@@ -1,6 +1,6 @@
 import type { Applicant, ApplicantMood, EmployeeRole, Employee, SourcingCampaign } from '../types';
 
-const ROLES: EmployeeRole[] = ['Developer', 'Designer'];
+const ROLES: EmployeeRole[] = ['Developer', 'Designer', 'Lead_Developer', 'SysAdmin', 'HR'];
 
 const FIRST_NAMES = [
   'Alice', 'Bob', 'Charlie', 'Diana', 'Eve', 'Frank', 'Grace', 'Henry',

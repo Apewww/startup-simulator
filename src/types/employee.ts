@@ -38,6 +38,16 @@ export interface Employee {
   overworkTicks: number;
   onVacation: boolean;
   vacationTicksLeft: number;
+  supervisedBy?: string;
+  supervising?: string[];
+}
+
+export const BASE_CAP = 2;
+export const CAP_PER_LEVEL = 1;
+export const GLOBAL_SOFT_CAP = 10;
+
+export function calcMaxSupervised(level: number): number {
+  return Math.min(BASE_CAP + (level - 1) * CAP_PER_LEVEL, GLOBAL_SOFT_CAP);
 }
 
 export interface FundingRound {

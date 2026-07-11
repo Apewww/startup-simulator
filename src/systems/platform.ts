@@ -21,7 +21,7 @@ function getSynergies(productId: string | null): SynergyPair[] {
 }
 
 export function calcCohesion(features: PlatformFeature[]): number {
-  const built = features.filter(f => f.level > 0);
+  const built = features.filter(f => f.level > 0 && f.enabled);
   if (built.length <= 1) return 1.0;
 
   const totalWeight = built.reduce((s, f) => s + GROUP_WEIGHT[f.group], 0);
@@ -44,6 +44,7 @@ export function calcSynergyBonus(features: PlatformFeature[], productId: string 
     const a = features.find(f => f.id === pair.featureA);
     const b = features.find(f => f.id === pair.featureB);
     if (!a || !b) continue;
+    if (!a.enabled || !b.enabled) continue;
     if (a.level < pair.minLevel || b.level < pair.minLevel) continue;
     if (Math.abs(a.level - b.level) > pair.maxLevelGap) continue;
 
@@ -81,7 +82,7 @@ export function getPlatformStats(
   productId: string | null,
 ): PlatformStats {
   const rawTraffic = features.reduce(
-    (sum, f) => sum + (f.level > 0 ? f.trafficGenerated : 0), 0
+    (sum, f) => sum + (f.level > 0 && f.enabled ? f.trafficGenerated : 0), 0
   );
 
   const synergy = calcSynergyBonus(features, productId);

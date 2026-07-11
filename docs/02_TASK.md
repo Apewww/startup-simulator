@@ -155,3 +155,21 @@ Server tidak dibeli langsung — pemain harus beli **rack** dulu, lalu pasang **
 - [x] Tambah grafik cash flow (inline SVG, zero deps) ✅ V1.3.1
 - [x] Sistem investor/funding round sederhana ✅ V1.3.2
 - [x] Polish UI (transisi, animasi, empty state, micro-interactions) ✅ V1.3
+
+---
+
+## V1.4 — Lead Developer: Data Model & Supervisi Dasar
+
+- [ ] Type: `supervisedBy` + `supervising` di `Employee` interface
+- [ ] Validasi role (Lead_Developer → supervising, Developer → supervisedBy)
+- [ ] Cap: `maxSupervised = 2 + (level - 1) * 1`
+- [ ] Action: `assignDeveloperToLead(leadId, devId)`
+- [ ] Action: `unassignDeveloperFromLead(devId)`
+- [ ] Edge case — developer resign: auto unassign dari lead
+- [ ] Edge case — lead resign: semua dev di bawahnya auto unassign
+- [ ] UI Lead card: badge "Supervising: X/Y"
+- [ ] UI Dev card: badge "Supervised by [Name]" jika ada
+- [ ] UI Assign panel: checkbox list developer available
+- [ ] UI: disable assign saat cap penuh
+- [ ] Save/load: Dexie version 8
+- [ ] Build sukses (typecheck + lint)

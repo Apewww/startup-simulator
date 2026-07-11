@@ -12,4 +12,5 @@ export interface PlatformFeature {
   group: FeatureGroup;
   requiredComponents: ComponentRequirement[];
   trafficGenerated: number;
+  enabled: boolean;
 }

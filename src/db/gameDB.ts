@@ -45,6 +45,7 @@ export class GameDB extends Dexie {
     this.version(5).stores({ saves: '++id, timestamp' });
     this.version(6).stores({ saves: '++id, timestamp' });
     this.version(7).stores({ saves: '++id, timestamp' });
+    this.version(8).stores({ saves: '++id, timestamp' });
   }
 }
 

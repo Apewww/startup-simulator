@@ -9,7 +9,7 @@ export interface RevenueBreakdown {
 }
 
 function hasActivePaymentGateway(features: PlatformFeature[]): boolean {
-  return features.some(f => f.id === 'payment_gateway' && f.level > 0);
+  return features.some(f => f.id === 'payment_gateway' && f.level > 0 && f.enabled);
 }
 
 function hasCrashedNodes(racks: ServerRack[]): boolean {

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Users, Lock, Unlock, Crown, GraduationCap, XCircle, AlertTriangle, Gift, Plane, ChevronDown, ChevronUp } from 'lucide-react';
+import { Users, Lock, Unlock, Crown, GraduationCap, XCircle, AlertTriangle, Gift, Plane, ChevronDown, ChevronUp, Star, UserPlus, UserMinus, Hammer } from 'lucide-react';
 import { useGameStore, getAvailableComponents, getLockedComponents } from '../store/gameStore';
 import { getComponentDef } from '../data/components';
+import { calcMaxSupervised } from '../types/employee';
 import type { Employee, EmployeeRole } from '../types';
 
 const ROLES: EmployeeRole[] = ['Developer', 'Designer', 'HR'];
@@ -20,12 +21,16 @@ function EmployeeCard({ employee }: { employee: Employee }) {
   const startVacation = useGameStore((s) => s.startVacation);
   const cancelVacation = useGameStore((s) => s.cancelVacation);
   const cash = useGameStore((s) => s.cash);
+  const allEmployees = useGameStore((s) => s.employees);
   const availableComponents = getAvailableComponents(employee.role, employee.level);
   const lockedComponents = getLockedComponents(employee.role, employee.level);
   const selectedId = useGameStore((s) => s.selectedEmployeeId);
   const isSelected = selectedId === employee.id;
   const [showActions, setShowActions] = useState(false);
+  const [showSupervision, setShowSupervision] = useState(false);
+  const [showProduction, setShowProduction] = useState(false);
   const [vacationDays, setVacationDays] = useState(3);
+  const isLead = employee.role === 'Lead_Developer';
 
   useEffect(() => {
     if (isSelected) {
@@ -75,6 +80,12 @@ function EmployeeCard({ employee }: { employee: Employee }) {
       {/* Stats + Alerts */}
       <div className="flex items-center gap-2 mt-1 text-[11px] text-ink-soft">
         <span>{employee.speed.toFixed(1)}x speed</span>
+        {employee.role === 'Lead_Developer' && employee.supervising && (
+          <span className="flex items-center gap-0.5 text-indigo">
+            <Star className="w-2.5 h-2.5" /> Supervising: {employee.supervising.length}/{calcMaxSupervised(employee.level)}
+          </span>
+        )}
+        {employee.supervisedBy && <span className="text-indigo font-semibold">Supervised by {allEmployees.find(e => e.id === employee.supervisedBy)?.name ?? '—'}</span>}
         {isOverworked && <span className="flex items-center gap-0.5 text-amber font-bold"><AlertTriangle className="w-3 h-3" /> OVERWORKED</span>}
         {!employee.isPlayer && employee.happiness < 15 && <span className="text-red font-bold">RESIGN RISK</span>}
       </div>
@@ -112,27 +123,48 @@ function EmployeeCard({ employee }: { employee: Employee }) {
       ) : (
         // Task buttons
         <div className="flex flex-wrap gap-1 mt-1.5">
-          {availableComponents.length > 0 && availableComponents.map((comp) => (
-            <button key={comp.id} onClick={() => assignTask(employee.id, comp.id)}
-              className="text-[10px] px-2 py-1 bg-surface-2 hover:bg-indigo-soft hover:text-indigo border border-border rounded transition-colors cursor-pointer flex items-center gap-1">
-              <Unlock className="w-2.5 h-2.5" />{comp.name}
-            </button>
-          ))}
-          {lockedComponents.length > 0 && lockedComponents.map((comp) => (
-            <span key={comp.id} title={`Requires Lv.${comp.minLevel}`}
-              className="text-[10px] px-2 py-1 bg-surface-2 border border-border rounded text-ink-soft flex items-center gap-1 opacity-60">
-              <Lock className="w-2.5 h-2.5" />{comp.name} <span className="text-[8px]">Lv.{comp.minLevel}</span>
-            </span>
-          ))}
-          {availableComponents.length === 0 && lockedComponents.length === 0 && !employee.isTraining && !employee.isPlayer && (
-            <span className="text-[11px] text-ink-soft">No components available</span>
-          )}
-          {/* Training button for non-player, max level 3 */}
-          {!employee.isTraining && !employee.currentTask && employee.level < 3 && !employee.onVacation && (
-            <button onClick={() => startTraining(employee.id)}
-              className="text-[10px] px-2 py-1 bg-amber-soft text-amber border border-amber/30 rounded hover:bg-amber hover:text-white transition-colors cursor-pointer flex items-center gap-1">
-              <GraduationCap className="w-2.5 h-2.5" /> Train
-            </button>
+          {isLead ? (
+            <>
+              {!employee.isTraining && !employee.currentTask && employee.level < 3 && !employee.onVacation && (
+                <button onClick={() => startTraining(employee.id)}
+                  className="text-[10px] px-2 py-1 bg-amber-soft text-amber border border-amber/30 rounded hover:bg-amber hover:text-white transition-colors cursor-pointer flex items-center gap-1">
+                  <GraduationCap className="w-2.5 h-2.5" /> Train
+                </button>
+              )}
+              <button onClick={() => { setShowSupervision(!showSupervision); setShowProduction(false); }}
+                className={`text-[10px] px-2 py-1 border border-border rounded transition-colors cursor-pointer flex items-center gap-1 ${showSupervision ? 'bg-indigo-soft text-indigo' : 'bg-surface-2 text-ink-soft hover:text-ink'}`}>
+                <Star className="w-2.5 h-2.5" /> Supervision
+              </button>
+              <button onClick={() => { setShowProduction(!showProduction); setShowSupervision(false); }}
+                className={`text-[10px] px-2 py-1 border border-border rounded transition-colors cursor-pointer flex items-center gap-1 ${showProduction ? 'bg-amber-soft text-amber' : 'bg-surface-2 text-ink-soft hover:text-ink'}`}>
+                <Hammer className="w-2.5 h-2.5" /> Production
+              </button>
+            </>
+          ) : (
+            <>
+              {availableComponents.length > 0 && availableComponents.map((comp) => (
+                <button key={comp.id} onClick={() => assignTask(employee.id, comp.id)}
+                  className="text-[10px] px-2 py-1 bg-surface-2 hover:bg-indigo-soft hover:text-indigo border border-border rounded transition-colors cursor-pointer flex items-center gap-1">
+                  <Unlock className="w-2.5 h-2.5" />{comp.name}
+                </button>
+              ))}
+              {lockedComponents.length > 0 && lockedComponents.map((comp) => (
+                <span key={comp.id} title={`Requires Lv.${comp.minLevel}`}
+                  className="text-[10px] px-2 py-1 bg-surface-2 border border-border rounded text-ink-soft flex items-center gap-1 opacity-60">
+                  <Lock className="w-2.5 h-2.5" />{comp.name} <span className="text-[8px]">Lv.{comp.minLevel}</span>
+                </span>
+              ))}
+              {availableComponents.length === 0 && lockedComponents.length === 0 && !employee.isTraining && !employee.isPlayer && (
+                <span className="text-[11px] text-ink-soft">No components available</span>
+              )}
+              {/* Training button for non-player, max level 3 */}
+              {!employee.isTraining && !employee.currentTask && employee.level < 3 && !employee.onVacation && (
+                <button onClick={() => startTraining(employee.id)}
+                  className="text-[10px] px-2 py-1 bg-amber-soft text-amber border border-amber/30 rounded hover:bg-amber hover:text-white transition-colors cursor-pointer flex items-center gap-1">
+                  <GraduationCap className="w-2.5 h-2.5" /> Train
+                </button>
+              )}
+            </>
           )}
           {/* Actions toggle */}
           <button onClick={() => setShowActions(!showActions)}
@@ -184,6 +216,119 @@ function EmployeeCard({ employee }: { employee: Employee }) {
           </div>
         </div>
       )}
+
+      {/* Supervision panel */}
+      {showSupervision && isLead && !employee.onVacation && (
+        <SupervisionPanel lead={employee} employees={allEmployees} />
+      )}
+
+      {/* Production panel */}
+      {showProduction && isLead && !employee.onVacation && (
+        <ProductionPanel lead={employee} employees={allEmployees} />
+      )}
+    </div>
+  );
+}
+
+function SupervisionPanel({ lead, employees }: { lead: Employee; employees: Employee[] }) {
+  const assignDev = useGameStore((s) => s.assignDeveloperToLead);
+  const unassignDev = useGameStore((s) => s.unassignDeveloperFromLead);
+  const maxSupervised = calcMaxSupervised(lead.level);
+  const currentCount = lead.supervising?.length ?? 0;
+  const supervisedDevs = employees.filter(e => e.supervisedBy === lead.id);
+  const availableDevs = employees.filter(e =>
+    e.role === 'Developer' && !e.supervisedBy && e.id !== lead.id
+  );
+  const isFull = currentCount >= maxSupervised;
+
+  return (
+    <div className="mt-1.5 p-2 rounded-lg bg-surface-2 border border-border space-y-1.5">
+      <div className="flex items-center justify-between text-[10px] font-semibold text-ink-soft">
+        <span className="flex items-center gap-1"><Star className="w-3 h-3 text-indigo" /> Supervision</span>
+        <span>{currentCount}/{maxSupervised}</span>
+      </div>
+      <div className="space-y-1 max-h-[160px] overflow-y-auto">
+        {supervisedDevs.map(dev => (
+          <div key={dev.id} className="flex items-center justify-between px-2 py-1 rounded bg-surface border border-border">
+            <span className="text-[10px] text-ink">{dev.name} <span className="text-ink-soft">Lv.{dev.level}</span></span>
+            <button onClick={() => unassignDev(dev.id)}
+              className="flex items-center gap-1 text-[9px] text-red hover:text-red/80 font-semibold cursor-pointer">
+              <UserMinus className="w-2.5 h-2.5" /> Unassign
+            </button>
+          </div>
+        ))}
+        {!isFull && availableDevs.length > 0 && availableDevs.map(dev => (
+          <div key={dev.id} className="flex items-center justify-between px-2 py-1 rounded bg-surface border border-dashed border-indigo/30">
+            <span className="text-[10px] text-indigo">{dev.name} <span className="text-indigo-soft">Lv.{dev.level}</span></span>
+            <button onClick={() => assignDev(lead.id, dev.id)}
+              className="text-[9px] text-indigo hover:text-indigo/80 font-semibold cursor-pointer">Assign</button>
+          </div>
+        ))}
+        {supervisedDevs.length === 0 && availableDevs.length === 0 && (
+          <span className="text-[10px] text-ink-soft">No developers available</span>
+        )}
+        {isFull && <span className="text-[10px] text-amber font-semibold block">Cap reached — train to supervise more</span>}
+      </div>
+    </div>
+  );
+}
+
+function ProductionPanel({ lead, employees }: { lead: Employee; employees: Employee[] }) {
+  const assignTask = useGameStore((s) => s.assignTask);
+  const cancelTask = useGameStore((s) => s.cancelTask);
+  const supervisedDevs = employees.filter(e => e.supervisedBy === lead.id);
+  const anyWorking = supervisedDevs.some(d => d.currentTask !== null);
+  const allComponents = supervisedDevs.length > 0
+    ? [...new Map(supervisedDevs.flatMap(dev =>
+        getAvailableComponents(dev.role, dev.level).map(c => [c.id, c])
+      )).values()]
+    : [];
+
+  function assignComponentToAll(componentId: string) {
+    for (const dev of supervisedDevs) {
+      const avail = getAvailableComponents(dev.role, dev.level);
+      if (avail.some(c => c.id === componentId) && !dev.currentTask && !dev.isTraining && !dev.onVacation) {
+        assignTask(dev.id, componentId);
+      }
+    }
+  }
+
+  function cancelAllTasks() {
+    for (const dev of supervisedDevs) {
+      if (dev.currentTask) cancelTask(dev.id);
+    }
+  }
+
+  if (supervisedDevs.length === 0) {
+    return (
+      <div className="mt-1.5 p-2 rounded-lg bg-surface-2 border border-border">
+        <div className="flex items-center text-[10px] font-semibold text-ink-soft">
+          <span className="flex items-center gap-1"><Hammer className="w-3 h-3 text-amber" /> Production</span>
+        </div>
+        <span className="text-[10px] text-ink-soft block mt-1">Assign developers first</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-1.5 p-2 rounded-lg bg-surface-2 border border-border space-y-1.5">
+      <div className="flex items-center justify-between text-[10px] font-semibold text-ink-soft">
+        <span className="flex items-center gap-1"><Hammer className="w-3 h-3 text-amber" /> Production</span>
+        {anyWorking && (
+          <button onClick={cancelAllTasks}
+            className="flex items-center gap-1 text-[9px] text-red hover:text-red/80 font-semibold cursor-pointer">
+            <XCircle className="w-2.5 h-2.5" /> Cancel All
+          </button>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-1 max-h-[160px] overflow-y-auto content-start">
+        {allComponents.map(comp => (
+          <button key={comp.id} onClick={() => assignComponentToAll(comp.id)}
+            className="text-[10px] px-2 py-1 bg-surface border border-border rounded hover:bg-amber-soft hover:text-amber hover:border-amber/30 transition-colors cursor-pointer flex items-center gap-1">
+            <Unlock className="w-2.5 h-2.5" />{comp.name}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
