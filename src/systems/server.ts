@@ -1,5 +1,6 @@
 import type { ServerRack, RentedServer, ServerNode } from '../types';
 import { getNodeDef } from '../data/servers';
+import { hasLoadBalancer } from './events';
 
 const SCALE_CAPS = [1, 1.5, 2, 2.5, 3];
 const SCALE_HEAT = [1, 2, 3.5, 5.5, 8];
@@ -186,8 +187,9 @@ export function recomputeRackAdjacency(racks: ServerRack[]): ServerRack[] {
 export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, rentedServers: RentedServer[] = [], sysAdminLevel: number = 0, crashChanceBonus: number = 0): NodeLoadResult {
   const stats = calcServerStats(racks, rentedServers);
   const rpsAfterCache = Math.max(0, incomingRPS - stats.totalCacheOffload);
+  const lbActive = hasLoadBalancer(racks);
 
-  // Water-fill: collect all web servers (owned + rented), distribute RPS sequentially
+  // Water-fill: collect all web servers (owned + rented), distribute RPS proportionally (equal utilization)
   type WebEntry = { capacity: number } & (
     { type: 'owned'; rackId: string; slotIndex: number } |
     { type: 'rented'; idx: number }
@@ -211,30 +213,25 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
     webEntries.push({ capacity: rentedServers[i].capacityRps, type: 'rented', idx: i });
   }
 
-  // Water-fill: fill first server to 100%, spill to next, etc.
+  // Proportional water-fill: distribute RPS across ALL web servers
+  // (owned rack nodes + rented) so every server carries the same utilization %.
+  // Since each server carries capacity_i / totalCap of the load, utilization
+  // = rpsAfterCache / totalCap, identical for all servers. This keeps owned
+  // nodes sustainable when rented capacity is free, and only pushes every
+  // server past 100% when total capacity is truly insufficient.
+  const totalWebCap = webEntries.reduce((sum, e) => sum + e.capacity, 0);
+  const utilPct = totalWebCap > 0 ? (rpsAfterCache / totalWebCap) * 100 : 0;
   const ownedLoadMap = new Map<string, number>();
-  let remaining = rpsAfterCache;
   for (const entry of webEntries) {
-    const take = Math.min(remaining, entry.capacity);
-    const pct = entry.capacity > 0 ? (take / entry.capacity) * 100 : 0;
-    remaining -= take;
     if (entry.type === 'owned') {
-      ownedLoadMap.set(`${entry.rackId}:${entry.slotIndex}`, pct);
+      ownedLoadMap.set(`${entry.rackId}:${entry.slotIndex}`, Math.round(utilPct));
     }
   }
 
-  // Rented server loads (water-filled)
-  const updatedRented = rentedServers.map((r, i) => {
+  // Rented server loads (same utilization %)
+  const updatedRented = rentedServers.map((r) => {
     if (r.capacityRps <= 0) return { ...r, load: 0 };
-    let allocRps = 0;
-    let tempRemaining = rpsAfterCache;
-    for (const e of webEntries) {
-      const take = Math.min(tempRemaining, e.capacity);
-      if (e.type === 'rented' && e.idx === i) { allocRps = take; break; }
-      tempRemaining -= take;
-    }
-    const load = r.capacityRps > 0 ? (allocRps / r.capacityRps) * 100 : 0;
-    return { ...r, load: Math.max(0, Math.min(200, Math.round(load))) };
+    return { ...r, load: Math.max(0, Math.min(200, Math.round(utilPct))) };
   });
 
   // Global DB capacity (database + storage nodes, scaled, active only) for even load distribution
@@ -288,9 +285,9 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
         const waterLoad = ownedLoadMap.get(`${rack.id}:${slot.index}`);
         newLoad = waterLoad !== undefined ? Math.round(waterLoad) : 0;
 
-        if (newLoad >= 100) {
+        if (newLoad > 100) {
           newStatus = 'overloaded';
-          newCrashTicks += 1;
+          if (!(lbActive && Math.random() < 0.1)) newCrashTicks += 1;
         } else if (newLoad >= 80) {
           newStatus = 'overloaded';
           newCrashTicks = 0;
@@ -307,8 +304,8 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
 
       if (node.category === 'database') {
         newLoad = totalDbCapacity > 0 ? (dbRPS / totalDbCapacity) * 100 : 0;
-        if (newLoad >= 100) {
-          newCrashTicks += 1;
+        if (newLoad > 100) {
+          if (!(lbActive && Math.random() < 0.1)) newCrashTicks += 1;
           if (newCrashTicks >= 10) {
             newStatus = 'crashed';
             newCrashTicks = 0;
@@ -330,7 +327,7 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
     const isOverheating = rackHeat > rackCooling;
     const newOverheatTicks = isOverheating ? rack.overheatTicks + 1 : 0;
 
-    const crashChance = Math.max(0.01, Math.min(0.4, 0.05 - sysAdminLevel * 0.008 + crashChanceBonus));
+    const crashChance = Math.max(0.01, Math.min(0.4, 0.05 - sysAdminLevel * 0.008 + crashChanceBonus)) * (lbActive ? 0.9 : 1);
     if (isOverheating && newOverheatTicks >= 5) {
       newSlots.forEach(slot => {
         if (slot.node && slot.node.status !== 'crashed' && slot.node.status !== 'offline' && slot.node.heat > 0) {

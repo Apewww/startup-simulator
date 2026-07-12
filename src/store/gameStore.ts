@@ -7,11 +7,11 @@ import { MILESTONES, type PerkContext } from '../data/milestones';
 import { PERKS } from '../data/perks';
 import { getNodeDef, getRackDef } from '../data/servers';
 import { calculateNodeLoads, calcMonthlyServerCost, recomputeRackAdjacency, getUpgradeCost } from '../systems/server';
-import { getPlatformStats, getAppliedEffects } from '../systems/platform';
+import { getPlatformStats, getAppliedEffects, hasActiveSynergy } from '../systems/platform';
 import { getSupervisionBoost } from '../systems/leadDeveloper';
 import { computeFurnitureEffects } from '../systems/radiusEffect';
 import { getFurnitureDef, FURNITURE } from '../data/furniture';
-import { calculateRevenue } from '../systems/monetization';
+import { calculateRevenue, getMonetizationMods } from '../systems/monetization';
 import { generateApplicant, CAMPAIGN_COST, getCampaignTicks, negotiate, applicantToEmployee } from '../systems/recruitment';
 import { checkEventTrigger, processEvents, calcSecurityLevel } from '../systems/events';
 import { getComplianceStatus } from '../systems/compliance';
@@ -84,6 +84,7 @@ interface GameState {
   assignTask: (employeeId: string, componentId: string) => void;
   cancelTask: (employeeId: string) => void;
   selectProduct: (productId: string) => void;
+  setMonetizationStrategy: (strategy: MonetizationStrategy) => void;
   buildFeature: (featureId: string) => void;
   upgradeFeature: (featureId: string) => void;
   fundingRounds: FundingRound[];
@@ -441,10 +442,11 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     // Dynamic users
     const eventEffects = getAppliedEffects(events);
-    const userDelta = (targetUsers - currentUsers) * 0.005 * cohesionScore;
+    const monetizationMods = getMonetizationMods(state.activeMonetization);
+    const userDelta = (targetUsers - currentUsers) * 0.005 * cohesionScore * monetizationMods.growthMult;
     const hasCrash = placedRacks.some(r => r.slots.some(s => s.node?.status === 'crashed'));
     const crashPenalty = hasCrash ? currentUsers * 0.05 : 0;
-    const churn = currentUsers * (1 - cohesionScore) * 0.0002;
+    const churn = Math.max(0, currentUsers * ((1 - cohesionScore) * 0.0002 + monetizationMods.churnDelta));
     let newCurrentUsers = currentUsers + (userDelta * eventEffects.userGrowthMult) - crashPenalty - churn;
     newCurrentUsers = Math.max(0, newCurrentUsers);
 
@@ -527,10 +529,13 @@ export const useGameStore = create<GameState>((set, get) => ({
     let cashChange = 0;
     let newTotalSalary = state.totalSalary;
     let newNegativeCashMonths = state.negativeCashMonths;
+    const synergyActive = hasActiveSynergy(features, selectedProduct);
+    const dataRatio = compliance?.data.ratio ?? 1;
+    const revOpts = { strategy: state.activeMonetization, productId: selectedProduct, dataRatio, synergyActive };
     if (newMonth > oldMonth) {
       newTotalSalary = calcTotalSalary(newEmployees);
       const serverCost = calcMonthlyServerCost(finalRacks, rentedServers);
-      const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore * (compliance?.revenueMult ?? 1), platformStats.synergyRevenueBonus);
+      const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore * (compliance?.revenueMult ?? 1), platformStats.synergyRevenueBonus, revOpts);
       cashChange = revenue.total - (newTotalSalary + serverCost);
 
       const cashAfter = state.cash + cashChange;
@@ -555,7 +560,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     let newPendingFunding = state.pendingFunding;
     if (newMonth > oldMonth && !newPendingFunding) {
-      const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore * (compliance?.revenueMult ?? 1), platformStats.synergyRevenueBonus);
+      const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore * (compliance?.revenueMult ?? 1), platformStats.synergyRevenueBonus, revOpts);
       const offer = calcFundingOffer(newMonth, newCurrentUsers, revenue.total);
       if (offer) {
         const lastRound = state.fundingRounds[state.fundingRounds.length - 1];
@@ -627,7 +632,14 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const traffic = getPlatformStats(state.features, state.events, state.selectedProduct);
     const compliance = state.features.some(f => f.level > 0) ? getComplianceStatus(state.features, state.racks, state.rentedServers) : null;
-    const revenue = calculateRevenue(state.currentUsers, state.features, state.racks, traffic.cohesionScore * (compliance?.revenueMult ?? 1), traffic.synergyRevenueBonus);
+    const synergyActive = hasActiveSynergy(state.features, state.selectedProduct);
+    const revOpts = {
+      strategy: state.activeMonetization,
+      productId: state.selectedProduct,
+      dataRatio: compliance?.data.ratio ?? 1,
+      synergyActive,
+    };
+    const revenue = calculateRevenue(state.currentUsers, state.features, state.racks, traffic.cohesionScore * (compliance?.revenueMult ?? 1), traffic.synergyRevenueBonus, revOpts);
     const offer = calcFundingOffer(state.month, state.currentUsers, revenue.total);
     if (!offer) return;
     const round: FundingRound = {
@@ -742,6 +754,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       requiredComponents: f.requiredComponents, trafficGenerated: 0, enabled: true,
     }));
     set({ selectedProduct: productId, features, screen: 'playerSetup', currentUsers: 0 });
+  },
+
+  setMonetizationStrategy: (strategy) => {
+    set({ activeMonetization: strategy });
   },
 
   initPlayer: (name: string) => {

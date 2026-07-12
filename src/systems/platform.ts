@@ -55,6 +55,20 @@ export function calcSynergyBonus(features: PlatformFeature[], productId: string 
   return { trafficBonus, revenueBonus };
 }
 
+export function hasActiveSynergy(features: PlatformFeature[], productId: string | null): boolean {
+  const synergies = getSynergies(productId);
+  for (const pair of synergies) {
+    const a = features.find(f => f.id === pair.featureA);
+    const b = features.find(f => f.id === pair.featureB);
+    if (!a || !b) continue;
+    if (!a.enabled || !b.enabled) continue;
+    if (a.level < pair.minLevel || b.level < pair.minLevel) continue;
+    if (Math.abs(a.level - b.level) > pair.maxLevelGap) continue;
+    return true;
+  }
+  return false;
+}
+
 export function getAppliedEffects(events: GameEvent[]): {
   rpsMult: number;
   userGrowthMult: number;

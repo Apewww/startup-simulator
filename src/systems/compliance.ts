@@ -5,6 +5,11 @@ const COMPUTE_RATES: Record<FeatureGroup, number> = { core: 0.5, business: 0.3, 
 const DATA_RATES: Record<FeatureGroup, number> = { core: 0.3, business: 0.3, engagement: 0 };
 const NETWORK_RATES: Record<FeatureGroup, number> = { core: 0.3, business: 0, engagement: 0.3 };
 
+// §4 — saat Payment Gateway aktif, requirement Data fitur Business naik +50% (0.3 -> 0.45)
+function hasActivePaymentGateway(features: PlatformFeature[]): boolean {
+  return features.some(f => f.id === 'payment_gateway' && f.level > 0 && f.enabled);
+}
+
 export interface ComplianceRatio {
   provided: number;
   required: number;
@@ -22,13 +27,15 @@ export interface ComplianceStatus {
 }
 
 export function calcRequirements(features: PlatformFeature[]): { compute: number; data: number; network: number } {
+  const pgActive = hasActivePaymentGateway(features);
   let compute = 0;
   let data = 0;
   let network = 0;
   for (const f of features) {
     if (f.level <= 0 || !f.enabled) continue;
     compute += COMPUTE_RATES[f.group] * f.level;
-    data += DATA_RATES[f.group] * f.level;
+    const dataRate = pgActive && f.group === 'business' ? 0.45 : DATA_RATES[f.group];
+    data += dataRate * f.level;
     network += NETWORK_RATES[f.group] * f.level;
   }
   return {

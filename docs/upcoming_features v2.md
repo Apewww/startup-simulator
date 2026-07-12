@@ -263,13 +263,13 @@ Dipecah supaya bisa dicicil per PR/commit, tiap fase idealnya tetap dalam kondis
 - [x] `store/gameStore.ts` — tambah state `activeMonetization` (default `'none'`, behave sama seperti sistem lama)
 - [x] Tidak ada breaking change ke save lama — Dexie v11→v12, field baru pakai default `?? 'none'` (catatan: doc menyebut "v7" tapi kode saat ini sudah v11)
 
-### Fase B — Monetization Logic
-- [ ] `systems/monetization.ts` — implementasi formula linear Ads Tier (§1) berbasis level "Ad Platform Interface", fallback ke `$2/100users` kalau fitur belum ada (backward compatible)
-- [ ] `systems/monetization.ts` — implementasi `calculateB2BRevenue()` (§2), baca Data compliance ratio dari `systems/compliance.ts`
-- [ ] `systems/monetization.ts` — update `calculateSubscriptionRevenue()`: harga $2.50/user, growth multiplier ×0.65, churn reduction −0.00005/tick (§3)
-- [ ] `systems/monetization.ts` — implementasi Freemium (5% conversion, $3/bulan, no penalty)
-- [ ] `systems/compliance.ts` — override Data requirement Business feature 0.3→0.45 saat `paymentGatewayActive` (§4)
-- [ ] Unit-level sanity check: jalankan simulasi angka manual di 3 titik user count (1k/20k/200k) sebelum sentuh UI — **jangan lanjut ke Fase C kalau angka masih timpang**
+### ~~Fase B — Monetization Logic~~ ✅ moved to `docs/update/update_v1.5.1.md`
+- [x] `systems/monetization.ts` — implementasi formula linear Ads Tier (§1) berbasis level "Ad Platform Interface", fallback ke `$2/100users` kalau fitur belum ada (backward compatible)
+- [x] `systems/monetization.ts` — implementasi `calculateB2BRevenue()` (§2), baca Data compliance ratio dari `systems/compliance.ts`
+- [x] `systems/monetization.ts` — update `calculateSubscriptionRevenue()`: harga $2.50/user, growth multiplier ×0.65, churn reduction −0.00005/tick (§3)
+- [x] `systems/monetization.ts` — implementasi Freemium (5% conversion, $3/bulan, no penalty)
+- [x] `systems/compliance.ts` — override Data requirement Business feature 0.3→0.45 saat `paymentGatewayActive` (§4)
+- [x] Unit-level sanity check: jalankan simulasi angka manual di 3 titik user count (1k/20k/200k) sebelum sentuh UI — **jangan lanjut ke Fase C kalau angka masih timpang**
 
 ### Fase C — Monetization UI
 - [ ] `components/FeaturesPanel.tsx` — tambah section "Monetization Strategy" (radio/toggle: No Ads / Text Ads / Video Ads / Targeted Ads / Freemium / Subscription)
