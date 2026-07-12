@@ -1,6 +1,6 @@
-# Update V1.5.4 — Cooling System: Heat Ratio, Critical Overheat & Heat Spread (Fase D+E)
+# Update V1.5.4 — Cooling System & SysAdmin Tie-in (Fase D+E+F)
 
-**Tujuan:** Implementasi cooling system penuh — heat ratio tier, critical overheat throttle, heat spread antar rack, industrial fan neighbor bonus, dan UI 4-status warna.
+**Tujuan:** Implementasi cooling system penuh — heat ratio tier, critical overheat throttle, heat spread antar rack, industrial fan neighbor bonus, UI 4-status warna, dan overheat recovery via SysAdmin.
 
 ---
 
@@ -34,7 +34,17 @@
 
 ### D6 — Industrial Fan Neighbor Bonus (§6.3)
 - `src/systems/server.ts` — saat hitung cooling capacity: cek adjacent racks yang punya `industrial_fan` aktif → +10 cooling per fan
-- Fix: cooling node sekarang pakai `node.capacity` langsung (bukan `scaled.effectiveCapacity`) karena cooling nodes tidak punya heat scaling
+
+### F1 — Overheat Recovery (§6.6)
+- Semua node type: `overheating` status sekarang ditangani secara eksplisit — tidak di-override oleh category logic
+- Saat rack tidak overheating (`heatRatio ≤ 1.0`), node `overheating` mulai recovery countdown
+- Recovery threshold: `max(3, 12 − sysAdminLevel × 2)` — SysAdmin level 0: 12 tick, level 5: 3 tick
+- Setelah countdown tercapai, node balik ke `active`
+- Jika rack kembali overheating selama recovery, countdown berhenti dan crash chance berlaku lagi
+
+### F2 — Fix: Cooling Node Scaling
+- `calcServerStats` dan `calculateNodeLoads` — cooling nodes sekarang pakai `scaled.effectiveCapacity` (bukan `node.capacity`)
+- Upgrade cooling node (overclock) sekarang benar-benar menambah cooling capacity
 
 ### D7 — ServerRoomView 4-Status Warna
 - `src/components/ServerRoomView.tsx` — rack border/bg:
@@ -61,12 +71,13 @@
 |---|---|
 | `src/types/server.ts` | tambah `isCritical` field |
 | `src/store/gameStore.ts` | init `isCritical` di buyRack |
-| `src/systems/server.ts` | SCALE_HEAT baru, heatRatio, 3-pass, spread, critical, fan bonus |
+| `src/systems/server.ts` | SCALE_HEAT baru, heatRatio, 3-pass, spread, critical, fan bonus, overheat recovery, cooling node scaling fix |
 | `src/components/ServerRoomView.tsx` | 4-tier warna, hover adjacent highlight, tooltip |
 | `src/components/LandMap.tsx` | 4-tier status di plot cards |
+| `docs/upcoming_features v2.md` | Fase D/E/F ✅ |
 
 ---
 
 ## Catatan
-- Coolant Leak event (§6.7) tidak diimplementasi — opsional, bisa ditambah nanti
-- Balancing pass (Fase G) masih perlu dilakukan: simulasi full-slot rack tiap tier tanpa cooling tambahan
+- Coolant Leak event (§6.7) tidak diimplementasi — skip, tidak diadopsi
+- Fase G (Balancing pass) masih perlu dilakukan: simulasi full-slot rack tiap tier tanpa cooling tambahan
