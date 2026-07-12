@@ -51,9 +51,7 @@ Tujuan: Implementasi efek boost ke tick loop.
 - [x] **Cap jumlah developer per lead — scale sesuai level lead.** (Phase 1 — `calcMaxSupervised`)
 - [x] Tambahkan **soft cap global** (Phase 1 — 10)
 - [x] Update save/load schema Dexie v8 (Phase 1)
-- [ ] **Balancing pass** (dilakukan di Phase 7): karena boost tanpa penalti + cap naik seiring level, lead level tinggi berpotensi jadi sangat kuat. Playtest fokus ke:
-  - Apakah salary Lead Developer + training cost cukup mahal untuk balance power ini?
-  - Apakah perlu diminishing return di level lead yang sangat tinggi nanti (v2, di luar scope Phase 2 ini)?
+- [x] **Balancing pass** (dilakukan di Phase 7 / `v1.4.6`): ditambahkan **soft diminishing return berbasis jumlah developer yang disupervisi** — dev ke-1 dapat boost penuh, tiap dev tambahan -5% (floor 50%). Detail di `docs/update_v1.4.6.md`.
 
 **Risk/Notes:** Ini menyentuh core tick loop production — butuh testing ketat biar gak break economy balance yang sudah ada. Rekomendasi: buat feature flag/dev toggle dulu sebelum full release.
 
@@ -118,13 +116,15 @@ Tujuan: Ubah OfficeGrid dari layout statis jadi grid modular seperti ServerRoomV
 
 ---
 
-### **Phase 7 — Balancing, Save Migration & QA**
+### **Phase 7 — Balancing, Save Migration & QA** ✅ `v1.4.6`
 **Difficulty: 🔴 Sulit**
 
-- [ ] Full regression test: save file lama (pre-refactor) harus tetap loadable dengan migration otomatis.
-- [ ] Balancing pass gabungan: Lead Developer boost + Furniture happiness buff bersamaan — cek apakah kombinasi ini terlalu kuat (misal max happiness employee jadi selalu 100 dan gak realistis).
-- [ ] Update dokumentasi (`README.md`, `docs/update_v1.4.md` atau versi terkait) dengan mekanik baru.
-- [ ] Dev toggle/cheat panel (`DevPanel.tsx`) — tambah tombol untuk unlock semua perk & spawn furniture untuk mempercepat testing.
+> **Selesai di `v1.4.6`.** Detail lengkap di `docs/update_v1.4.6.md`.
+
+- [x] Full regression test: save file lama (pre-refactor) tetap loadable dengan migration otomatis (Dexie tetap v11; semua field baru punya default `?? []` / `?? 0`).
+- [x] Balancing pass gabungan: Lead Developer boost + Furniture happiness buff — ditambah soft diminishing return (boost per dev menurun) + tuning idle recovery Water Dispenser 0.2→0.15 agar happiness tidak stuck ~100.
+- [x] Update dokumentasi (`README.md`, `docs/update_v1.4.6.md`) dengan mekanik baru.
+- [x] Dev toggle/cheat panel (`DevPanel.tsx`) — section "Perks & Furniture": +5 Perk Points, Unlock All Perks, Spawn All Furniture.
 
 ---
 
@@ -138,7 +138,7 @@ Tujuan: Ubah OfficeGrid dari layout statis jadi grid modular seperti ServerRoomV
 | ~~4~~ ✅ ~~v1.4.3~~ | ~~Office Grid — Modular Refactor~~ | 🔴 | - |
 | 5 ✅ `v1.4.4` | Furniture — Perk/Unlock System (Perk Points) | 🟡 | - |
 | 6 ✅ `v1.4.5` | Furniture — Shop & Placement | 🟡 | Phase 4, Phase 5 |
-| 7 | Balancing & QA Gabungan | 🔴 | Semua phase di atas |
+| 7 ✅ `v1.4.6` | Balancing & QA Gabungan | 🔴 | Semua phase di atas |
 
 **Catatan urutan kerja realistis:**
 Phase 2-3 (Lead Dev) sudah selesai. Phase 5 (Perks) bisa dikerjakan **paralel** dengan Phase 6 (Shop & Placement) karena grid sudah modular. Phase 6 butuh Phase 5 selesai. Phase 7 di akhir sebagai integrasi & polish penuh.
@@ -147,11 +147,11 @@ Phase 2-3 (Lead Dev) sudah selesai. Phase 5 (Perks) bisa dikerjakan **paralel** 
 
 ## ✅ Keputusan Desain — Final
 
-1. **Boost formula**: `outputBoost = leadSpeed × 0.1`, diterapkan **penuh tanpa penalti/diminishing return** ke setiap developer yang disupervisi. Opportunity cost lead tidak produksi sendiri sudah cukup jadi balancing natural.
-2. **Cap maksimum developer per lead**: **scale sesuai level lead** — `maxSupervised = baseCap + (level - 1) × capPerLevel`. Nilai awal untuk playtest: `baseCap = 2`, `capPerLevel = 1` (lihat tabel di Phase 2). Ada soft cap global (misal 10) sebagai safety net di late game.
+1. **Boost formula**: `outputBoost = leadSpeed × 0.1`. Di `v1.4.6` ditambahkan **soft diminishing return berbasis jumlah developer**: dev ke-1 boost penuh, tiap dev tambahan -5% (floor 50%). Opportunity cost lead + diminishing return jadi balancing gabungan.
+2. **Cap maksimum developer per lead**: **scale sesuai level lead** — `maxSupervised = baseCap + (level - 1) × capPerLevel`. Nilai: `baseCap = 2`, `capPerLevel = 1`, soft cap global 10.
 
-## ⚠️ Keputusan Desain yang Masih Perlu Difinalisasi
+## ✅ Keputusan Desain — Resolved
 
-1. **Radius furniture**: pakai grid distance (tile-based) atau area tetap (3x3, dsb) — konsisten dengan rencana Cooling Grid supaya bisa reuse logic yang sama?
-2. ~~**Migration strategy**:~~ ✅ Resolved — konversi `deskIndex` → `gridX = deskIndex % 8, gridY = floor(deskIndex / 8)` di saveLoad.ts.
-3. **Nilai `baseCap`/`capPerLevel` final**: angka di tabel Phase 2 masih tentatif untuk playtest awal — perlu divalidasi setelah balancing pass di Phase 7, terutama terhadap salary cost Lead Developer supaya power scaling-nya gak OP di late game.
+1. ~~**Radius furniture**:~~ ✅ Resolved (`v1.4.5`) — efek band **2 baris horizontal** (lebar penuh grid), chair per-tile. Lihat `docs/update_v1.4.5.md`.
+2. ~~**Migration strategy**:~~ ✅ Resolved (`v1.4.3`) — konversi `deskIndex` → `gridX = deskIndex % 8, gridY = floor(deskIndex / 8)` di saveLoad.ts.
+3. ~~**Nilai `baseCap`/`capPerLevel` & power scaling lead**:~~ ✅ Resolved (`v1.4.6`) — diatasi via soft diminishing return berbasis jumlah developer, bukan mengubah cap. Lihat `docs/update_v1.4.6.md`.

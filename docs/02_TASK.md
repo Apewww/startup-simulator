@@ -261,3 +261,18 @@ Server tidak dibeli langsung — pemain harus beli **rack** dulu, lalu pasang **
 - [ ] Test: save/load furniture + inventory persist
 - [ ] Test: restart → furniture + inventory reset
 
+
+## V1.4.6 - Phase 7: Balancing, Save Migration & QA
+
+- [x] `leadDeveloper.ts`: `getSupervisionBoost(lead, supervisedCount)` soft diminishing return (-5%/dev, floor 50%)
+- [x] `gameStore.ts`: boost pakai `lead.supervising.length`
+- [x] `gameStore.ts`: tuning Water Dispenser idle recovery 0.2 -> 0.15
+- [x] `gameStore.ts`: action `unlockAllPerks` + `devSpawnFurniture` (import `FURNITURE`)
+- [x] `DevPanel.tsx`: section "Perks & Furniture" (+5 Perk Points / Unlock All Perks / Spawn All Furniture)
+- [x] `docs/update_v1.4.6.md`: BARU
+- [x] `upcoming_features.md`: Phase 7 done; sisa Phase 2 balancing pass done
+- [ ] Build sukses (typecheck + lint)
+- [ ] Test: lead 10-dev boost per dev menurun
+- [ ] Test: happiness tidak stuck ~100 saat coffee + water aktif
+- [ ] Test: save lama pre-v1.4.x loadable (migration otomatis)
+- [ ] Test: dev cheat unlock perks + spawn furniture berfungsi

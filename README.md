@@ -130,7 +130,7 @@ Setiap tick:
 |---|---|
 | Designer | Produksi UI Component, Graphics Component, Brand Identity |
 | Developer | Produksi Backend Code, Network Module, Security Protocol |
-| Lead Developer | Merakit komponen jadi fitur (not implemented as separate mechanic yet) |
+| Lead Developer | Supervisi Developer: boost output tiap dev = `leadSpeed × 0.1` dengan soft diminishing return (dev tambahan -5%, floor 50%); cap developer scale per level |
 | SysAdmin | Recovery node crash lebih cepat, kurangi crash chance |
 | HR | Recruitment boost: campaign lebih cepat, applicant quality lebih tinggi |
 
@@ -283,8 +283,13 @@ IndexedDB via Dexie.js. Autosave tiap 60 detik. Field: tick, cash, employees, re
 - Build/Upgrade buttons
 
 ### Office Grid
-- Grid 2D kantor, tiap karyawan punya meja
+- Grid 2D kantor modular — drag & drop meja karyawan ke slot manapun
 - Warna status: hijau (bekerja), biru (idle), merah (happiness rendah)
+
+### Perks & Furniture
+- Milestone kasih **Perk Point**; spend point buat unlock furniture di `PerksPanel`
+- Furniture: Coffee Machine (−50% work happiness decay, band 2 baris), Ergonomic Chair (overwork threshold 50→80, per-meja), Water Dispenser (+0.15/tick idle recovery, band 2 baris)
+- Beli di Furniture Shop → place di Office Grid (efek radius/band horizontal)
 
 ### Server Room Grid
 - Drag & drop rack dari inventory ke grid

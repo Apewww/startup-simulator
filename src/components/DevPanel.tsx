@@ -8,7 +8,7 @@ import { generateApplicant } from '../systems/recruitment';
 const ROLES: EmployeeRole[] = ['Developer', 'Designer'];
 
 export function DevPanel() {
-  const { devMode, toggleDevMode, cash, addCash, employees, hireEmployee, addResources, features, unlockAllFeatures, racks, fillRack, selectedProduct } = useGameStore();
+  const { devMode, toggleDevMode, cash, addCash, employees, hireEmployee, addResources, features, unlockAllFeatures, racks, fillRack, selectedProduct, perkPoints, unlockedPerks, unlockAllPerks, devSpawnFurniture } = useGameStore();
   const [cashAmount, setCashAmount] = useState('100000');
   const [resAmount, setResAmount] = useState('10');
 
@@ -118,6 +118,15 @@ export function DevPanel() {
             ))}
           </div>
           <div className="text-[10px] text-ink-soft mt-1">{useGameStore.getState().applicants.length} applicants</div>
+        </DevSection>
+
+        <DevSection title="Perks & Furniture">
+          <div className="flex flex-wrap gap-1">
+            <button onClick={() => useGameStore.setState({ perkPoints: useGameStore.getState().perkPoints + 5 })} className="px-2 py-1 bg-amber hover:bg-amber/90 text-white rounded-lg text-[10px]">+5 Perk Points</button>
+            <button onClick={unlockAllPerks} className="px-2 py-1 bg-indigo hover:bg-indigo/90 text-white rounded-lg text-[10px]">Unlock All Perks</button>
+            <button onClick={devSpawnFurniture} className="px-2 py-1 bg-green hover:bg-green/90 text-white rounded-lg text-[10px]">Spawn All Furniture</button>
+          </div>
+          <div className="text-ink-soft text-[10px] mt-1">{perkPoints} points · {unlockedPerks.length} perks unlocked</div>
         </DevSection>
 
         <DevSection title="Game State">
