@@ -10,7 +10,7 @@ import { calculateNodeLoads, calcMonthlyServerCost } from '../systems/server';
 import { getPlatformStats, getAppliedEffects } from '../systems/platform';
 import { getSupervisionBoost } from '../systems/leadDeveloper';
 import { computeFurnitureEffects } from '../systems/radiusEffect';
-import { getFurnitureDef } from '../data/furniture';
+import { getFurnitureDef, FURNITURE } from '../data/furniture';
 import { calculateRevenue } from '../systems/monetization';
 import { generateApplicant, CAMPAIGN_COST, getCampaignTicks, negotiate, applicantToEmployee } from '../systems/recruitment';
 import { checkEventTrigger, processEvents, calcSecurityLevel } from '../systems/events';
@@ -157,6 +157,8 @@ interface GameState {
   unplaceFurniture: (furnId: string) => void;
   moveFurniture: (furnId: string, x: number, y: number) => void;
   sellFurnitureItem: (id: string) => void;
+  unlockAllPerks: () => void;
+  devSpawnFurniture: () => void;
 }
 
 function calcTotalSalary(employees: Employee[]): number {
@@ -340,7 +342,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         } else if (isWorking) {
           newHappiness -= fx.coffee.has(emp.id) ? 0.025 : 0.05;
         } else if (fx.water.has(emp.id)) {
-          newHappiness += 0.2;
+          newHappiness += 0.15;
         } else {
           newHappiness -= 0.005;
         }
@@ -368,7 +370,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         if (emp.supervisedBy) {
           const lead = employees.find(e => e.id === emp.supervisedBy);
           if (lead && lead.role === 'Lead_Developer') {
-            newSpeed = newSpeed * (1 + getSupervisionBoost(lead));
+            newSpeed = newSpeed * (1 + getSupervisionBoost(lead, lead.supervising?.length ?? 1));
           }
         }
 
@@ -1584,6 +1586,18 @@ export const useGameStore = create<GameState>((set, get) => ({
       unlockedPerks: [...state.unlockedPerks, perkId],
     });
     get().addNotification(`Perk Unlocked: ${perk.name}!`, 'success');
+  },
+
+  unlockAllPerks: () => {
+    set({ unlockedPerks: PERKS.map(p => p.id) });
+    get().addNotification('DEV: All perks unlocked', 'info');
+  },
+
+  devSpawnFurniture: () => {
+    const state = get();
+    const spawned = FURNITURE.map(def => ({ id: newFurnitureId(), defId: def.id }));
+    set({ furnitureInventory: [...state.furnitureInventory, ...spawned] });
+    get().addNotification(`DEV: Spawned ${spawned.length} furniture`, 'info');
   },
 
   buyFurniture: (defId: string) => {
