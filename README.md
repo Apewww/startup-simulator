@@ -175,19 +175,21 @@ currentUsers += (delta × eventEffect) - crashPenalty - churn
 
 Hardware harus memenuhi requirement fitur. Setiap node punya point:
 
-| Node | Compute | Data | Network | Security |
-|---|---|---|---|---|
-| Web T1 | 2 | 0 | 0 | 0 |
-| Web T2 | 4 | 0 | 0 | 0 |
-| Web T3 | 8 | 0 | 0 | 0 |
-| DB T1 | 0 | 2 | 0 | 0 |
-| DB T2 | 0 | 5 | 0 | 0 |
-| Cache T1 | 0 | 0 | 2 | 0 |
-| Cache T2 | 0 | 0 | 5 | 0 |
-| Router | 0 | 0 | 1 | 0 |
-| Load Balancer | 1 | 0 | 1 | 0 |
-| Firewall T1 | 0 | 0 | 0 | 2 |
-| Firewall T2 | 0 | 0 | 0 | 5 |
+| Node | Compute | Data | Network | Security | Heat |
+|---|---|---|---|---|---|
+| Web T1 | 2 | 0 | 0 | 0 | 8 |
+| Web T2 | 4 | 0 | 0 | 0 | 14 |
+| Web T3 | 8 | 0 | 0 | 0 | 24 |
+| Web T4 | 15 | 0 | 0 | 0 | 30 |
+| DB T1 | 0 | 2 | 0 | 0 | 6 |
+| DB T2 | 0 | 5 | 0 | 0 | 12 |
+| DB T3 | 0 | 10 | 0 | 0 | 20 |
+| Cache T1 | 0 | 0 | 2 | 0 | 4 |
+| Cache T2 | 0 | 0 | 5 | 0 | 8 |
+| Cache T3 | 0 | 0 | 10 | 0 | 16 |
+| Load Balancer | 1 | 0 | 1 | 0 | 3 |
+| Firewall T1 | 0 | 0 | 0 | 2 | 3 |
+| Firewall T2 | 0 | 0 | 0 | 5 | 6 |
 
 Feature requirements per level: Core (0.5C, 0.3D, 0.3N), Business (0.3C, 0.3D), Engagement (0.3C, 0.3N)
 
@@ -204,13 +206,13 @@ Security → mengurangi DDoS chance (reroll event).
 
 **Rack Tiers:**
 
-| Tier | Slot | Cooling | Price | /mo |
+| Tier | Slot | Base Cooling | Price | /mo |
 |---|---|---|---|---|
 | Basic | 4 | 40 | $200 | $20 |
 | Advanced | 6 | 80 | $500 | $50 |
 | Enterprise | 8 | 150 | $1,200 | $100 |
 
-**Node Types:** Web T1-T3, DB T1-T2, Cache T1-T2, Router, Cooling Fan, Industrial Fan, Liquid Cooling, Storage, Firewall T1-T2, Rate Limiter, Load Balancer
+**Node Types:** Web T1-T4, DB T1-T3, Cache T1-T3, Cooling Fan, Industrial Fan, Liquid Cooling, Storage, Firewall T1-T2, Rate Limiter, Load Balancer
 
 **Water-fill RPS Distribution (v1.3.4):**
 ```
@@ -221,6 +223,15 @@ Security → mengurangi DDoS chance (reroll event).
 Bukan dibagi rata — server pertama menanggung beban dulu sebelum server baru kena.
 
 **Node Scaling (Overclock):** Level 1-5, naikkan capacity tapi heat & power naik nonlinear.
+
+**Cooling System (v1.5.4):**
+- Setiap node menghasilkan **heat**. Total heat rack vs cooling capacity → **heat ratio**.
+- 4 status: Cool (<70%), Warm (70-100%), Overheat (100-130%), Critical (>130%)
+- Overheat ≥5 tick → crash chance per node. Critical: crash chance ×2, capacity throttle.
+- **Heat spread:** Overheated rack kirim 5% heat ke rack tetangga di grid.
+- **Overheat recovery:** Saat rack dingin, node overheating pulih otomatis setelah `max(3, 12 - sysAdminLevel × 2)` tick.
+- Cooling node (Fan / Industrial Fan / Liquid Cooling) tambah cooling capacity ke rack. Industrial Fan juga +10 ke rack tetangga.
+- SysAdmin kurangi spread heat 3%/level dan percepat recovery.
 
 **Rented Server Scaling:** Cloud/Dedicated/VPS bisa di-scale (Lv.1-5), naikkan capacity, points, dan biaya.
 
@@ -321,11 +332,13 @@ IndexedDB via Dexie.js. Autosave tiap 60 detik. Field: tick, cash, employees, re
 | Ads revenue | $2 per 100 users/bulan |
 | Subscription | $2 per user/bulan (dengan Payment Gateway) |
 | Crash penalty | 50% revenue |
-| Node crash chance | max(1%, 5% - sysAdminLevel × 0.8%)/tick saat overheat |
+| Node crash chance | max(1%, 5% - sysAdminLevel × 0.8%)/tick (×2 saat Critical) |
+| Overheat recovery | maks(3, 12 - sysAdminLevel × 2) tick setelah rack dingin |
+| Heat spread | 5% rawHeat ke setiap rack adjacent saat heatRatio > 1.0 |
 | DDoS crash bonus | +15% crash chance |
 | Bangkrut | 3 bulan cash negatif |
 | Sell refund | 50% harga |
-| DB version | 7 |
+| DB version | 11 |
 
 ---
 
@@ -342,8 +355,9 @@ IndexedDB via Dexie.js. Autosave tiap 60 detik. Field: tick, cash, employees, re
 | v1.3.2 — SysAdmin & Funding | ✅ |
 | v1.3.3 — Player Character, HR, Training | ✅ |
 | v1.3.4 — Cohesion, Events, Compliance | ✅ |
+| v1.4 — Lead Developer + Furniture System | ✅ |
+| v1.5 — Monetization Rebalance + Cooling Grid | ✅ |
 | Kompetitor AI | 📝 Planned |
-| Cooling Grid Refactor | 📝 Planned |
 
 ---
 
@@ -363,4 +377,15 @@ IndexedDB via Dexie.js. Autosave tiap 60 detik. Field: tick, cash, employees, re
 | v1.3.2 | [docs/update_v1.3.2.md](docs/update_v1.3.2.md) |
 | v1.3.3 | [docs/update_v1.3.3.md](docs/update_v1.3.3.md) |
 | v1.3.4 | [docs/update_v1.3.4.md](docs/update_v1.3.4.md) |
-| Upcoming | [docs/upcoming_features.md](docs/upcoming_features.md) |
+| v1.4 | [docs/update_v1.4.md](docs/update_v1.4.md) |
+| v1.4.1 | [docs/update_v1.4.1.md](docs/update_v1.4.1.md) |
+| v1.4.2 | [docs/update_v1.4.2.md](docs/update_v1.4.2.md) |
+| v1.4.3 | [docs/update_v1.4.3.md](docs/update_v1.4.3.md) |
+| v1.4.4 | [docs/update_v1.4.4.md](docs/update_v1.4.4.md) |
+| v1.4.5 | [docs/update_v1.4.5.md](docs/update_v1.4.5.md) |
+| v1.4.6 | [docs/update_v1.4.6.md](docs/update_v1.4.6.md) |
+| v1.5 | [docs/update/update_v1.5.md](docs/update/update_v1.5.md) |
+| v1.5.1 | [docs/update/update_v1.5.1.md](docs/update/update_v1.5.1.md) |
+| v1.5.2 | [docs/update/update_v1.5.2.md](docs/update/update_v1.5.2.md) |
+| v1.5.3 | [docs/update/update_v1.5.3.md](docs/update/update_v1.5.3.md) |
+| v1.5.4 | [docs/update/update_v1.5.4.md](docs/update/update_v1.5.4.md) |
