@@ -4,7 +4,7 @@ export interface PerkDef {
   description: string;
   icon: string;
   cost: number;
-  furnitureUnlock: string;
+  furnitureUnlock?: string;
 }
 
 export const PERKS: PerkDef[] = [
@@ -31,6 +31,13 @@ export const PERKS: PerkDef[] = [
     icon: 'Droplets',
     cost: 1,
     furnitureUnlock: 'water_dispenser',
+  },
+  {
+    id: 'hardware_overclock',
+    name: 'Hardware Overclocking',
+    description: 'Upgrade/downgrade node langsung di rack & inventory untuk hemat plot. Upgrade berbayar (skala harga node), downgrade tanpa refund.',
+    icon: 'Gauge',
+    cost: 10,
   },
 ];
 

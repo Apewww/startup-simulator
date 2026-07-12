@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback } from 'react';
 import { useGameStore } from '../store/gameStore';
-import type { ServerRack } from '../types';
-import { Minus, Maximize2, X, GripVertical } from 'lucide-react';
+import type { ServerRack, ServerNode } from '../types';
+import { Minus, Maximize2, X, GripVertical, ArrowUp, ArrowDown, Lock } from 'lucide-react';
+import { getUpgradeCost } from '../systems/server';
 
 const CELL_SIZE = 72;
 const CATEGORY_COLORS: Record<string, string> = {
@@ -15,6 +16,44 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 let zCounter = 100;
+
+function NodeUpgradeControls({ node }: { node: ServerNode }) {
+  const upgradeNode = useGameStore((s) => s.upgradeNode);
+  const cash = useGameStore((s) => s.cash);
+  const overclockUnlocked = useGameStore((s) => s.unlockedPerks.includes('hardware_overclock'));
+
+  if (!overclockUnlocked) {
+    return (
+      <span className="flex items-center gap-0.5 text-[9px] text-ink-soft shrink-0" title="Unlock the Hardware Overclocking perk">
+        <Lock className="w-2.5 h-2.5" /> Lv.{node.scaleLevel}
+      </span>
+    );
+  }
+
+  const cost = getUpgradeCost(node);
+  const upDisabled = cost === null || cash < cost;
+  return (
+    <span className="flex items-center gap-0.5 shrink-0">
+      <span className="text-[9px] text-ink-soft mr-0.5">Lv.{node.scaleLevel}</span>
+      <button
+        onClick={(e) => { e.stopPropagation(); upgradeNode(node.id, -1); }}
+        disabled={node.scaleLevel <= 1}
+        title={node.scaleLevel > 1 ? `Downgrade → Lv.${node.scaleLevel - 1} (no refund)` : 'Already at minimum'}
+        className="p-0.5 rounded bg-surface border border-border hover:bg-red-soft disabled:opacity-30 cursor-pointer"
+      >
+        <ArrowDown className="w-2.5 h-2.5 text-red" />
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); upgradeNode(node.id, 1); }}
+        disabled={upDisabled}
+        title={cost === null ? 'Max level' : `Upgrade → Lv.${node.scaleLevel + 1} — $${cost}`}
+        className="p-0.5 rounded bg-surface border border-border hover:bg-green-soft disabled:opacity-30 cursor-pointer"
+      >
+        <ArrowUp className="w-2.5 h-2.5 text-green" />
+      </button>
+    </span>
+  );
+}
 
 function InventoryPanel({ onClose, rackId }: { onClose: () => void; rackId?: string | null }) {
   const racks = useGameStore((s) => s.racks);
@@ -146,7 +185,7 @@ function InventoryPanel({ onClose, rackId }: { onClose: () => void; rackId?: str
                   title="Click to auto-place in first empty slot">
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: CATEGORY_COLORS[node.category] || '#666' }} />
                   <span className="font-semibold text-ink flex-1">{node.label}</span>
-                  <span className="text-[9px] text-ink-soft">{node.heat}h · {node.power}pw</span>
+                  <NodeUpgradeControls node={node} />
                 </div>
               ))}
             </div>
@@ -267,6 +306,7 @@ function RackSlotView({ rackId, onClose }: { rackId: string; onClose: () => void
                     className="inline-flex items-center gap-1 px-2 py-1 bg-surface-2 border border-border rounded-lg text-[10px] text-ink cursor-grab active:cursor-grabbing hover:border-indigo transition-colors">
                     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: CATEGORY_COLORS[node.category] || '#666' }} />
                     {node.label}
+                    <NodeUpgradeControls node={node} />
                   </div>
                 ))}
               </div>

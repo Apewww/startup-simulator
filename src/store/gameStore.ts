@@ -6,7 +6,7 @@ import { getProductDef } from '../data/products';
 import { MILESTONES, type PerkContext } from '../data/milestones';
 import { PERKS } from '../data/perks';
 import { getNodeDef, getRackDef } from '../data/servers';
-import { calculateNodeLoads, calcMonthlyServerCost } from '../systems/server';
+import { calculateNodeLoads, calcMonthlyServerCost, recomputeRackAdjacency, getUpgradeCost } from '../systems/server';
 import { getPlatformStats, getAppliedEffects } from '../systems/platform';
 import { getSupervisionBoost } from '../systems/leadDeveloper';
 import { computeFurnitureEffects } from '../systems/radiusEffect';
@@ -38,6 +38,8 @@ export interface MonthlySnapshot {
   cash: number;
 }
 
+export type MonetizationStrategy = 'none' | 'text_ads' | 'video_ads' | 'targeted_ads' | 'freemium' | 'subscription';
+
 interface GameState {
   tick: number;
   isPaused: boolean;
@@ -52,6 +54,7 @@ interface GameState {
   rentedServers: RentedServer[];
   totalSalary: number;
   selectedProduct: string | null;
+  activeMonetization: MonetizationStrategy;
   devMode: boolean;
   inventoryNodes: ServerNode[];
   activeView: { type: 'office' } | { type: 'server', plotId: string };
@@ -138,7 +141,7 @@ interface GameState {
   restartGame: () => void;
   currentUsers: number;
   events: GameEvent[];
-  setNodeScale: (rackId: string, slotIndex: number, delta: number) => void;
+  upgradeNode: (nodeId: string, delta: 1 | -1) => void;
   officeGridCols: number;
   officeGridRows: number;
   moveEmployee: (empId: string, x: number, y: number) => void;
@@ -194,6 +197,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   rentedServers: [],
   totalSalary: 0,
   selectedProduct: null,
+  activeMonetization: 'none',
   devMode: false,
   inventoryNodes: [],
   activeView: { type: 'office' },
@@ -904,21 +908,54 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({ resources: newResources, features: newFeatures });
   },
 
-  setNodeScale: (rackId: string, slotIndex: number, delta: number) => {
-    set((state) => ({
-      racks: state.racks.map(r =>
-        r.id === rackId
-          ? {
-              ...r,
-              slots: r.slots.map(s =>
-                s.index === slotIndex && s.node
-                  ? { ...s, node: { ...s.node, scaleLevel: Math.max(1, Math.min(5, s.node.scaleLevel + delta)) } }
-                  : s
-              ),
-            }
-          : r
-      ),
-    }));
+  upgradeNode: (nodeId: string, delta: 1 | -1) => {
+    const state = get();
+    if (!state.unlockedPerks.includes('hardware_overclock')) {
+      get().addNotification('Unlock the Hardware Overclocking perk first', 'warning');
+      return;
+    }
+
+    let target: ServerNode | undefined;
+    for (const r of state.racks) {
+      for (const s of r.slots) {
+        if (s.node?.id === nodeId) { target = s.node; break; }
+      }
+      if (target) break;
+    }
+    if (!target) target = state.inventoryNodes.find(n => n.id === nodeId);
+    if (!target) return;
+
+    if (delta > 0) {
+      if (target.scaleLevel >= 5) return;
+      const cost = getUpgradeCost(target);
+      if (cost === null) return;
+      if (state.cash < cost) {
+        get().addNotification('Not enough cash to upgrade', 'warning');
+        return;
+      }
+      const newLevel = target.scaleLevel + 1;
+      get().addLog(`Upgraded ${target.label} to Lv.${newLevel} ($${cost})`);
+      get().addNotification(`Upgraded ${target.label} to Lv.${newLevel} — $${cost}`, 'success');
+      set({
+        cash: state.cash - cost,
+        racks: state.racks.map(r => ({
+          ...r,
+          slots: r.slots.map(s => s.node?.id === nodeId ? { ...s, node: { ...s.node, scaleLevel: newLevel } } : s),
+        })),
+        inventoryNodes: state.inventoryNodes.map(n => n.id === nodeId ? { ...n, scaleLevel: newLevel } : n),
+      });
+    } else {
+      if (target.scaleLevel <= 1) return;
+      const newLevel = target.scaleLevel - 1;
+      get().addNotification(`Downgraded ${target.label} to Lv.${newLevel} (no refund)`, 'info');
+      set({
+        racks: state.racks.map(r => ({
+          ...r,
+          slots: r.slots.map(s => s.node?.id === nodeId ? { ...s, node: { ...s.node, scaleLevel: newLevel } } : s),
+        })),
+        inventoryNodes: state.inventoryNodes.map(n => n.id === nodeId ? { ...n, scaleLevel: newLevel } : n),
+      });
+    }
   },
 
   buyRack: (tier: RackTier) => {
@@ -949,6 +986,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       monthlyCost: def.monthlyCost,
       isOverheating: false,
       overheatTicks: 0,
+      heatRatio: 0,
+      adjacentRackIds: [],
     };
 
     get().addLog(`Bought ${def.label} ($${def.price})`);
@@ -972,9 +1011,9 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     get().addLog(`Placed ${rack.label} at (${x},${y}) on plot ${plotId}`);
     set({
-      racks: state.racks.map(r =>
+      racks: recomputeRackAdjacency(state.racks.map(r =>
         r.id === rackId ? { ...r, plotId, gridX: x, gridY: y } : r
-      ),
+      )),
       plots: state.plots.map(p =>
         p.id === plotId ? { ...p, rackIds: [...p.rackIds.filter(id => id !== rackId), rackId] } : p
       ),
@@ -998,9 +1037,9 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     get().addLog(`Moved ${rack.label} to (${x},${y})`);
     set({
-      racks: state.racks.map(r =>
+      racks: recomputeRackAdjacency(state.racks.map(r =>
         r.id === rackId ? { ...r, gridX: x, gridY: y } : r
-      ),
+      )),
     });
   },
 
@@ -1011,9 +1050,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     const plotId = rack.plotId;
     get().addLog(`Removed ${rack.label} from grid`);
     set({
-      racks: state.racks.map(r =>
+      racks: recomputeRackAdjacency(state.racks.map(r =>
         r.id === rackId ? { ...r, plotId: null, gridX: 0, gridY: 0 } : r
-      ),
+      )),
       plots: state.plots.map(p =>
         p.id === plotId ? { ...p, rackIds: p.rackIds.filter(id => id !== rackId) } : p
       ),
@@ -1026,9 +1065,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (!plot || plot.rackIds.length === 0) return;
     get().addLog(`Removed all racks from ${plotId}`);
     set({
-      racks: state.racks.map(r =>
+      racks: recomputeRackAdjacency(state.racks.map(r =>
         r.plotId === plotId ? { ...r, plotId: null, gridX: 0, gridY: 0 } : r
-      ),
+      )),
       plots: state.plots.map(p =>
         p.id === plotId ? { ...p, rackIds: [] } : p
       ),
@@ -1051,9 +1090,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         if (!collision) {
           get().addLog(`Auto-placed ${rack.label} at (${x},${y}) on ${plotId}`);
           set({
-            racks: state.racks.map(r =>
+            racks: recomputeRackAdjacency(state.racks.map(r =>
               r.id === rackId ? { ...r, plotId, gridX: x, gridY: y } : r
-            ),
+            )),
             plots: state.plots.map(p =>
               p.id === plotId ? { ...p, rackIds: [...p.rackIds.filter(id => id !== rackId), rackId] } : p
             ),
@@ -1278,10 +1317,11 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   rentServer: (type: RentalType) => {
     const state = get();
-    const baseDefs: Record<RentalType, { label: string; capacityRps: number; storage: number; monthlyCost: number; uptime: number; compute: number; data: number; network: number }> = {
-      vps: { label: 'VPS', capacityRps: 150, storage: 50, monthlyCost: 40, uptime: 0.99, compute: 1, data: 0.5, network: 0.3 },
-      dedicated: { label: 'Dedicated', capacityRps: 600, storage: 200, monthlyCost: 180, uptime: 0.999, compute: 3, data: 2, network: 1 },
-      cloud: { label: 'Cloud Instance', capacityRps: 1000, storage: 500, monthlyCost: 300, uptime: 0.995, compute: 5, data: 3, network: 3 },
+    const baseDefs: Record<RentalType, { label: string; capacityRps: number; storage: number; monthlyCost: number; uptime: number; compute: number; data: number; network: number; dbCapacity: number }> = {
+      vps: { label: 'VPS', capacityRps: 150, storage: 50, monthlyCost: 40, uptime: 0.99, compute: 1, data: 0.5, network: 0.3, dbCapacity: 0 },
+      dedicated: { label: 'Dedicated', capacityRps: 600, storage: 200, monthlyCost: 180, uptime: 0.999, compute: 3, data: 2, network: 1, dbCapacity: 0 },
+      cloud: { label: 'Cloud Instance', capacityRps: 1000, storage: 500, monthlyCost: 300, uptime: 0.995, compute: 5, data: 3, network: 3, dbCapacity: 0 },
+      db: { label: 'DB Cluster', capacityRps: 0, storage: 200, monthlyCost: 200, uptime: 0.999, compute: 0, data: 4, network: 0, dbCapacity: 800 },
     };
     const def = baseDefs[type];
     get().addNotification(`Rented ${def.label} — $${def.monthlyCost}/mo`, 'info');
@@ -1295,10 +1335,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     const r = state.rentedServers[idx];
     const newLevel = Math.max(1, Math.min(5, r.scaleLevel + delta));
     if (newLevel === r.scaleLevel) return;
-    const baseDefs: Record<string, { capacityRps: number; monthlyCost: number; compute: number; data: number; network: number }> = {
-      vps: { capacityRps: 150, monthlyCost: 40, compute: 1, data: 0.5, network: 0.3 },
-      dedicated: { capacityRps: 600, monthlyCost: 180, compute: 3, data: 2, network: 1 },
-      cloud: { capacityRps: 1000, monthlyCost: 300, compute: 5, data: 3, network: 3 },
+    const baseDefs: Record<string, { capacityRps: number; monthlyCost: number; compute: number; data: number; network: number; dbCapacity: number }> = {
+      vps: { capacityRps: 150, monthlyCost: 40, compute: 1, data: 0.5, network: 0.3, dbCapacity: 0 },
+      dedicated: { capacityRps: 600, monthlyCost: 180, compute: 3, data: 2, network: 1, dbCapacity: 0 },
+      cloud: { capacityRps: 1000, monthlyCost: 300, compute: 5, data: 3, network: 3, dbCapacity: 0 },
+      db: { capacityRps: 0, monthlyCost: 200, compute: 0, data: 4, network: 0, dbCapacity: 800 },
     };
     const base = baseDefs[r.type];
     if (!base) return;
@@ -1312,6 +1353,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       compute: Math.round(base.compute * mult * 10) / 10,
       data: Math.round(base.data * mult * 10) / 10,
       network: Math.round(base.network * mult * 10) / 10,
+      dbCapacity: Math.round(base.dbCapacity * mult),
     };
     get().addLog(`Scaled ${r.label} to Lv.${newLevel} (${updated.capacityRps} RPS, $${updated.monthlyCost}/mo)`);
     get().addNotification(`Scaled ${r.label} to Lv.${newLevel}`, 'info');
@@ -1739,7 +1781,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       tick: 0, isPaused: false, speed: 1, cash: 15000, month: 0,
       employees: [], resources: [], features: [], racks: [], plots: [], rentedServers: [],
-      totalSalary: 0, selectedProduct: null, devMode: false,
+      totalSalary: 0, selectedProduct: null, activeMonetization: 'none', devMode: false,
       inventoryNodes: [], activeView: { type: 'office' }, visitedPlots: [], gameLog: [],
       cashFlowHistory: [], notifications: [],
       isBankrupt: false, negativeCashMonths: 0, screen: 'menu',
