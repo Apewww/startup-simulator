@@ -16,6 +16,7 @@ import { FeaturesPanel, featuresPanelMeta } from './components/FeaturesPanel';
 import { FinancePanel, financePanelMeta } from './components/FinancePanel';
 import { RecruitmentPanel, recruitmentPanelMeta } from './components/RecruitmentPanel';
 import { PerksPanel } from './components/PerksPanel';
+import { AdSalesPanel, adSalesPanelMeta } from './components/AdSalesPanel';
 import { Server, Skull, CheckCircle, Info, AlertTriangle, XCircle, Gift } from 'lucide-react';
 import { saveGame } from './systems/saveLoad';
 import { db } from './db/gameDB';
@@ -218,6 +219,10 @@ function App() {
 
           <FloatingPanel id="perks" index={5} title="Perks" icon={<Gift className="w-4 h-4 text-amber" />} accent="#B7791F">
             <PerksPanel />
+          </FloatingPanel>
+
+          <FloatingPanel id="adsales" index={6} title={adSalesPanelMeta.title} icon={adSalesPanelMeta.icon} accent={adSalesPanelMeta.accent}>
+            <AdSalesPanel />
           </FloatingPanel>
         </div>
 

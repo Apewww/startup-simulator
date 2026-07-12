@@ -33,6 +33,13 @@ export const PERKS: PerkDef[] = [
     furnitureUnlock: 'water_dispenser',
   },
   {
+    id: 'sales_auto_renew',
+    name: 'Auto-Renew Campaigns',
+    description: 'Ad Monetization Specialist automatically renegotiates with past clients after campaign ends. Renewal at 70-90% of original deal value.',
+    icon: 'RefreshCw',
+    cost: 2,
+  },
+  {
     id: 'hardware_overclock',
     name: 'Hardware Overclocking',
     description: 'Upgrade/downgrade node langsung di rack & inventory untuk hemat plot. Upgrade berbayar (skala harga node), downgrade tanpa refund.',

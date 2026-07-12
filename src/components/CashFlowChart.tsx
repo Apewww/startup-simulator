@@ -18,6 +18,7 @@ function formatCash(n: number): string {
 export function CashFlowChart() {
   const history = useGameStore((s) => s.cashFlowHistory);
   const [hovered, setHovered] = useState<MonthlySnapshot | null>(null);
+  const [hoveredX, setHoveredX] = useState(0);
 
   const { bars, yMax, yLabels, chartW, chartH } = useMemo(() => {
     if (history.length < 2) return { bars: [], yMax: 0, yLabels: [], chartW: 0, chartH: 0 };
@@ -103,9 +104,10 @@ export function CashFlowChart() {
                 y={CHART_PADDING.top}
                 width={hitW}
                 height={plotH}
-                fill="transparent"
+                fill="rgba(0,0,0,0.001)"
+                style={{ pointerEvents: 'all' }}
                 className="cursor-pointer"
-                onMouseEnter={() => setHovered(bar.snap)}
+                onMouseEnter={() => { setHovered(bar.snap); setHoveredX(bar.x); }}
                 onMouseLeave={() => setHovered(null)}
               />
               <rect
@@ -146,7 +148,10 @@ export function CashFlowChart() {
       </svg>
 
       {hovered && (
-        <div className="absolute top-0 right-0 bg-surface border border-border rounded-lg px-3 py-2 shadow-[0_4px_12px_-4px_rgba(20,30,60,0.12)] text-xs space-y-1 z-10" style={{ minWidth: 140 }}>
+        <div
+          className="absolute bg-surface border border-border rounded-lg px-3 py-2 shadow-[0_4px_12px_-4px_rgba(20,30,60,0.12)] text-xs space-y-1 z-50 pointer-events-none"
+          style={{ left: Math.min(hoveredX, chartW - 150), top: 0, minWidth: 140 }}
+        >
           <div className="font-semibold text-ink">Month {hovered.month}</div>
           <div className="flex justify-between gap-4">
             <span className="text-green">Revenue</span>

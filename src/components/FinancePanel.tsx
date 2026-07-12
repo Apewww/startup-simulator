@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { DollarSign, TrendingUp, TrendingDown, Users, Server, BarChart3, Handshake } from 'lucide-react';
-import { useGameStore } from '../store/gameStore';
+import { useGameStore, TICKS_PER_MONTH } from '../store/gameStore';
 import { getPlatformStats } from '../systems/platform';
 import { calcMonthlyServerCost } from '../systems/server';
 import { calculateRevenue } from '../systems/monetization';
@@ -22,7 +22,7 @@ function fmtStat(label: string, value: string, icon: React.ReactNode) {
 }
 
 export function FinancePanel() {
-  const { features, totalSalary, racks, rentedServers, month, cash, employees, cashFlowHistory, pendingFunding, fundingRounds, currentUsers, events, selectedProduct } = useGameStore();
+  const { features, totalSalary, racks, rentedServers, month, cash, employees, cashFlowHistory, pendingFunding, fundingRounds, currentUsers, events, selectedProduct, adCampaigns } = useGameStore();
   const [chartOpen, setChartOpen] = useState(false);
   const [fundingOpen, setFundingOpen] = useState(false);
   const platformStats = getPlatformStats(features, events, selectedProduct);
@@ -31,7 +31,10 @@ export function FinancePanel() {
     ? calculateRevenue(currentUsers, features, racks)
     : { ads: 0, subscription: 0, total: 0, hasSubscription: false, uptimePenalty: 1 };
 
-  const net = revenue.total - totalSalary - serverCost;
+  const activeCampaigns = adCampaigns.filter(c => c.status === 'active');
+  const campaignMonthlyRevenue = activeCampaigns.reduce((s, c) => s + c.revenuePerTick, 0) * TICKS_PER_MONTH;
+  const totalRevenue = revenue.total + campaignMonthlyRevenue;
+  const net = totalRevenue - totalSalary - serverCost;
   const hasData = employees.length > 0 || racks.length > 0;
 
   return (
@@ -56,6 +59,7 @@ export function FinancePanel() {
               <TrendingUp className="w-3 h-3" /> Income
             </div>
             <Row label="Ads Revenue" value={formatCash(revenue.ads)} color="green" />
+            {campaignMonthlyRevenue > 0 && <Row label="Ad Campaigns" value={formatCash(campaignMonthlyRevenue)} color="green" />}
             {revenue.subscription > 0 && <Row label="Subscription" value={formatCash(revenue.subscription)} color="green" />}
             {revenue.subscription === 0 && revenue.ads > 0 && (
               <p className="text-[10px] text-amber-soft mt-0.5">Build Payment Gateway to unlock subscription revenue</p>

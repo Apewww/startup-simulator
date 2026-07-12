@@ -1,4 +1,4 @@
-export type EmployeeRole = 'Developer' | 'Designer' | 'Lead_Developer' | 'SysAdmin' | 'HR';
+export type EmployeeRole = 'Developer' | 'Designer' | 'Lead_Developer' | 'SysAdmin' | 'HR' | 'Ad_Monetization_Specialist';
 
 export interface SourcingCampaign {
   tier: 'basic' | 'pro' | 'headhunter';
@@ -66,6 +66,7 @@ export interface Employee {
   vacationTotal?: number;
   supervisedBy?: string;
   supervising?: string[];
+  failStreak?: number;
 }
 
 export const BASE_CAP = 2;

@@ -44,6 +44,9 @@ export async function saveGame(): Promise<void> {
     unlockedPerks: state.unlockedPerks,
     furnitureInventory: state.furnitureInventory,
     furniture: state.furniture,
+    adLeads: state.adLeads,
+    adCampaigns: state.adCampaigns,
+    adSalesUnlockNotified: state.adSalesUnlockNotified,
   });
 }
 
@@ -99,6 +102,9 @@ export async function loadGame(): Promise<boolean> {
     unlockedPerks: save.unlockedPerks ?? [],
     furnitureInventory: save.furnitureInventory ?? [],
     furniture: save.furniture ?? [],
+    adLeads: save.adLeads ?? [],
+    adCampaigns: save.adCampaigns ?? [],
+    adSalesUnlockNotified: save.adSalesUnlockNotified ?? false,
   });
 
   return true;
