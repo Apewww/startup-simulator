@@ -9,7 +9,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   web_server: '#4F5EFF',
   database: '#B7791F',
   caching: '#17A366',
-  router: '#8B5CF6',
   cooling: '#4F5EFF',
   storage: '#EC4899',
   security: '#D1453B',

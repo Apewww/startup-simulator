@@ -1,4 +1,4 @@
-import type { ServerRack, RentedServer, ServerNode } from '../types';
+import type { ServerRack, RentedServer, ServerNode, InternetSubscription } from '../types';
 import { getNodeDef } from '../data/servers';
 import { hasLoadBalancer } from './events';
 
@@ -83,7 +83,7 @@ export function calcServerStats(racks: ServerRack[], rentedServers: RentedServer
         totalCoolingProvided += node.capacity;
       }
 
-      if (node.category !== 'security' && node.category !== 'router') {
+      if (node.category !== 'security') {
         totalMonthlyCost += scaled.effectiveMonthlyCost;
         totalPowerDraw += scaled.effectivePower;
       } else {
@@ -184,7 +184,7 @@ export function recomputeRackAdjacency(racks: ServerRack[]): ServerRack[] {
   });
 }
 
-export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, rentedServers: RentedServer[] = [], sysAdminLevel: number = 0, crashChanceBonus: number = 0): NodeLoadResult {
+export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, rentedServers: RentedServer[] = [], sysAdminLevel: number = 0, crashChanceBonus: number = 0, extraWebCapacity: number = 0): NodeLoadResult {
   const stats = calcServerStats(racks, rentedServers);
   const rpsAfterCache = Math.max(0, incomingRPS - stats.totalCacheOffload);
   const lbActive = hasLoadBalancer(racks);
@@ -219,7 +219,7 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
   // = rpsAfterCache / totalCap, identical for all servers. This keeps owned
   // nodes sustainable when rented capacity is free, and only pushes every
   // server past 100% when total capacity is truly insufficient.
-  const totalWebCap = webEntries.reduce((sum, e) => sum + e.capacity, 0);
+  const totalWebCap = webEntries.reduce((sum, e) => sum + e.capacity, 0) + extraWebCapacity;
   const utilPct = totalWebCap > 0 ? (rpsAfterCache / totalWebCap) * 100 : 0;
   const ownedLoadMap = new Map<string, number>();
   for (const entry of webEntries) {
@@ -275,10 +275,6 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
 
       if (node.status === 'offline') {
         return { ...slot, node: { ...node, load: 0 } };
-      }
-
-      if (node.category === 'router') {
-        rackCooling += 5;
       }
 
       if (node.category === 'web_server') {
@@ -356,14 +352,14 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
   return { racks: updatedRacks, rentedServers: updatedRented };
 }
 
-export function calcMonthlyServerCost(racks: ServerRack[], rentedServers: RentedServer[] = []): number {
+export function calcMonthlyServerCost(racks: ServerRack[], rentedServers: RentedServer[] = [], internetSubs: InternetSubscription[] = []): number {
   let total = 0;
   for (const rack of racks) {
     total += rack.monthlyCost;
     for (const slot of rack.slots) {
       if (!slot.node) continue;
       const scaled = applyNodeScaling(slot.node);
-      if (slot.node.category !== 'security' && slot.node.category !== 'router') {
+      if (slot.node.category !== 'security') {
         total += scaled.effectiveMonthlyCost;
         total += scaled.effectivePower * 2;
       } else {
@@ -374,6 +370,9 @@ export function calcMonthlyServerCost(racks: ServerRack[], rentedServers: Rented
   }
   for (const r of rentedServers) {
     total += r.monthlyCost;
+  }
+  for (const s of internetSubs) {
+    total += s.monthlyCost;
   }
   return total;
 }

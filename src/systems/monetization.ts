@@ -111,6 +111,23 @@ export function getMonetizationMods(strategy: MonetizationStrategy): Monetizatio
   return { growthMult: 1, churnDelta: 0 };
 }
 
+// User Mood (kepuasan) — digabung ke churn, bukan sistem mandiri.
+// Mood drift ke target per strategi tiap tick; selisih dari baseline menambah churn.
+export const MOOD_BASELINE = 80;
+export const MOOD_DRIFT_RATE = 0.03;
+export const MOOD_PENALTY_K = 0.00004;
+
+export function getMoodTarget(strategy: MonetizationStrategy, synergyActive: boolean, dataRatio: number): number {
+  switch (strategy) {
+    case 'none': return 85;          // bersih, sedikit positif
+    case 'text_ads': return 72;      // intrusif ringan
+    case 'video_ads': return 55;     // intrusif sedang
+    case 'targeted_ads': return synergyActive && dataRatio >= 1 ? 78 : 45; // relevan vs anjlok
+    case 'freemium': return 80;      // netral
+    case 'subscription': return 92;  // premium → user betah
+  }
+}
+
 export function calculateRevenue(
   users: number,
   features: PlatformFeature[],

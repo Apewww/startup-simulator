@@ -1,13 +1,13 @@
-﻿import { Server, Cpu, Database, Zap, Router, Snowflake, HardDrive, Shield, Cloud, X } from 'lucide-react';
+﻿import { Server, Cpu, Database, Zap, Snowflake, HardDrive, Shield, Cloud, X, Wifi, Check } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import { RACK_TIERS, NODE_DEFS } from '../data/servers';
+import { INTERNET_PROVIDERS } from '../data/internet';
 import type { NodeCategory, RentalType } from '../types';
 
-const CATEGORY_ICON: Record<NodeCategory, typeof Cpu> = {
+const CATEGORY_ICON: Record<Exclude<NodeCategory, 'router'>, typeof Cpu> = {
   web_server: Cpu,
   database: Database,
   caching: Zap,
-  router: Router,
   cooling: Snowflake,
   storage: HardDrive,
   security: Shield,
@@ -42,7 +42,7 @@ function ShopCard({ title, sub, price, monthly, disabled, onClick, icon }: {
 }
 
 export function ServerShop({ onClose }: { onClose: () => void }) {
-  const { cash, buyRack, buyNode, rentServer } = useGameStore();
+  const { cash, buyRack, buyNode, rentServer, internetSubscriptions, rentInternet, cancelInternet } = useGameStore();
 
   return (
     <div className="space-y-3">
@@ -61,6 +61,65 @@ export function ServerShop({ onClose }: { onClose: () => void }) {
               onClick={() => rentServer(r.type)} icon={<Cloud className="w-3.5 h-3.5 text-green" />} />
           ))}
         </div>
+      </div>
+
+      <div>
+        <div className="flex items-center gap-1.5 text-[10px] text-ink-soft mb-1.5 font-semibold">
+          <Wifi className="w-3 h-3 text-indigo" /> Internet Service (Sewa Layanan)
+        </div>
+        <div className="space-y-2">
+          {INTERNET_PROVIDERS.map(p => (
+            <div key={p.id} className="rounded-lg border p-2" style={{ borderColor: `${p.accent}55` }}>
+              <div className="flex items-center justify-between mb-0.5">
+                <span className="text-[11px] font-bold" style={{ color: p.accent }}>{p.name}</span>
+                <span className="text-[9px] text-ink-soft">{p.tagline}</span>
+              </div>
+              <div className="flex gap-2 text-[9px] mb-1.5">
+                <span className="text-green">▲ {p.strength}</span>
+                <span className="text-red">▼ {p.weakness}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-1">
+                {p.tiers.map(t => {
+                  const active = internetSubscriptions.some(s => s.providerId === p.id && s.tierId === t.id);
+                  const cost = Math.round(t.baseCost * p.costMult);
+                  const net = Math.round(t.network * p.networkMult * 10) / 10;
+                  const rps = Math.round(t.rpsBonus * p.rpsMult);
+                  const mood = Math.round(t.moodBonus * p.moodMult * 100);
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => rentInternet(p.id, t.id)}
+                      disabled={active}
+                      className={`text-left rounded-md border px-1.5 py-1 transition-colors ${active ? 'border-green/40 bg-green-soft cursor-default' : 'border-border bg-surface-2 hover:bg-surface cursor-pointer'}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-ink">{t.speedMbps} Mbps</span>
+                        {active
+                          ? <span className="text-[9px] text-green flex items-center gap-0.5"><Check className="w-2.5 h-2.5" />Aktif</span>
+                          : <span className="text-[9px] text-indigo font-semibold">${cost}/mo</span>}
+                      </div>
+                      <div className="text-[8.5px] text-ink-soft leading-tight mt-0.5">
+                        Net +{net} · +{rps} RPS · mood +{mood}%
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {internetSubscriptions.length > 0 && (
+          <div className="mt-2 space-y-1">
+            <div className="text-[9px] text-ink-soft font-semibold uppercase tracking-wider">Active Subscriptions</div>
+            {internetSubscriptions.map(s => (
+              <div key={s.id} className="flex items-center justify-between text-[10px] bg-surface-2 border border-border rounded-md px-1.5 py-1">
+                <span className="text-ink">{s.providerName} · {s.speedMbps} Mbps <span className="text-ink-soft">(${s.monthlyCost}/mo)</span></span>
+                <button onClick={() => cancelInternet(s.id)} className="text-red hover:text-red/70 cursor-pointer p-0.5" title="Cancel"><X className="w-3 h-3" /></button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div>

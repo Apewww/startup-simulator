@@ -2,14 +2,50 @@ export type NodeTypeId =
   | 'web_t1' | 'web_t2' | 'web_t3' | 'web_t4'
   | 'db_t1' | 'db_t2' | 'db_t3'
   | 'cache_t1' | 'cache_t2' | 'cache_t3'
-  | 'router'
   | 'cooling_fan' | 'industrial_fan' | 'liquid_cooling'
   | 'storage'
   | 'firewall_t1' | 'firewall_t2'
   | 'rate_limiter'
   | 'load_balancer';
 
-export type NodeCategory = 'web_server' | 'database' | 'caching' | 'router' | 'cooling' | 'storage' | 'security';
+export type NodeCategory = 'web_server' | 'database' | 'caching' | 'cooling' | 'storage' | 'security';
+
+export type InternetProviderId = 'nusantara' | 'aerolink' | 'rakyat';
+
+export interface InternetTierDef {
+  id: string;
+  speedMbps: number;
+  network: number;
+  rpsBonus: number;
+  moodBonus: number;
+  baseCost: number;
+}
+
+export interface InternetProviderDef {
+  id: InternetProviderId;
+  name: string;
+  accent: string;
+  tagline: string;
+  strength: string;
+  weakness: string;
+  costMult: number;
+  networkMult: number;
+  rpsMult: number;
+  moodMult: number;
+  tiers: InternetTierDef[];
+}
+
+export interface InternetSubscription {
+  id: string;
+  providerId: InternetProviderId;
+  tierId: string;
+  providerName: string;
+  speedMbps: number;
+  network: number;
+  rpsBonus: number;
+  moodBonus: number;
+  monthlyCost: number;
+}
 
 export interface ServerNode {
   id: string;
