@@ -80,7 +80,7 @@ export function calcServerStats(racks: ServerRack[], rentedServers: RentedServer
       const scaled = applyNodeScaling(node);
 
       if (node.category === 'cooling') {
-        totalCoolingProvided += node.capacity;
+        totalCoolingProvided += scaled.effectiveCapacity;
       }
 
       if (node.category !== 'security') {
@@ -108,8 +108,10 @@ export function calcServerStats(racks: ServerRack[], rentedServers: RentedServer
     }
 
     const rackCoolingFromNodes = rack.slots
-      .filter(s => s.node?.category === 'cooling' && s.node?.status !== 'crashed')
-      .reduce((sum, s) => sum + s.node!.capacity, 0);
+      .reduce((sum, s) => {
+        if (s.node?.category !== 'cooling' || s.node?.status === 'crashed') return sum;
+        return sum + applyNodeScaling(s.node).effectiveCapacity;
+      }, 0);
     rack.coolingCapacity = getRackBaseCooling(rack.tier) + rackCoolingFromNodes;
   }
 
@@ -325,7 +327,7 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
       }
 
       if (node.category === 'cooling' && (node.status === 'active' || node.status === 'overloaded')) {
-        coolingFromNodes += node.capacity;
+        coolingFromNodes += scaled.effectiveCapacity;
       }
 
       return { ...slot, node: { ...node, load: Math.round(newLoad), status: newStatus, crashTicks: newCrashTicks, recoveryTicks: newRecoveryTicks } };
