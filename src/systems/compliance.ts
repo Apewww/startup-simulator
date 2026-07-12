@@ -1,9 +1,14 @@
-import type { PlatformFeature, ServerRack, RentedServer, FeatureGroup } from '../types';
+import type { PlatformFeature, ServerRack, RentedServer, InternetSubscription, FeatureGroup } from '../types';
 import { getNodeDef } from '../data/servers';
 
 const COMPUTE_RATES: Record<FeatureGroup, number> = { core: 0.5, business: 0.3, engagement: 0.3 };
 const DATA_RATES: Record<FeatureGroup, number> = { core: 0.3, business: 0.3, engagement: 0 };
 const NETWORK_RATES: Record<FeatureGroup, number> = { core: 0.3, business: 0, engagement: 0.3 };
+
+// §4 — saat Payment Gateway aktif, requirement Data fitur Business naik +50% (0.3 -> 0.45)
+function hasActivePaymentGateway(features: PlatformFeature[]): boolean {
+  return features.some(f => f.id === 'payment_gateway' && f.level > 0 && f.enabled);
+}
 
 export interface ComplianceRatio {
   provided: number;
@@ -22,13 +27,15 @@ export interface ComplianceStatus {
 }
 
 export function calcRequirements(features: PlatformFeature[]): { compute: number; data: number; network: number } {
+  const pgActive = hasActivePaymentGateway(features);
   let compute = 0;
   let data = 0;
   let network = 0;
   for (const f of features) {
     if (f.level <= 0 || !f.enabled) continue;
     compute += COMPUTE_RATES[f.group] * f.level;
-    data += DATA_RATES[f.group] * f.level;
+    const dataRate = pgActive && f.group === 'business' ? 0.45 : DATA_RATES[f.group];
+    data += dataRate * f.level;
     network += NETWORK_RATES[f.group] * f.level;
   }
   return {
@@ -38,7 +45,7 @@ export function calcRequirements(features: PlatformFeature[]): { compute: number
   };
 }
 
-export function calcProvidedPoints(racks: ServerRack[], rentedServers: RentedServer[] = []): { compute: number; data: number; network: number; security: number } {
+export function calcProvidedPoints(racks: ServerRack[], rentedServers: RentedServer[] = [], internetSubs: InternetSubscription[] = []): { compute: number; data: number; network: number; security: number } {
   let compute = 0;
   let data = 0;
   let network = 0;
@@ -61,12 +68,15 @@ export function calcProvidedPoints(racks: ServerRack[], rentedServers: RentedSer
     data += r.data;
     network += r.network;
   }
+  for (const s of internetSubs) {
+    network += s.network;
+  }
   return { compute, data, network, security };
 }
 
-export function getComplianceStatus(features: PlatformFeature[], racks: ServerRack[], rentedServers?: RentedServer[]): ComplianceStatus {
+export function getComplianceStatus(features: PlatformFeature[], racks: ServerRack[], rentedServers?: RentedServer[], internetSubs: InternetSubscription[] = []): ComplianceStatus {
   const req = calcRequirements(features);
-  const prov = calcProvidedPoints(racks, rentedServers);
+  const prov = calcProvidedPoints(racks, rentedServers, internetSubs);
 
   const computeRatio = req.compute > 0 ? Math.min(prov.compute / req.compute, 5) : 1;
   const dataRatio = req.data > 0 ? Math.min(prov.data / req.data, 5) : 1;

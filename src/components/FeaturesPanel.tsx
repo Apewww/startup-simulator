@@ -1,8 +1,138 @@
 import { useGameStore } from '../store/gameStore';
 import type { ComponentRequirement, PlatformFeature, FeatureGroup } from '../types';
+import type { MonetizationStrategy } from '../store/gameStore';
 import { getProductDef } from '../data/products';
 import { getComponentDef } from '../data/components';
-import { LayoutGrid, Package, Zap, ToggleLeft, ToggleRight, ChevronDown, Server } from 'lucide-react';
+import { calculateRevenue, getMonetizationMods, getAdPlatformLevel, getMoodTarget, MOOD_BASELINE } from '../systems/monetization';
+import { getPlatformStats, hasActiveSynergy } from '../systems/platform';
+import { getComplianceStatus } from '../systems/compliance';
+import { LayoutGrid, Package, Zap, ToggleLeft, ToggleRight, ChevronDown, Server, DollarSign } from 'lucide-react';
+
+function fmtCash(n: number): string {
+  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
+  return `$${Math.round(n).toLocaleString('en-US')}`;
+}
+
+interface StratDef {
+  id: MonetizationStrategy;
+  label: string;
+  desc: string;
+}
+
+const MONETIZATION_STRATEGIES: StratDef[] = [
+  { id: 'none', label: 'No Ads (Legacy)', desc: 'Ads flat $2/100 + subscription lama bila gateway aktif' },
+  { id: 'text_ads', label: 'Text Ads', desc: 'Tier Ads linear berbasis level Ad Platform' },
+  { id: 'video_ads', label: 'Video Ads', desc: 'Tier Ads + churn +0.0001/tick' },
+  { id: 'targeted_ads', label: 'Targeted Ads', desc: 'Ads ×1.5 saat synergy aktif & Data ≥100%' },
+  { id: 'freemium', label: 'Freemium', desc: '5% user premium @ $3, tanpa penalti' },
+  { id: 'subscription', label: 'Subscription', desc: 'Full subscription $2.50/user, growth ×0.65' },
+];
+
+function MonetizationStrategySection() {
+  const {
+    activeMonetization, setMonetizationStrategy,
+    currentUsers, features, racks, rentedServers, internetSubscriptions, selectedProduct, events, userMood,
+  } = useGameStore();
+
+  const adPlatformLevel = getAdPlatformLevel(features);
+  const paymentGatewayActive = features.some(f => f.id === 'payment_gateway' && f.level > 0 && f.enabled);
+  const hasBusinessLv3 = features.some(f => f.group === 'business' && f.level >= 3 && f.enabled);
+  const synergyActive = hasActiveSynergy(features, selectedProduct);
+  const compliance = features.some(f => f.level > 0)
+    ? getComplianceStatus(features, racks, rentedServers, internetSubscriptions)
+    : null;
+  const dataRatio = compliance?.data.ratio ?? 1;
+  const platformStats = getPlatformStats(features, events, selectedProduct);
+
+  function getAvailability(id: MonetizationStrategy): { ok: boolean; reason: string } {
+    switch (id) {
+      case 'none': return { ok: true, reason: '' };
+      case 'text_ads':
+      case 'video_ads':
+        return adPlatformLevel >= 1
+          ? { ok: true, reason: '' }
+          : { ok: false, reason: 'Butuh fitur Ad Platform Lv.1' };
+      case 'targeted_ads':
+        if (adPlatformLevel < 5) return { ok: false, reason: 'Butuh Ad Platform Lv.5' };
+        if (!synergyActive) return { ok: false, reason: 'Butuh Synergy Pair aktif' };
+        if (dataRatio < 1) return { ok: false, reason: 'Butuh Data compliance ≥100%' };
+        return { ok: true, reason: '' };
+      case 'freemium':
+        return hasBusinessLv3
+          ? { ok: true, reason: '' }
+          : { ok: false, reason: 'Butuh ≥1 fitur Business Lv.3' };
+      case 'subscription':
+        return paymentGatewayActive
+          ? { ok: true, reason: '' }
+          : { ok: false, reason: 'Butuh Payment Gateway aktif' };
+    }
+  }
+
+  function preview(id: MonetizationStrategy) {
+    const rev = calculateRevenue(
+      currentUsers, features, racks,
+      platformStats.cohesionScore * (compliance?.revenueMult ?? 1),
+      platformStats.synergyRevenueBonus,
+      { strategy: id, productId: selectedProduct, dataRatio, synergyActive },
+    );
+    return { total: rev.total, mods: getMonetizationMods(id) };
+  }
+
+  return (
+    <div className="border border-border rounded-lg p-2 bg-surface">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <DollarSign className="w-3.5 h-3.5 text-green" />
+        <h3 className="text-[11px] font-semibold text-ink-soft uppercase tracking-wider">Monetization Strategy</h3>
+      </div>
+      <div className="space-y-1">
+        {MONETIZATION_STRATEGIES.map((s) => {
+          const { ok, reason } = getAvailability(s.id);
+          const isActive = activeMonetization === s.id;
+          const { total, mods } = preview(s.id);
+          const moodTarget = getMoodTarget(s.id, synergyActive, dataRatio);
+          const moodDiff = moodTarget - MOOD_BASELINE;
+          const moodChip = moodDiff > 0
+            ? { text: `mood ▲`, cls: 'bg-green-soft text-green border-green/20' }
+            : moodDiff < 0
+              ? { text: `mood ▼`, cls: 'bg-red-soft text-red border-red/20' }
+              : { text: 'mood ◆', cls: 'bg-surface text-ink-soft border-border' };
+          return (
+            <button
+              key={s.id}
+              type="button"
+              disabled={!ok}
+              onClick={() => setMonetizationStrategy(s.id)}
+              className={`w-full text-left rounded-lg border px-2 py-1.5 transition-colors cursor-pointer ${isActive ? 'border-indigo bg-indigo-soft' : ok ? 'border-border bg-surface-2 hover:bg-surface' : 'border-border bg-surface-2 opacity-50 cursor-not-allowed'}`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className={`text-[11px] font-semibold ${isActive ? 'text-indigo' : 'text-ink'}`}>{s.label}</span>
+                <span className="text-[10px] font-mono text-green font-semibold">{fmtCash(total)}/mo</span>
+              </div>
+              <div className="flex items-center justify-between gap-2 mt-0.5">
+                <span className="text-[9px] text-ink-soft">{ok ? s.desc : reason}</span>
+                <span className="flex gap-1 shrink-0">
+                  {isActive && (
+                    <span className="text-[9px] px-1 rounded bg-indigo-soft text-indigo border border-indigo/20 font-semibold">{userMood >= 80 ? '😊' : userMood >= 60 ? '😐' : '😠'} {Math.round(userMood)}</span>
+                  )}
+                  <span className={`text-[9px] px-1 rounded border font-semibold ${moodChip.cls}`}>{moodChip.text}</span>
+                  {mods.growthMult !== 1 && (
+                    <span className="text-[9px] px-1 rounded bg-red-soft text-red border border-red/20 font-semibold">growth ×{mods.growthMult}</span>
+                  )}
+                  {mods.churnDelta !== 0 && (
+                    <span className="text-[9px] px-1 rounded bg-amber-soft text-amber border border-amber/20 font-semibold">
+                      {mods.churnDelta > 0 ? '+' : ''}{mods.churnDelta}
+                    </span>
+                  )}
+                </span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 const HARDWARE_RATES: Record<FeatureGroup, { compute: number; data: number; network: number }> = {
   core: { compute: 0.5, data: 0.3, network: 0.3 },
@@ -138,6 +268,8 @@ export function FeaturesPanel() {
 
   return (
     <div className="space-y-3">
+      <MonetizationStrategySection />
+
       <div>
         <h3 className="text-[11px] font-semibold text-ink-soft uppercase tracking-wider mb-1.5">Inventory</h3>
         {resources.length === 0 ? (

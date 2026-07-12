@@ -1,8 +1,9 @@
-import type { ServerRack, RentedServer, ServerNode } from '../types';
+import type { ServerRack, RentedServer, ServerNode, InternetSubscription } from '../types';
 import { getNodeDef } from '../data/servers';
+import { hasLoadBalancer } from './events';
 
 const SCALE_CAPS = [1, 1.5, 2, 2.5, 3];
-const SCALE_HEAT = [1, 2, 3.5, 5.5, 8];
+const SCALE_HEAT = [1, 2.8, 5.2, 8, 11.2];
 const SCALE_POWER = [1, 1.5, 2, 3, 4.5];
 const SCALE_COST = [1, 1.2, 1.5, 2, 3];
 
@@ -79,10 +80,10 @@ export function calcServerStats(racks: ServerRack[], rentedServers: RentedServer
       const scaled = applyNodeScaling(node);
 
       if (node.category === 'cooling') {
-        totalCoolingProvided += node.capacity;
+        totalCoolingProvided += scaled.effectiveCapacity;
       }
 
-      if (node.category !== 'security' && node.category !== 'router') {
+      if (node.category !== 'security') {
         totalMonthlyCost += scaled.effectiveMonthlyCost;
         totalPowerDraw += scaled.effectivePower;
       } else {
@@ -107,8 +108,10 @@ export function calcServerStats(racks: ServerRack[], rentedServers: RentedServer
     }
 
     const rackCoolingFromNodes = rack.slots
-      .filter(s => s.node?.category === 'cooling' && s.node?.status !== 'crashed')
-      .reduce((sum, s) => sum + s.node!.capacity, 0);
+      .reduce((sum, s) => {
+        if (s.node?.category !== 'cooling' || s.node?.status === 'crashed') return sum;
+        return sum + applyNodeScaling(s.node).effectiveCapacity;
+      }, 0);
     rack.coolingCapacity = getRackBaseCooling(rack.tier) + rackCoolingFromNodes;
   }
 
@@ -183,11 +186,12 @@ export function recomputeRackAdjacency(racks: ServerRack[]): ServerRack[] {
   });
 }
 
-export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, rentedServers: RentedServer[] = [], sysAdminLevel: number = 0, crashChanceBonus: number = 0): NodeLoadResult {
+export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, rentedServers: RentedServer[] = [], sysAdminLevel: number = 0, crashChanceBonus: number = 0, extraWebCapacity: number = 0): NodeLoadResult {
   const stats = calcServerStats(racks, rentedServers);
   const rpsAfterCache = Math.max(0, incomingRPS - stats.totalCacheOffload);
+  const lbActive = hasLoadBalancer(racks);
 
-  // Water-fill: collect all web servers (owned + rented), distribute RPS sequentially
+  // Water-fill: collect all web servers (owned + rented), distribute RPS proportionally (equal utilization)
   type WebEntry = { capacity: number } & (
     { type: 'owned'; rackId: string; slotIndex: number } |
     { type: 'rented'; idx: number }
@@ -211,30 +215,25 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
     webEntries.push({ capacity: rentedServers[i].capacityRps, type: 'rented', idx: i });
   }
 
-  // Water-fill: fill first server to 100%, spill to next, etc.
+  // Proportional water-fill: distribute RPS across ALL web servers
+  // (owned rack nodes + rented) so every server carries the same utilization %.
+  // Since each server carries capacity_i / totalCap of the load, utilization
+  // = rpsAfterCache / totalCap, identical for all servers. This keeps owned
+  // nodes sustainable when rented capacity is free, and only pushes every
+  // server past 100% when total capacity is truly insufficient.
+  const totalWebCap = webEntries.reduce((sum, e) => sum + e.capacity, 0) + extraWebCapacity;
+  const utilPct = totalWebCap > 0 ? (rpsAfterCache / totalWebCap) * 100 : 0;
   const ownedLoadMap = new Map<string, number>();
-  let remaining = rpsAfterCache;
   for (const entry of webEntries) {
-    const take = Math.min(remaining, entry.capacity);
-    const pct = entry.capacity > 0 ? (take / entry.capacity) * 100 : 0;
-    remaining -= take;
     if (entry.type === 'owned') {
-      ownedLoadMap.set(`${entry.rackId}:${entry.slotIndex}`, pct);
+      ownedLoadMap.set(`${entry.rackId}:${entry.slotIndex}`, Math.round(utilPct));
     }
   }
 
-  // Rented server loads (water-filled)
-  const updatedRented = rentedServers.map((r, i) => {
+  // Rented server loads (same utilization %)
+  const updatedRented = rentedServers.map((r) => {
     if (r.capacityRps <= 0) return { ...r, load: 0 };
-    let allocRps = 0;
-    let tempRemaining = rpsAfterCache;
-    for (const e of webEntries) {
-      const take = Math.min(tempRemaining, e.capacity);
-      if (e.type === 'rented' && e.idx === i) { allocRps = take; break; }
-      tempRemaining -= take;
-    }
-    const load = r.capacityRps > 0 ? (allocRps / r.capacityRps) * 100 : 0;
-    return { ...r, load: Math.max(0, Math.min(200, Math.round(load))) };
+    return { ...r, load: Math.max(0, Math.min(200, Math.round(utilPct))) };
   });
 
   // Global DB capacity (database + storage nodes, scaled, active only) for even load distribution
@@ -250,9 +249,14 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
   }, 0) + rentedServers.reduce((sum, r) => sum + (r.dbCapacity || 0), 0);
   const dbRPS = rpsAfterCache * 0.2;
 
-  const updatedRacks: ServerRack[] = racks.map(rack => {
-    let rackHeat = 0;
-    let rackCooling = rack.coolingCapacity;
+  // ── Pass 1: update node statuses & collect raw heat + cooling per rack ──
+  const rackRawData: { rawHeat: number; coolingFromNodes: number; adjCoolingBonus: number; slots: typeof racks[0]['slots'] }[] = [];
+  const rackById = new Map<string, ServerRack>();
+
+  for (const rack of racks) {
+    rackById.set(rack.id, rack);
+    let rawHeat = 0;
+    let coolingFromNodes = 0;
 
     const newSlots = rack.slots.map(slot => {
       const node = slot.node;
@@ -280,17 +284,27 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
         return { ...slot, node: { ...node, load: 0 } };
       }
 
-      if (node.category === 'router') {
-        rackCooling += 5;
+      if (node.status === 'overheating') {
+        // Keep status, jangan override — recovery di Pass 3.
+        // Hitung load buat display.
+        if (node.category === 'web_server') {
+          newLoad = Math.round(ownedLoadMap.get(`${rack.id}:${slot.index}`) ?? 0);
+        } else if (node.category === 'database') {
+          newLoad = totalDbCapacity > 0 ? Math.round((dbRPS / totalDbCapacity) * 100) : 0;
+        } else {
+          newLoad = 50;
+        }
+        if (node.category !== 'cooling') rawHeat += scaled.effectiveHeat;
+        return { ...slot, node: { ...node, load: newLoad, status: 'overheating' as const, crashTicks: 0, recoveryTicks: node.recoveryTicks } };
       }
 
       if (node.category === 'web_server') {
         const waterLoad = ownedLoadMap.get(`${rack.id}:${slot.index}`);
         newLoad = waterLoad !== undefined ? Math.round(waterLoad) : 0;
 
-        if (newLoad >= 100) {
+        if (newLoad > 100) {
           newStatus = 'overloaded';
-          newCrashTicks += 1;
+          if (!(lbActive && Math.random() < 0.1)) newCrashTicks += 1;
         } else if (newLoad >= 80) {
           newStatus = 'overloaded';
           newCrashTicks = 0;
@@ -307,8 +321,8 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
 
       if (node.category === 'database') {
         newLoad = totalDbCapacity > 0 ? (dbRPS / totalDbCapacity) * 100 : 0;
-        if (newLoad >= 100) {
-          newCrashTicks += 1;
+        if (newLoad > 100) {
+          if (!(lbActive && Math.random() < 0.1)) newCrashTicks += 1;
           if (newCrashTicks >= 10) {
             newStatus = 'crashed';
             newCrashTicks = 0;
@@ -322,17 +336,80 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
         newLoad = (node.status === 'active') ? 50 : 0;
       }
 
-      rackHeat += scaled.effectiveHeat;
+      if (node.category !== 'cooling') {
+        rawHeat += scaled.effectiveHeat;
+      }
+
+      if (node.category === 'cooling' && (node.status === 'active' || node.status === 'overloaded')) {
+        coolingFromNodes += scaled.effectiveCapacity;
+      }
 
       return { ...slot, node: { ...node, load: Math.round(newLoad), status: newStatus, crashTicks: newCrashTicks, recoveryTicks: newRecoveryTicks } };
     });
 
-    const isOverheating = rackHeat > rackCooling;
+    // Industrial Fan bonus ke rack tetangga (§6.3)
+    let adjCoolingBonus = 0;
+    for (const adjId of rack.adjacentRackIds) {
+      const adj = rackById.get(adjId);
+      if (!adj) continue;
+      for (const s of adj.slots) {
+        if (s.node?.typeId === 'industrial_fan' && s.node.status !== 'crashed' && s.node.status !== 'offline') {
+          adjCoolingBonus += 10;
+        }
+      }
+    }
+
+    rackRawData.push({ rawHeat, coolingFromNodes, adjCoolingBonus, slots: newSlots });
+  }
+
+  // ── Pass 2: hitung cooling final tiap rack (base + cooling nodes + neighbor fan), heat spread, heatRatio, status ──
+  const heatRatios = new Map<string, number>();
+  const effCooling = new Map<string, number>();
+
+  for (let i = 0; i < racks.length; i++) {
+    const rack = racks[i];
+    const data = rackRawData[i];
+    const base = getRackBaseCooling(rack.tier);
+    const totalCooling = base + data.coolingFromNodes + data.adjCoolingBonus;
+    effCooling.set(rack.id, totalCooling);
+    heatRatios.set(rack.id, totalCooling > 0 ? data.rawHeat / totalCooling : 0);
+  }
+
+  // Heat spread: overheated rack → adjacent rack (+5% of rawHeat) (§6.5)
+  const spreadHeat = new Map<string, number>();
+  for (let i = 0; i < racks.length; i++) {
+    const rack = racks[i];
+    const data = rackRawData[i];
+    const hr = heatRatios.get(rack.id) ?? 0;
+    if (hr > 1.0) {
+      for (const adjId of rack.adjacentRackIds) {
+        spreadHeat.set(adjId, (spreadHeat.get(adjId) ?? 0) + data.rawHeat * 0.05);
+      }
+    }
+  }
+
+  // Heat spread reduction oleh SysAdmin (§6.6)
+  const spreadReduction = 1 - sysAdminLevel * 0.03;
+  for (const [rackId, heat] of spreadHeat) {
+    spreadHeat.set(rackId, heat * Math.max(0, spreadReduction));
+  }
+
+  // ── Pass 3: finalize tiap rack dengan heatRatio, status, throttle ──
+  const updatedRacks: ServerRack[] = racks.map((rack, i) => {
+    const data = rackRawData[i];
+    const totalCooling = effCooling.get(rack.id) ?? 40;
+    const rawHeat = data.rawHeat + (spreadHeat.get(rack.id) ?? 0);
+    const heatRatio = totalCooling > 0 ? rawHeat / totalCooling : 0;
+
+    const isOverheating = heatRatio > 1.0;
+    const isCritical = heatRatio > 1.3;
     const newOverheatTicks = isOverheating ? rack.overheatTicks + 1 : 0;
 
-    const crashChance = Math.max(0.01, Math.min(0.4, 0.05 - sysAdminLevel * 0.008 + crashChanceBonus));
+    const crashChanceMult = isCritical ? 2 : 1;
+    const crashChance = Math.max(0.01, Math.min(0.4, 0.05 - sysAdminLevel * 0.008 + crashChanceBonus)) * (lbActive ? 0.9 : 1) * crashChanceMult;
+
     if (isOverheating && newOverheatTicks >= 5) {
-      newSlots.forEach(slot => {
+      data.slots.forEach(slot => {
         if (slot.node && slot.node.status !== 'crashed' && slot.node.status !== 'offline' && slot.node.heat > 0) {
           if (Math.random() < crashChance) {
             slot.node.status = 'crashed';
@@ -345,13 +422,30 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
       });
     }
 
+    // Overheating recovery: saat rack dingin, node overheating pulih.
+    // SysAdmin percepat recovery (§6.6).
+    if (!isOverheating) {
+      const recoveryThreshold = Math.max(3, 12 - sysAdminLevel * 2);
+      data.slots.forEach(slot => {
+        if (slot.node?.status === 'overheating') {
+          slot.node.recoveryTicks = (slot.node.recoveryTicks || 0) + 1;
+          if (slot.node.recoveryTicks >= recoveryThreshold) {
+            slot.node.status = 'active';
+            slot.node.recoveryTicks = 0;
+          }
+        }
+      });
+    }
+
     return {
       ...rack,
-      slots: newSlots,
-      coolingUsed: rackHeat,
-      coolingCapacity: rackCooling,
-      powerDraw: newSlots.reduce((sum, s) => sum + (s.node ? applyNodeScaling(s.node).effectivePower : 0), 0),
+      slots: data.slots,
+      coolingUsed: rawHeat,
+      coolingCapacity: totalCooling,
+      heatRatio: Math.round(heatRatio * 100) / 100,
+      powerDraw: data.slots.reduce((sum, s) => sum + (s.node ? applyNodeScaling(s.node).effectivePower : 0), 0),
       isOverheating,
+      isCritical,
       overheatTicks: newOverheatTicks,
     };
   });
@@ -359,14 +453,14 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
   return { racks: updatedRacks, rentedServers: updatedRented };
 }
 
-export function calcMonthlyServerCost(racks: ServerRack[], rentedServers: RentedServer[] = []): number {
+export function calcMonthlyServerCost(racks: ServerRack[], rentedServers: RentedServer[] = [], internetSubs: InternetSubscription[] = []): number {
   let total = 0;
   for (const rack of racks) {
     total += rack.monthlyCost;
     for (const slot of rack.slots) {
       if (!slot.node) continue;
       const scaled = applyNodeScaling(slot.node);
-      if (slot.node.category !== 'security' && slot.node.category !== 'router') {
+      if (slot.node.category !== 'security') {
         total += scaled.effectiveMonthlyCost;
         total += scaled.effectivePower * 2;
       } else {
@@ -377,6 +471,9 @@ export function calcMonthlyServerCost(racks: ServerRack[], rentedServers: Rented
   }
   for (const r of rentedServers) {
     total += r.monthlyCost;
+  }
+  for (const s of internetSubs) {
+    total += s.monthlyCost;
   }
   return total;
 }

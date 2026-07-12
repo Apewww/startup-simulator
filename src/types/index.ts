@@ -4,6 +4,7 @@ export type {
   ServerNode, NodeTypeId, NodeCategory, NodeDef,
   ServerRack, RackSlot, RackTier, RackDef,
   Plot, RentedServer, RentalType,
+  InternetProviderId, InternetProviderDef, InternetTierDef, InternetSubscription,
 } from './server';
 export type { PlatformFeature, ComponentRequirement, FeatureGroup } from './feature';
 export type { GameEvent, EventType, EventEffects } from './event';

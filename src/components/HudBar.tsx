@@ -1,11 +1,21 @@
-import { Play, Pause, Save, AlertTriangle, Handshake, Moon, Sun, TrendingUp, TrendingDown, Activity, Shield, Circle, Star } from 'lucide-react';
+import { Play, Pause, Save, AlertTriangle, Handshake, Moon, Sun, TrendingUp, TrendingDown, Activity, Shield, Circle, Star, Wifi } from 'lucide-react';
 import { useGameStore, TICKS_PER_MONTH, TICKS_PER_DAY } from '../store/gameStore';
+import type { MonetizationStrategy } from '../store/gameStore';
 import { getPlatformStats } from '../systems/platform';
-import { calculateRevenue } from '../systems/monetization';
+import { calculateRevenue, MOOD_BASELINE } from '../systems/monetization';
 import { calcMonthlyServerCost } from '../systems/server';
 import { getComplianceStatus } from '../systems/compliance';
 
 const DAY_NAMES = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+
+const MON_TAG: Record<MonetizationStrategy, { label: string; tip: string }> = {
+  none: { label: 'NONE', tip: 'No Ads (legacy)' },
+  text_ads: { label: 'ADS·TEXT', tip: 'Text Ads' },
+  video_ads: { label: 'ADS·VIDEO', tip: 'Video Ads (+churn)' },
+  targeted_ads: { label: 'ADS·TARGET', tip: 'Targeted Ads (×1.5 bila synergy & Data ≥100%)' },
+  freemium: { label: 'FREEMIUM', tip: 'Freemium 5% user @ $3' },
+  subscription: { label: 'SUB', tip: 'Subscription $2.50/user (growth ×0.65)' },
+};
 
 function formatCash(n: number): string {
   if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
@@ -27,7 +37,7 @@ interface HudBarProps {
 }
 
 export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps) {
-  const { tick, isPaused, speed, cash, month, features, racks, rentedServers, totalSalary, togglePause, setSpeed, negativeCashMonths, pendingFunding, currentUsers, events, selectedProduct, employees } = useGameStore();
+  const { tick, isPaused, speed, cash, month, features, racks, rentedServers, totalSalary, togglePause, setSpeed, negativeCashMonths, pendingFunding, currentUsers, events, selectedProduct, employees, activeMonetization, userMood, internetSubscriptions } = useGameStore();
   const platformStats = getPlatformStats(features, events, selectedProduct);
   const bankruptWarning = negativeCashMonths > 0;
 
@@ -106,12 +116,45 @@ export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps
 
         {/* Compliance status dot */}
         {features.some(f => f.level > 0) && (() => {
-          const comp = getComplianceStatus(features, racks, rentedServers);
+          const comp = getComplianceStatus(features, racks, rentedServers, internetSubscriptions);
           const dotColor = comp.overall === 'ok' ? 'text-green' : comp.overall === 'partial' ? 'text-amber' : 'text-red';
           const dotLabel = comp.overall === 'ok' ? 'Hardware OK' : comp.overall === 'partial' ? `Partial (${Math.round(Math.min(comp.userCap, 1) * 100)}% cap)` : 'Critical — no service';
           return (
             <span className={`flex items-center gap-1 text-[10px] ${dotColor}`} title={dotLabel}>
               <Circle className="w-2 h-2 fill-current" />{comp.overall === 'ok' ? 'HW OK' : comp.overall === 'partial' ? 'HW ⚠' : 'HW ✗'}
+            </span>
+          );
+        })()}
+
+        {/* Monetization strategy indicator */}
+        {features.some(f => f.level > 0) && (() => {
+          const m = MON_TAG[activeMonetization];
+          return (
+            <span className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border ${activeMonetization === 'none' ? 'text-ink-soft border-border' : 'text-green border-green/30 bg-green-soft'}`} title={`Monetization: ${m.tip}`}>
+              {m.label}
+            </span>
+          );
+        })()}
+
+        {/* User mood indicator */}
+        {features.some(f => f.level > 0) && (() => {
+          const moodEmoji = userMood >= MOOD_BASELINE ? '😊' : userMood >= 60 ? '😐' : '😠';
+          const moodColor = userMood >= MOOD_BASELINE ? 'text-green' : userMood >= 60 ? 'text-amber' : 'text-red';
+          const moodLabel = userMood >= MOOD_BASELINE ? 'Users happy' : userMood >= 60 ? 'Users uneasy' : 'Users unhappy';
+          return (
+            <span className={`flex items-center gap-1 text-[10px] ${moodColor}`} title={`User Mood: ${moodLabel} (${Math.round(userMood)}/100) — affects churn`}>
+              {moodEmoji}
+            </span>
+          );
+        })()}
+
+        {/* Internet service indicator */}
+        {internetSubscriptions.length > 0 && (() => {
+          const top = internetSubscriptions.reduce((a, b) => (b.speedMbps > a.speedMbps ? b : a));
+          const tip = internetSubscriptions.map(s => `${s.providerName} ${s.speedMbps} Mbps ($${s.monthlyCost}/mo)`).join('\n');
+          return (
+            <span className="flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-indigo/30 bg-indigo-soft text-indigo" title={`Internet:\n${tip}`}>
+              <Wifi className="w-2.5 h-2.5" />{top.speedMbps}M
             </span>
           );
         })()}

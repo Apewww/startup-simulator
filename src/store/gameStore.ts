@@ -1,17 +1,18 @@
 import { create } from 'zustand';
-import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem } from '../types';
+import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetProviderId, InternetSubscription } from '../types';
 import { calcFundingOffer, calcMaxSupervised } from '../types/employee';
 import { getComponentDef, COMPONENTS } from '../data/components';
 import { getProductDef } from '../data/products';
 import { MILESTONES, type PerkContext } from '../data/milestones';
 import { PERKS } from '../data/perks';
 import { getNodeDef, getRackDef } from '../data/servers';
+import { makeInternetSubscription } from '../data/internet';
 import { calculateNodeLoads, calcMonthlyServerCost, recomputeRackAdjacency, getUpgradeCost } from '../systems/server';
-import { getPlatformStats, getAppliedEffects } from '../systems/platform';
+import { getPlatformStats, getAppliedEffects, hasActiveSynergy } from '../systems/platform';
 import { getSupervisionBoost } from '../systems/leadDeveloper';
 import { computeFurnitureEffects } from '../systems/radiusEffect';
 import { getFurnitureDef, FURNITURE } from '../data/furniture';
-import { calculateRevenue } from '../systems/monetization';
+import { calculateRevenue, getMonetizationMods, getMoodTarget, MOOD_BASELINE, MOOD_DRIFT_RATE, MOOD_PENALTY_K } from '../systems/monetization';
 import { generateApplicant, CAMPAIGN_COST, getCampaignTicks, negotiate, applicantToEmployee } from '../systems/recruitment';
 import { checkEventTrigger, processEvents, calcSecurityLevel } from '../systems/events';
 import { getComplianceStatus } from '../systems/compliance';
@@ -52,9 +53,11 @@ interface GameState {
   racks: ServerRack[];
   plots: Plot[];
   rentedServers: RentedServer[];
+  internetSubscriptions: InternetSubscription[];
   totalSalary: number;
   selectedProduct: string | null;
   activeMonetization: MonetizationStrategy;
+  userMood: number;
   devMode: boolean;
   inventoryNodes: ServerNode[];
   activeView: { type: 'office' } | { type: 'server', plotId: string };
@@ -84,6 +87,7 @@ interface GameState {
   assignTask: (employeeId: string, componentId: string) => void;
   cancelTask: (employeeId: string) => void;
   selectProduct: (productId: string) => void;
+  setMonetizationStrategy: (strategy: MonetizationStrategy) => void;
   buildFeature: (featureId: string) => void;
   upgradeFeature: (featureId: string) => void;
   fundingRounds: FundingRound[];
@@ -110,6 +114,8 @@ interface GameState {
   rentServer: (type: RentalType) => void;
   scaleRental: (rentalId: string, delta: number) => void;
   cancelRental: (id: string) => void;
+  rentInternet: (providerId: InternetProviderId, tierId: string) => void;
+  cancelInternet: (id: string) => void;
   toggleDevMode: () => void;
   setActiveView: (view: { type: 'office' } | { type: 'server', plotId: string }) => void;
   addLog: (msg: string) => void;
@@ -195,9 +201,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   racks: [],
   plots: [],
   rentedServers: [],
+  internetSubscriptions: [],
   totalSalary: 0,
   selectedProduct: null,
   activeMonetization: 'none',
+  userMood: 80,
   devMode: false,
   inventoryNodes: [],
   activeView: { type: 'office' },
@@ -291,6 +299,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   incrementTick: () => {
     const state = get();
     const { tick, employees, resources, features, racks, events, currentUsers, selectedProduct, rentedServers } = state;
+    const internetSubs = state.internetSubscriptions;
+    const internetRpsBonus = internetSubs.reduce((s, x) => s + x.rpsBonus, 0);
+    const internetMoodSum = internetSubs.reduce((s, x) => s + x.moodBonus, 0);
     const newTick = tick + 1;
     const newMonth = Math.floor(newTick / TICKS_PER_MONTH);
     const oldMonth = Math.floor(tick / TICKS_PER_MONTH);
@@ -441,15 +452,25 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     // Dynamic users
     const eventEffects = getAppliedEffects(events);
-    const userDelta = (targetUsers - currentUsers) * 0.005 * cohesionScore;
+    const monetizationMods = getMonetizationMods(state.activeMonetization);
+    const userDelta = (targetUsers - currentUsers) * 0.005 * cohesionScore * monetizationMods.growthMult;
     const hasCrash = placedRacks.some(r => r.slots.some(s => s.node?.status === 'crashed'));
     const crashPenalty = hasCrash ? currentUsers * 0.05 : 0;
-    const churn = currentUsers * (1 - cohesionScore) * 0.0002;
-    let newCurrentUsers = currentUsers + (userDelta * eventEffects.userGrowthMult) - crashPenalty - churn;
-    newCurrentUsers = Math.max(0, newCurrentUsers);
+    const baseChurnRate = (1 - cohesionScore) * 0.0002 + monetizationMods.churnDelta;
+    let newCurrentUsers = currentUsers;
 
     // Server calculation with effectiveRPS — compliance load mult untuk compute/data shortage
-    const complianceBefore = features.some(f => f.level > 0) ? getComplianceStatus(features, placedRacks, rentedServers) : null;
+    const complianceBefore = features.some(f => f.level > 0) ? getComplianceStatus(features, placedRacks, rentedServers, internetSubs) : null;
+    const synergyActive = hasActiveSynergy(features, selectedProduct);
+    const earlyDataRatio = complianceBefore?.data.ratio ?? 1;
+
+    // User mood (satisfaction) — drifts toward strategy target; feeds churn (no separate system)
+    const moodTarget = Math.min(100, getMoodTarget(state.activeMonetization, synergyActive, earlyDataRatio) + internetMoodSum * 100);
+    const newMood = Math.max(0, Math.min(100, state.userMood + (moodTarget - state.userMood) * MOOD_DRIFT_RATE));
+    const moodPenalty = Math.max(0, (MOOD_BASELINE - newMood) * MOOD_PENALTY_K);
+    const churn = Math.max(0, currentUsers * (baseChurnRate + moodPenalty));
+    newCurrentUsers = currentUsers + (userDelta * eventEffects.userGrowthMult) - crashPenalty - churn;
+    newCurrentUsers = Math.max(0, newCurrentUsers);
     const computeLoadMult = complianceBefore ? Math.max(1, complianceBefore.compute.required / Math.max(complianceBefore.compute.provided, 0.1)) : 1;
     const dataLoadMult = complianceBefore ? Math.max(1, complianceBefore.data.required / Math.max(complianceBefore.data.provided, 0.1)) : 1;
     const adjustedRps = Math.round(platformStats.effectiveRps * computeLoadMult * dataLoadMult);
@@ -457,7 +478,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const sysAdminLevel = employees
       .filter(e => e.role === 'SysAdmin' && e.happiness >= 15)
       .reduce((max, e) => Math.max(max, e.level), 0);
-    const { racks: updatedPlacedRacks, rentedServers: updatedRentedServers } = calculateNodeLoads(placedRacks, adjustedRps, rentedServers, sysAdminLevel, eventEffects.crashChanceBonus);
+    const { racks: updatedPlacedRacks, rentedServers: updatedRentedServers } = calculateNodeLoads(placedRacks, adjustedRps, rentedServers, sysAdminLevel, eventEffects.crashChanceBonus, internetRpsBonus);
 
     // If no web capacity at all, users drop fast
     const hasWebCapacity = updatedPlacedRacks.some(r =>
@@ -471,7 +492,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     // Compliance check — hardware must meet feature requirements
     const compliance = features.some(f => f.level > 0)
-      ? getComplianceStatus(features, [...unplacedRacks, ...updatedPlacedRacks], updatedRentedServers)
+      ? getComplianceStatus(features, [...unplacedRacks, ...updatedPlacedRacks], updatedRentedServers, internetSubs)
       : null;
     if (compliance) {
       if (compliance.overall === 'critical') {
@@ -527,10 +548,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     let cashChange = 0;
     let newTotalSalary = state.totalSalary;
     let newNegativeCashMonths = state.negativeCashMonths;
+    const dataRatio = compliance?.data.ratio ?? 1;
+    const revOpts = { strategy: state.activeMonetization, productId: selectedProduct, dataRatio, synergyActive };
     if (newMonth > oldMonth) {
       newTotalSalary = calcTotalSalary(newEmployees);
-      const serverCost = calcMonthlyServerCost(finalRacks, rentedServers);
-      const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore * (compliance?.revenueMult ?? 1), platformStats.synergyRevenueBonus);
+      const serverCost = calcMonthlyServerCost(finalRacks, rentedServers, internetSubs);
+      const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore * (compliance?.revenueMult ?? 1), platformStats.synergyRevenueBonus, revOpts);
       cashChange = revenue.total - (newTotalSalary + serverCost);
 
       const cashAfter = state.cash + cashChange;
@@ -555,7 +578,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     let newPendingFunding = state.pendingFunding;
     if (newMonth > oldMonth && !newPendingFunding) {
-      const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore * (compliance?.revenueMult ?? 1), platformStats.synergyRevenueBonus);
+      const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore * (compliance?.revenueMult ?? 1), platformStats.synergyRevenueBonus, revOpts);
       const offer = calcFundingOffer(newMonth, newCurrentUsers, revenue.total);
       if (offer) {
         const lastRound = state.fundingRounds[state.fundingRounds.length - 1];
@@ -611,6 +634,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       applicants: newApplicants,
       currentUsers: Math.round(newCurrentUsers),
       events: finalEvents,
+      userMood: newMood,
     });
 
     get().checkMilestones();
@@ -626,8 +650,15 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (monthsSinceLast < 6) return;
 
     const traffic = getPlatformStats(state.features, state.events, state.selectedProduct);
-    const compliance = state.features.some(f => f.level > 0) ? getComplianceStatus(state.features, state.racks, state.rentedServers) : null;
-    const revenue = calculateRevenue(state.currentUsers, state.features, state.racks, traffic.cohesionScore * (compliance?.revenueMult ?? 1), traffic.synergyRevenueBonus);
+    const compliance = state.features.some(f => f.level > 0) ? getComplianceStatus(state.features, state.racks, state.rentedServers, state.internetSubscriptions) : null;
+    const synergyActive = hasActiveSynergy(state.features, state.selectedProduct);
+    const revOpts = {
+      strategy: state.activeMonetization,
+      productId: state.selectedProduct,
+      dataRatio: compliance?.data.ratio ?? 1,
+      synergyActive,
+    };
+    const revenue = calculateRevenue(state.currentUsers, state.features, state.racks, traffic.cohesionScore * (compliance?.revenueMult ?? 1), traffic.synergyRevenueBonus, revOpts);
     const offer = calcFundingOffer(state.month, state.currentUsers, revenue.total);
     if (!offer) return;
     const round: FundingRound = {
@@ -741,7 +772,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       group: f.group,
       requiredComponents: f.requiredComponents, trafficGenerated: 0, enabled: true,
     }));
-    set({ selectedProduct: productId, features, screen: 'playerSetup', currentUsers: 0 });
+    set({ selectedProduct: productId, features, screen: 'playerSetup', currentUsers: 0, userMood: 80, internetSubscriptions: [] });
+  },
+
+  setMonetizationStrategy: (strategy) => {
+    set({ activeMonetization: strategy });
   },
 
   initPlayer: (name: string) => {
@@ -985,6 +1020,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       price: def.price,
       monthlyCost: def.monthlyCost,
       isOverheating: false,
+      isCritical: false,
       overheatTicks: 0,
       heatRatio: 0,
       adjacentRackIds: [],
@@ -1364,6 +1400,23 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   cancelRental: (id: string) => {
     set((state) => ({ rentedServers: state.rentedServers.filter(r => r.id !== id) }));
+  },
+
+  rentInternet: (providerId, tierId) => {
+    const sub = makeInternetSubscription(providerId, tierId);
+    if (!sub) return;
+    const activeFromProvider = get().internetSubscriptions.some(s => s.providerId === providerId);
+    if (activeFromProvider) {
+      get().addNotification(`${sub.providerName} already active — cancel first to switch tier`, 'warning');
+      return;
+    }
+    get().addLog(`Subscribed ${sub.providerName} ${sub.speedMbps} Mbps ($${sub.monthlyCost}/mo)`);
+    get().addNotification(`Internet ${sub.providerName} ${sub.speedMbps} Mbps — $${sub.monthlyCost}/mo`, 'info');
+    set((state) => ({ internetSubscriptions: [...state.internetSubscriptions, sub] }));
+  },
+
+  cancelInternet: (id) => {
+    set((state) => ({ internetSubscriptions: state.internetSubscriptions.filter(s => s.id !== id) }));
   },
 
   toggleDevMode: () => set((state) => ({ devMode: !state.devMode })),
@@ -1781,7 +1834,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       tick: 0, isPaused: false, speed: 1, cash: 15000, month: 0,
       employees: [], resources: [], features: [], racks: [], plots: [], rentedServers: [],
-      totalSalary: 0, selectedProduct: null, activeMonetization: 'none', devMode: false,
+      totalSalary: 0, selectedProduct: null, activeMonetization: 'none', userMood: 80, internetSubscriptions: [], devMode: false,
       inventoryNodes: [], activeView: { type: 'office' }, visitedPlots: [], gameLog: [],
       cashFlowHistory: [], notifications: [],
       isBankrupt: false, negativeCashMonths: 0, screen: 'menu',

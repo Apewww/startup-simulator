@@ -158,18 +158,6 @@ export const NODE_DEFS: NodeDef[] = [
     description: 'Caching cluster untuk offload traffic sangat besar.',
   },
   {
-    typeId: 'router',
-    label: 'Router',
-    category: 'router',
-    capacity: 0,
-    heat: 2,
-    power: 5,
-    price: 120,
-    monthlyCost: 20,
-    compute: 0, data: 0, network: 1, security: 0,
-    description: 'Router mendistribusi traffic & efisiensi. Diperlukan jika >3 node.',
-  },
-  {
     typeId: 'cooling_fan',
     label: 'Cooling Fan',
     category: 'cooling',
