@@ -328,6 +328,7 @@ function PlotGrid() {
   const [selectedRackId, setSelectedRackId] = useState<string | null>(null);
   const [showInventory, setShowInventory] = useState(false);
   const [draggedRackId, setDraggedRackId] = useState<string | null>(null);
+  const [hoveredRackId, setHoveredRackId] = useState<string | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
 
   if (activeView.type !== 'server') return null;
@@ -432,19 +433,28 @@ function PlotGrid() {
           )}
 
           {plotRacks.map(rack => {
-            const coolingPct = rack.coolingCapacity > 0 ? (rack.coolingUsed / rack.coolingCapacity) * 100 : 0;
+            const heatRatio = rack.coolingCapacity > 0 ? rack.coolingUsed / rack.coolingCapacity : 0;
             const nodeCount = rack.slots.filter(s => s.node).length;
+            const isWarm = heatRatio >= 0.7 && heatRatio < 1.0;
+            const isCritical = heatRatio > 1.3;
+            const borderColor = isCritical ? '#B91C1C' : rack.isOverheating ? '#D1453B' : isWarm ? '#D97706' : nodeCount === 0 ? 'var(--color-border)' : '#4F5EFF';
+            const bgColor = isCritical ? 'rgba(185,28,28,0.15)' : rack.isOverheating ? 'rgba(209,69,59,0.1)' : isWarm ? 'rgba(217,119,6,0.08)' : nodeCount === 0 ? 'var(--color-surface-2)' : 'rgba(79,94,255,0.08)';
             return (
               <div key={rack.id} draggable
                 onDragStart={(e) => handleRackDragStart(e, rack)}
                 onDragEnd={handleRackDragEnd}
+                onMouseEnter={() => setHoveredRackId(rack.id)}
+                onMouseLeave={() => setHoveredRackId(null)}
                 onClick={() => { setSelectedRackId(rack.id); setShowInventory(true); }}
                 className="absolute border-2 rounded-lg cursor-grab active:cursor-grabbing hover:border-indigo transition-colors group box-border"
+                title={rack.isCritical ? '🔥 Critical Overheat — capacity halved, crash ×2' : rack.isOverheating ? `Overheating (${rack.adjacentRackIds.length > 0 ? `heating ${rack.adjacentRackIds.length} neighbor(s)` : 'add cooling'})` : `Heat ratio ${Math.round(heatRatio * 100)}%`}
                 style={{
                   left: rack.gridX * CELL_SIZE, top: rack.gridY * CELL_SIZE,
                   width: rack.gridW * CELL_SIZE, height: rack.gridH * CELL_SIZE,
-                  borderColor: coolingPct > 90 ? '#D1453B' : nodeCount === 0 ? 'var(--color-border)' : '#4F5EFF',
-                  backgroundColor: coolingPct > 90 ? 'rgba(209,69,59,0.1)' : nodeCount === 0 ? 'var(--color-surface-2)' : 'rgba(79,94,255,0.08)',
+                  borderColor: hoveredRackId && rack.adjacentRackIds.includes(hoveredRackId) ? '#EAB308' : borderColor,
+                  backgroundColor: hoveredRackId && rack.adjacentRackIds.includes(hoveredRackId) ? 'rgba(234,179,8,0.08)' : bgColor,
+                  outline: hoveredRackId && rack.adjacentRackIds.includes(hoveredRackId) ? '2px dashed #EAB308' : 'none',
+                  outlineOffset: -2,
                 }}>
                 <div className="p-1.5 h-full flex flex-col justify-between">
                   <div>
@@ -455,7 +465,9 @@ function PlotGrid() {
                     </div>
                     <div className="flex gap-1.5 mt-0.5 text-[8px]">
                       <span className={nodeCount === 0 ? 'text-ink-soft' : 'text-green'}>{nodeCount}/{rack.slots.length}</span>
-                      <span className={coolingPct > 90 ? 'text-red' : 'text-indigo'}>{Math.round(coolingPct)}%</span>
+                      <span className={isCritical ? 'text-red font-bold' : rack.isOverheating ? 'text-red' : isWarm ? 'text-amber' : 'text-indigo'}>
+                        {Math.round(heatRatio * 100)}%{isCritical ? ' 🔥' : ''}
+                      </span>
                     </div>
                   </div>
                   <div className="flex justify-between items-end">

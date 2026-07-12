@@ -3,7 +3,7 @@ import { getNodeDef } from '../data/servers';
 import { hasLoadBalancer } from './events';
 
 const SCALE_CAPS = [1, 1.5, 2, 2.5, 3];
-const SCALE_HEAT = [1, 2, 3.5, 5.5, 8];
+const SCALE_HEAT = [1, 2.8, 5.2, 8, 11.2];
 const SCALE_POWER = [1, 1.5, 2, 3, 4.5];
 const SCALE_COST = [1, 1.2, 1.5, 2, 3];
 
@@ -247,9 +247,14 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
   }, 0) + rentedServers.reduce((sum, r) => sum + (r.dbCapacity || 0), 0);
   const dbRPS = rpsAfterCache * 0.2;
 
-  const updatedRacks: ServerRack[] = racks.map(rack => {
-    let rackHeat = 0;
-    let rackCooling = rack.coolingCapacity;
+  // ── Pass 1: update node statuses & collect raw heat + cooling per rack ──
+  const rackRawData: { rawHeat: number; coolingFromNodes: number; adjCoolingBonus: number; slots: typeof racks[0]['slots'] }[] = [];
+  const rackById = new Map<string, ServerRack>();
+
+  for (const rack of racks) {
+    rackById.set(rack.id, rack);
+    let rawHeat = 0;
+    let coolingFromNodes = 0;
 
     const newSlots = rack.slots.map(slot => {
       const node = slot.node;
@@ -315,17 +320,80 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
         newLoad = (node.status === 'active') ? 50 : 0;
       }
 
-      rackHeat += scaled.effectiveHeat;
+      if (node.category !== 'cooling') {
+        rawHeat += scaled.effectiveHeat;
+      }
+
+      if (node.category === 'cooling' && (node.status === 'active' || node.status === 'overloaded')) {
+        coolingFromNodes += node.capacity;
+      }
 
       return { ...slot, node: { ...node, load: Math.round(newLoad), status: newStatus, crashTicks: newCrashTicks, recoveryTicks: newRecoveryTicks } };
     });
 
-    const isOverheating = rackHeat > rackCooling;
+    // Industrial Fan bonus ke rack tetangga (§6.3)
+    let adjCoolingBonus = 0;
+    for (const adjId of rack.adjacentRackIds) {
+      const adj = rackById.get(adjId);
+      if (!adj) continue;
+      for (const s of adj.slots) {
+        if (s.node?.typeId === 'industrial_fan' && s.node.status !== 'crashed' && s.node.status !== 'offline') {
+          adjCoolingBonus += 10;
+        }
+      }
+    }
+
+    rackRawData.push({ rawHeat, coolingFromNodes, adjCoolingBonus, slots: newSlots });
+  }
+
+  // ── Pass 2: hitung cooling final tiap rack (base + cooling nodes + neighbor fan), heat spread, heatRatio, status ──
+  const heatRatios = new Map<string, number>();
+  const effCooling = new Map<string, number>();
+
+  for (let i = 0; i < racks.length; i++) {
+    const rack = racks[i];
+    const data = rackRawData[i];
+    const base = getRackBaseCooling(rack.tier);
+    const totalCooling = base + data.coolingFromNodes + data.adjCoolingBonus;
+    effCooling.set(rack.id, totalCooling);
+    heatRatios.set(rack.id, totalCooling > 0 ? data.rawHeat / totalCooling : 0);
+  }
+
+  // Heat spread: overheated rack → adjacent rack (+5% of rawHeat) (§6.5)
+  const spreadHeat = new Map<string, number>();
+  for (let i = 0; i < racks.length; i++) {
+    const rack = racks[i];
+    const data = rackRawData[i];
+    const hr = heatRatios.get(rack.id) ?? 0;
+    if (hr > 1.0) {
+      for (const adjId of rack.adjacentRackIds) {
+        spreadHeat.set(adjId, (spreadHeat.get(adjId) ?? 0) + data.rawHeat * 0.05);
+      }
+    }
+  }
+
+  // Heat spread reduction oleh SysAdmin (§6.6)
+  const spreadReduction = 1 - sysAdminLevel * 0.03;
+  for (const [rackId, heat] of spreadHeat) {
+    spreadHeat.set(rackId, heat * Math.max(0, spreadReduction));
+  }
+
+  // ── Pass 3: finalize tiap rack dengan heatRatio, status, throttle ──
+  const updatedRacks: ServerRack[] = racks.map((rack, i) => {
+    const data = rackRawData[i];
+    const totalCooling = effCooling.get(rack.id) ?? 40;
+    const rawHeat = data.rawHeat + (spreadHeat.get(rack.id) ?? 0);
+    const heatRatio = totalCooling > 0 ? rawHeat / totalCooling : 0;
+
+    const isOverheating = heatRatio > 1.0;
+    const isCritical = heatRatio > 1.3;
     const newOverheatTicks = isOverheating ? rack.overheatTicks + 1 : 0;
 
-    const crashChance = Math.max(0.01, Math.min(0.4, 0.05 - sysAdminLevel * 0.008 + crashChanceBonus)) * (lbActive ? 0.9 : 1);
+    const crashChanceMult = isCritical ? 2 : 1;
+    const crashChance = Math.max(0.01, Math.min(0.4, 0.05 - sysAdminLevel * 0.008 + crashChanceBonus)) * (lbActive ? 0.9 : 1) * crashChanceMult;
+
     if (isOverheating && newOverheatTicks >= 5) {
-      newSlots.forEach(slot => {
+      data.slots.forEach(slot => {
         if (slot.node && slot.node.status !== 'crashed' && slot.node.status !== 'offline' && slot.node.heat > 0) {
           if (Math.random() < crashChance) {
             slot.node.status = 'crashed';
@@ -340,11 +408,13 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
 
     return {
       ...rack,
-      slots: newSlots,
-      coolingUsed: rackHeat,
-      coolingCapacity: rackCooling,
-      powerDraw: newSlots.reduce((sum, s) => sum + (s.node ? applyNodeScaling(s.node).effectivePower : 0), 0),
+      slots: data.slots,
+      coolingUsed: rawHeat,
+      coolingCapacity: totalCooling,
+      heatRatio: Math.round(heatRatio * 100) / 100,
+      powerDraw: data.slots.reduce((sum, s) => sum + (s.node ? applyNodeScaling(s.node).effectivePower : 0), 0),
       isOverheating,
+      isCritical,
       overheatTicks: newOverheatTicks,
     };
   });

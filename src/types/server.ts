@@ -88,6 +88,7 @@ export interface ServerRack {
   price: number;
   monthlyCost: number;
   isOverheating: boolean;
+  isCritical: boolean;
   overheatTicks: number;
   heatRatio: number;
   adjacentRackIds: string[];

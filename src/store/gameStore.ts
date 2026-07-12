@@ -1020,6 +1020,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       price: def.price,
       monthlyCost: def.monthlyCost,
       isOverheating: false,
+      isCritical: false,
       overheatTicks: 0,
       heatRatio: 0,
       adjacentRackIds: [],

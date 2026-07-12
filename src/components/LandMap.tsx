@@ -64,18 +64,23 @@ export function LandMap() {
                   <div className="flex flex-wrap gap-1">
                     {plotRacks.map(rack => {
                       const nodeCount = rack.slots.filter(s => s.node).length;
-                      const coolingPct = rack.coolingCapacity > 0 ? Math.round((rack.coolingUsed / rack.coolingCapacity) * 100) : 0;
+                      const heatRatio = rack.coolingCapacity > 0 ? rack.coolingUsed / rack.coolingCapacity : 0;
+                      const isWarm = heatRatio >= 0.7 && heatRatio < 1.0;
+                      const isCritical = heatRatio > 1.3;
                       return (
                         <div key={rack.id}
                           className={`text-[9px] px-2 py-1 rounded-lg border ${
+                            isCritical ? 'border-red-800 bg-red-soft text-red font-bold' :
                             rack.isOverheating ? 'border-red bg-red-soft text-red' :
+                            isWarm ? 'border-amber/40 bg-amber-soft text-amber' :
                             nodeCount === 0 ? 'border-border bg-surface-2 text-ink-soft' :
                             'border-indigo/30 bg-indigo-soft text-ink'
-                          }`}>
+                          }`}
+                          title={`Heat ratio ${Math.round(heatRatio * 100)}% — ${isCritical ? 'Critical' : rack.isOverheating ? 'Overheating' : isWarm ? 'Warm' : 'Cool'}`}>
                           <div className="font-semibold">{rack.label}</div>
                           <div className="flex gap-1.5 opacity-70">
                             <span>{nodeCount}/{rack.maxSlots}</span>
-                            <span className={coolingPct > 90 ? 'text-red' : ''}>{coolingPct}%</span>
+                            <span className={heatRatio > 0.7 ? 'text-inherit' : ''}>{Math.round(heatRatio * 100)}%</span>
                           </div>
                         </div>
                       );
