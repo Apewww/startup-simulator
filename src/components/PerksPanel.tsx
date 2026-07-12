@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, DollarSign, TrendingUp, LayoutGrid, Server, Clock, Coffee, Armchair, Droplets, Gift, Check, Lock } from 'lucide-react';
+import { Users, DollarSign, TrendingUp, LayoutGrid, Server, Clock, Coffee, Armchair, Droplets, Gift, Check, Lock, Gauge } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import { MILESTONES, type PerkContext, type MilestoneDef } from '../data/milestones';
 import { PERKS } from '../data/perks';
@@ -7,7 +7,7 @@ import { FurnitureShop } from './FurnitureShop';
 import { FurnitureInventory } from './FurnitureInventory';
 
 const ICONS: Record<string, typeof Users> = {
-  Users, DollarSign, TrendingUp, LayoutGrid, Server, Clock, Coffee, Armchair, Droplets, Gift,
+  Users, DollarSign, TrendingUp, LayoutGrid, Server, Clock, Coffee, Armchair, Droplets, Gift, Gauge,
 };
 
 function earnedCount(m: MilestoneDef, earned: string[]): number {
@@ -157,7 +157,7 @@ export function PerksPanel() {
       ) : tab === 'unlock' ? (
         <div className="flex flex-col gap-2">
           <p className="text-[10px] text-ink-soft leading-snug">
-            Spend Perk Points to unlock furniture. Unlocked items appear in the Furniture Shop tab.
+            Spend Perk Points to unlock furniture (appears in the Furniture Shop tab) and special abilities.
           </p>
           {PERKS.map((p) => (
             <PerkRow key={p.id} perkId={p.id} points={perkPoints} owned={unlockedPerks.includes(p.id)} onUnlock={unlockPerk} />

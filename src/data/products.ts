@@ -109,6 +109,16 @@ export const PRODUCTS: ProductDef[] = [
         ],
         baseTraffic: 400,
       },
+      {
+        id: 'ad_platform', name: 'Ad Platform Interface',
+        description: 'Iklan terukur berbasis level fitur. Mengaktifkan tier Ads (linear) saat fitur aktif.',
+        group: 'business',
+        requiredComponents: [
+          { componentId: 'backend_code', amount: 2 },
+          { componentId: 'network_module', amount: 1 },
+        ],
+        baseTraffic: 100,
+      },
     ],
     synergies: [
       {
@@ -285,6 +295,26 @@ export const PRODUCTS: ProductDef[] = [
           { componentId: 'backend_code', amount: 2 },
           { componentId: 'ui_component', amount: 1 },
           { componentId: 'graphics_component', amount: 1 },
+        ],
+        baseTraffic: 150,
+      },
+      {
+        id: 'ad_platform', name: 'Ad Platform Interface',
+        description: 'Iklan terukur berbasis level fitur. Mengaktifkan tier Ads (linear) saat fitur aktif.',
+        group: 'business',
+        requiredComponents: [
+          { componentId: 'backend_code', amount: 2 },
+          { componentId: 'network_module', amount: 1 },
+        ],
+        baseTraffic: 100,
+      },
+      {
+        id: 'b2b_search_api', name: 'B2B Search API',
+        description: 'API pencarian enterprise berpendapatan flat, terikat Data compliance ratio. Potensi penuh di fitur Lv.5.',
+        group: 'business',
+        requiredComponents: [
+          { componentId: 'backend_code', amount: 4 },
+          { componentId: 'network_module', amount: 2 },
         ],
         baseTraffic: 150,
       },

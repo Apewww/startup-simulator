@@ -1,6 +1,6 @@
 import Dexie, { type Table } from 'dexie';
 import type { Employee, ComponentResource, PlatformFeature, ServerRack, Plot, RentedServer, ServerNode, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem } from '../types';
-import type { GameSpeed, GameScreen, MonthlySnapshot } from '../store/gameStore';
+import type { GameSpeed, GameScreen, MonthlySnapshot, MonetizationStrategy } from '../store/gameStore';
 
 export interface GameSave {
   id: number;
@@ -20,6 +20,7 @@ export interface GameSave {
   visitedPlots: string[];
   totalSalary: number;
   selectedProduct: string | null;
+  activeMonetization?: MonetizationStrategy;
   isBankrupt: boolean;
   negativeCashMonths: number;
   screen: GameScreen;
@@ -56,6 +57,7 @@ export class GameDB extends Dexie {
     this.version(9).stores({ saves: '++id, timestamp' });
     this.version(10).stores({ saves: '++id, timestamp' });
     this.version(11).stores({ saves: '++id, timestamp' });
+    this.version(12).stores({ saves: '++id, timestamp' });
   }
 }
 

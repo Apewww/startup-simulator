@@ -1,7 +1,7 @@
 export type NodeTypeId =
-  | 'web_t1' | 'web_t2' | 'web_t3'
-  | 'db_t1' | 'db_t2'
-  | 'cache_t1' | 'cache_t2'
+  | 'web_t1' | 'web_t2' | 'web_t3' | 'web_t4'
+  | 'db_t1' | 'db_t2' | 'db_t3'
+  | 'cache_t1' | 'cache_t2' | 'cache_t3'
   | 'router'
   | 'cooling_fan' | 'industrial_fan' | 'liquid_cooling'
   | 'storage'
@@ -53,6 +53,8 @@ export interface ServerRack {
   monthlyCost: number;
   isOverheating: boolean;
   overheatTicks: number;
+  heatRatio: number;
+  adjacentRackIds: string[];
 }
 
 export interface Plot {
@@ -65,7 +67,7 @@ export interface Plot {
   gridRows: number;
 }
 
-export type RentalType = 'vps' | 'dedicated' | 'cloud';
+export type RentalType = 'vps' | 'dedicated' | 'cloud' | 'db';
 
 export interface RentedServer {
   id: string;
@@ -80,6 +82,7 @@ export interface RentedServer {
   compute: number;
   data: number;
   network: number;
+  dbCapacity: number;
 }
 
 export interface NodeDef {

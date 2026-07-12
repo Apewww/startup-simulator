@@ -252,7 +252,57 @@ Ini opsional — kalau dirasa nambah kompleksitas terlalu jauh dari scope utama,
 
 ---
 
-## 8. Yang Sengaja Tidak Diadopsi dari Usulan Awal
+## 8. Phase Task Breakdown
+
+Dipecah supaya bisa dicicil per PR/commit, tiap fase idealnya tetap dalam kondisi *build jalan & game tidak rusak* di akhir fase (feature-flagged kalau perlu). Urutan disusun dari fondasi (data/types, aman & tidak mengubah gameplay) → logic → UI → tie-in → balancing akhir.
+
+### ~~Fase A — Foundation (Data & Types, tanpa ubah gameplay)~~ ✅ moved to `docs/update/update_v1.5.md`
+- [x] `types/server.ts` — tambah `heatRatio`, `adjacentRackIds` ke `ServerRack` (`heatGenerated` sudah terwakili oleh `ServerNode.heat` yang sudah ada)
+- [x] `data/servers.ts` — align `heat` node ke tabel §6.1 & `capacity` cooling node ke §6.3 (cooling node sudah terdefinisi; angka disesuaikan)
+- [x] `data/products.ts` — tambah fitur "Ad Platform Interface" (Social Media & Search Engine) dan "B2B Search API" (Search Engine) — terdaftar, belum ada logic
+- [x] `store/gameStore.ts` — tambah state `activeMonetization` (default `'none'`, behave sama seperti sistem lama)
+- [x] Tidak ada breaking change ke save lama — Dexie v11→v12, field baru pakai default `?? 'none'` (catatan: doc menyebut "v7" tapi kode saat ini sudah v11)
+
+### Fase B — Monetization Logic
+- [ ] `systems/monetization.ts` — implementasi formula linear Ads Tier (§1) berbasis level "Ad Platform Interface", fallback ke `$2/100users` kalau fitur belum ada (backward compatible)
+- [ ] `systems/monetization.ts` — implementasi `calculateB2BRevenue()` (§2), baca Data compliance ratio dari `systems/compliance.ts`
+- [ ] `systems/monetization.ts` — update `calculateSubscriptionRevenue()`: harga $2.50/user, growth multiplier ×0.65, churn reduction −0.00005/tick (§3)
+- [ ] `systems/monetization.ts` — implementasi Freemium (5% conversion, $3/bulan, no penalty)
+- [ ] `systems/compliance.ts` — override Data requirement Business feature 0.3→0.45 saat `paymentGatewayActive` (§4)
+- [ ] Unit-level sanity check: jalankan simulasi angka manual di 3 titik user count (1k/20k/200k) sebelum sentuh UI — **jangan lanjut ke Fase C kalau angka masih timpang**
+
+### Fase C — Monetization UI
+- [ ] `components/FeaturesPanel.tsx` — tambah section "Monetization Strategy" (radio/toggle: No Ads / Text Ads / Video Ads / Targeted Ads / Freemium / Subscription)
+- [ ] Tampilkan requirement per opsi (level, synergy aktif, compliance ratio) — disable opsi yang belum unlock, jangan cuma sembunyikan (biar pemain tahu apa yang perlu dikejar)
+- [ ] Tampilkan preview efek (+revenue, −growth/churn) sebelum pemain konfirmasi switch
+- [ ] Sinkronkan dengan `HudBar.tsx` kalau perlu indikator strategi monetisasi aktif
+
+### Fase D — Cooling Logic
+- [ ] `systems/server.ts` — implementasi `calculateHeatRatio()` per rack (§6.4)
+- [ ] `systems/server.ts` — integrasikan overclock nonlinear heat scaling (`baseHeat × level^1.5`) ke heat generation existing (§6.2)
+- [ ] `systems/server.ts` — tambah state **Critical Overheat** (>130%) dengan throttle RPS ×0.5, di atas overheat existing (100-130%)
+- [ ] `systems/server.ts` — implementasi heat spread antar rack bersebelahan (§6.5), baca `adjacentRackIds` dari grid `ServerRoomView`
+- [ ] Balancing check: simulasikan rack full-slot server tanpa cooling tambahan di tiap tier (Basic/Advanced/Enterprise) — pastikan heat budget §6.1 sesuai tujuan (rack rendah sedikit overheat, bukan auto-critical; rack tinggi bukan otomatis kebal)
+
+### Fase E — Cooling UI
+- [ ] `components/ServerRoomView.tsx` — render 4 status warna rack (Cool/Warm/Overheat/Critical), ganti indikator border merah binary yang sekarang jadi gradasi
+- [ ] `components/LandMap.tsx` — reflect status rack yang overheat di level plot (biar kelihatan dari luar grid)
+- [ ] Hover state: highlight rack tetangga yang kena efek heat spread (§6.5) supaya pemain paham kenapa rack tiba-tiba overheat
+- [ ] `components/ServerShop.tsx` — tampilkan Cooling Fan/Industrial Fan/Liquid Cooling di shop dengan info cooling capacity & upkeep
+
+### Fase F — SysAdmin Tie-in & Optional Event
+- [ ] Tambah `heatSpreadReduction = sysAdminLevel × 3%` dan `overheatRecoveryTime × (1 − sysAdminLevel × 5%)` di tempat logic SysAdmin berada (§6.6)
+- [ ] (Opsional) `systems/events.ts` — tambah event "Coolant Leak" khusus Liquid Cooling (§6.7) — bisa di-skip kalau dirasa nambah kompleksitas berlebih
+
+### Fase G — Full Balancing & Polish Pass
+- [ ] Simulasi tick-by-tick gabungan (monetisasi + cooling aktif bareng) di 3 titik game (early/mid/late) untuk tiap produk — cek revenue vs biaya operasional & vs risiko overheat
+- [ ] Playtest manual minimal 1 sesi penuh per produk (Social Media, E-Commerce, Search Engine) dari awal sampai ada funding round, catat momen yang terasa timpang
+- [ ] Update README (tabel Data & Balancing, Roadmap — pindahkan "Cooling Grid Refactor" dari 📝 Planned ke ✅ setelah Fase E selesai)
+- [ ] Tulis changelog `docs/update_v1.4.md` (atau versi berikutnya) merangkum semua perubahan di atas
+
+---
+
+## 9. Yang Sengaja Tidak Diadopsi dari Usulan Awal
 
 - **Angka eksponensial "$2 → $5 → $12" tanpa rumus** → diganti formula linear eksplisit supaya bisa ditune terukur.
 - **Potongan growth 60% untuk Full Subscription** → diturunkan jadi 35% (multiplier ×0.65), karena 60% nyaris membekukan growth di titik yang biasanya baru dicoba pemain.

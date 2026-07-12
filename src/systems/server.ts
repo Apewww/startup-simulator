@@ -6,6 +6,17 @@ const SCALE_HEAT = [1, 2, 3.5, 5.5, 8];
 const SCALE_POWER = [1, 1.5, 2, 3, 4.5];
 const SCALE_COST = [1, 1.2, 1.5, 2, 3];
 
+// Cash cost to upgrade a node from its current scaleLevel to the next (index = current level - 1).
+// Cost = node base price × factor. Returns null when already at max level (5).
+const UPGRADE_COST_FACTOR = [0.5, 0.9, 1.5, 2.5];
+
+export function getUpgradeCost(node: ServerNode): number | null {
+  if (node.scaleLevel >= 5) return null;
+  const def = getNodeDef(node.typeId);
+  if (!def) return null;
+  return Math.round(def.price * UPGRADE_COST_FACTOR[node.scaleLevel - 1]);
+}
+
 export interface ServerStats {
   totalWebCapacity: number;
   totalCacheOffload: number;
@@ -104,6 +115,32 @@ export function calcServerStats(racks: ServerRack[], rentedServers: RentedServer
   return { totalWebCapacity, totalCacheOffload, totalDbCapacity, totalCoolingProvided, totalPowerDraw, totalMonthlyCost, activeWebCount, rentedCapacity };
 }
 
+export interface DatabaseStatus {
+  provided: number;
+  demand: number;
+  ratio: number;
+}
+
+// DB capacity (database + storage nodes, scaled, active) vs DB demand (post-cache traffic × DB fraction).
+// Used by the Server Compliance panel to surface the DB bottleneck that compliance (compute/data/network) doesn't show.
+export function getDatabaseStatus(racks: ServerRack[], effectiveRps: number, rentedServers: RentedServer[] = []): DatabaseStatus {
+  const stats = calcServerStats(racks);
+  const rackProvided = racks.reduce((sum, rack) => {
+    if (rack.plotId === null) return sum;
+    return sum + rack.slots.reduce((acc, slot) => {
+      const n = slot.node;
+      if (!n || n.status === 'crashed' || n.status === 'offline') return acc;
+      if (n.category === 'database' || n.category === 'storage') return acc + applyNodeScaling(n).effectiveCapacity;
+      return acc;
+    }, 0);
+  }, 0);
+  const rentedProvided = rentedServers.reduce((sum, r) => sum + (r.dbCapacity || 0), 0);
+  const provided = rackProvided + rentedProvided;
+  const demand = Math.max(0, effectiveRps - stats.totalCacheOffload) * 0.2;
+  const ratio = provided > 0 ? Math.min(demand / provided, 5) : (demand > 0 ? 5 : 1);
+  return { provided, demand, ratio };
+}
+
 function getRackBaseCooling(tier: string): number {
   switch (tier) {
     case 'basic': return 40;
@@ -111,6 +148,39 @@ function getRackBaseCooling(tier: string): number {
     case 'enterprise': return 150;
     default: return 40;
   }
+}
+
+// Fase A (update_v1.5): hitung rack yang berbagi sisi grid dalam plot yang sama.
+// Digunakan oleh logika heat spread (§6.5) di Fase D.
+function racksShareSide(a: ServerRack, b: ServerRack): boolean {
+  const verticalOverlap = a.gridY < b.gridY + b.gridH && a.gridY + a.gridH > b.gridY;
+  const horizontalOverlap = a.gridX < b.gridX + b.gridW && a.gridX + a.gridW > b.gridX;
+  const touchX = a.gridX + a.gridW === b.gridX || b.gridX + b.gridW === a.gridX;
+  const touchY = a.gridY + a.gridH === b.gridY || b.gridY + b.gridH === a.gridY;
+  return (touchX && verticalOverlap) || (touchY && horizontalOverlap);
+}
+
+export function recomputeRackAdjacency(racks: ServerRack[]): ServerRack[] {
+  const byPlot = new Map<string, ServerRack[]>();
+  for (const r of racks) {
+    if (r.plotId) {
+      const list = byPlot.get(r.plotId) ?? [];
+      list.push(r);
+      byPlot.set(r.plotId, list);
+    }
+  }
+  return racks.map(r => {
+    if (!r.plotId) {
+      return r.adjacentRackIds.length ? { ...r, adjacentRackIds: [] } : r;
+    }
+    const ids = (byPlot.get(r.plotId) ?? [])
+      .filter(o => o.id !== r.id && racksShareSide(r, o))
+      .map(n => n.id)
+      .sort();
+    const current = [...r.adjacentRackIds].sort();
+    if (ids.length === current.length && ids.every((v, i) => v === current[i])) return r;
+    return { ...r, adjacentRackIds: ids };
+  });
 }
 
 export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, rentedServers: RentedServer[] = [], sysAdminLevel: number = 0, crashChanceBonus: number = 0): NodeLoadResult {
@@ -166,6 +236,19 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
     const load = r.capacityRps > 0 ? (allocRps / r.capacityRps) * 100 : 0;
     return { ...r, load: Math.max(0, Math.min(200, Math.round(load))) };
   });
+
+  // Global DB capacity (database + storage nodes, scaled, active only) for even load distribution
+  // across all owned hardware — matches how web/cache are already distributed globally.
+  const totalDbCapacity = racks.reduce((sum, rack) => {
+    const rackDb = rack.slots.reduce((acc, slot) => {
+      const n = slot.node;
+      if (!n || n.status === 'crashed' || n.status === 'offline') return acc;
+      if (n.category === 'database' || n.category === 'storage') return acc + applyNodeScaling(n).effectiveCapacity;
+      return acc;
+    }, 0);
+    return sum + rackDb;
+  }, 0) + rentedServers.reduce((sum, r) => sum + (r.dbCapacity || 0), 0);
+  const dbRPS = rpsAfterCache * 0.2;
 
   const updatedRacks: ServerRack[] = racks.map(rack => {
     let rackHeat = 0;
@@ -223,8 +306,7 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
       }
 
       if (node.category === 'database') {
-        const dbRPS = rpsAfterCache * 0.3;
-        newLoad = node.capacity > 0 ? (dbRPS / node.capacity) * 100 : 0;
+        newLoad = totalDbCapacity > 0 ? (dbRPS / totalDbCapacity) * 100 : 0;
         if (newLoad >= 100) {
           newCrashTicks += 1;
           if (newCrashTicks >= 10) {

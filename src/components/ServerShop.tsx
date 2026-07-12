@@ -13,10 +13,11 @@ const CATEGORY_ICON: Record<NodeCategory, typeof Cpu> = {
   security: Shield,
 };
 
-const RENTALS: { type: RentalType; label: string; capacity: number; storage: number; cost: number; note: string }[] = [
-  { type: 'vps', label: 'VPS', capacity: 150, storage: 50, cost: 40, note: 'Murah, SLA 99%' },
-  { type: 'dedicated', label: 'Dedicated', capacity: 600, storage: 200, cost: 180, note: 'Kontrol penuh, SLA 99.9%' },
-  { type: 'cloud', label: 'Cloud', capacity: 1000, storage: 500, cost: 300, note: 'Auto-scale, SLA 99.95%' },
+const RENTALS: { type: RentalType; label: string; sub: string; cost: number }[] = [
+  { type: 'vps', label: 'VPS', sub: '150 RPS · 50 st · SLA 99%', cost: 40 },
+  { type: 'dedicated', label: 'Dedicated', sub: '600 RPS · 200 st · SLA 99.9%', cost: 180 },
+  { type: 'cloud', label: 'Cloud', sub: '1000 RPS · 500 st · SLA 99.95%', cost: 300 },
+  { type: 'db', label: 'DB Cluster', sub: '800 DB RPS · 200 st · SLA 99.9%', cost: 200 },
 ];
 
 function ShopCard({ title, sub, price, monthly, disabled, onClick, icon }: {
@@ -51,7 +52,19 @@ export function ServerShop({ onClose }: { onClose: () => void }) {
       </div>
 
       <div>
-        <div className="text-[10px] text-ink-soft mb-1.5 font-semibold">Racks</div>
+        <div className="text-[10px] text-ink-soft mb-1.5 font-semibold">Rent Server (External, no plot needed)</div>
+        <div className="grid grid-cols-2 gap-1.5">
+          {RENTALS.map(r => (
+            <ShopCard key={r.type} title={r.label}
+              sub={r.sub}
+              price={0} monthly={r.cost} disabled={false}
+              onClick={() => rentServer(r.type)} icon={<Cloud className="w-3.5 h-3.5 text-green" />} />
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <div className="text-[10px] text-ink-soft mb-1.5 font-semibold">Buy Rack</div>
         <div className="grid grid-cols-2 gap-1.5">
           {RACK_TIERS.map(def => (
             <ShopCard key={def.tier} title={def.label}
@@ -63,7 +76,7 @@ export function ServerShop({ onClose }: { onClose: () => void }) {
       </div>
 
       <div>
-        <div className="text-[10px] text-ink-soft mb-1.5 font-semibold">Nodes & Equipment</div>
+        <div className="text-[10px] text-ink-soft mb-1.5 font-semibold">Buy Node & Equipment</div>
         <div className="grid grid-cols-2 gap-1.5">
           {NODE_DEFS.map(def => {
             const Icon = CATEGORY_ICON[def.category];
@@ -73,18 +86,6 @@ export function ServerShop({ onClose }: { onClose: () => void }) {
                 onClick={() => buyNode(def.typeId)} icon={<Icon className="w-3.5 h-3.5" />} />
             );
           })}
-        </div>
-      </div>
-
-      <div>
-        <div className="text-[10px] text-ink-soft mb-1.5 font-semibold">Cloud / Rental</div>
-        <div className="grid grid-cols-2 gap-1.5">
-          {RENTALS.map(r => (
-            <ShopCard key={r.type} title={r.label}
-              sub={`${r.capacity} RPS · ${r.storage} st · ${r.note}`}
-              price={0} monthly={r.cost} disabled={false}
-              onClick={() => rentServer(r.type)} icon={<Cloud className="w-3.5 h-3.5 text-green" />} />
-          ))}
         </div>
       </div>
     </div>

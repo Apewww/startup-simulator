@@ -3,8 +3,10 @@ import { useGameStore } from '../store/gameStore';
 import type { ServerRack, ServerNode } from '../types';
 import { ServerShop } from './ServerShop';
 import { LandMap } from './LandMap';
-import { Plus, Minus } from 'lucide-react';
+import { ArrowUp, ArrowDown, Lock, Plus, Minus } from 'lucide-react';
 import { getComplianceStatus } from '../systems/compliance';
+import { getDatabaseStatus, getUpgradeCost } from '../systems/server';
+import { getPlatformStats } from '../systems/platform';
 
 function fmt(n: number): string {
   const s = n.toFixed(1);
@@ -30,7 +32,9 @@ function ComplianceBar({ label, value, max }: { label: string; value: number; ma
 
 function NodeSlot({ node, rackId, slotIndex }: { node: ServerNode | null; rackId: string; slotIndex: number }) {
   const sellNode = useGameStore(s => s.sellNode);
-  const setNodeScale = useGameStore(s => s.setNodeScale);
+  const upgradeNode = useGameStore(s => s.upgradeNode);
+  const cash = useGameStore(s => s.cash);
+  const overclockUnlocked = useGameStore(s => s.unlockedPerks.includes('hardware_overclock'));
 
   if (!node) {
     return (
@@ -82,27 +86,39 @@ function NodeSlot({ node, rackId, slotIndex }: { node: ServerNode | null; rackId
         <span>$ {node.monthlyCost}/mo</span>
       </div>
 
-      {(node.category === 'web_server' || node.category === 'database' || node.category === 'caching') && (
-        <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-border opacity-0 group-hover:opacity-100 transition-opacity">
-          <span className="text-[9px] text-ink-soft">Scale {node.scaleLevel}/5</span>
+      <div className="flex items-center justify-between mt-1.5 pt-1.5 border-t border-border opacity-0 group-hover:opacity-100 transition-opacity">
+        <span className="text-[9px] text-ink-soft">Lv.{node.scaleLevel}/5</span>
+        {overclockUnlocked ? (
           <div className="flex gap-1">
             <button
-              onClick={() => setNodeScale(rackId, slotIndex, -1)}
+              onClick={() => upgradeNode(node.id, -1)}
               disabled={node.scaleLevel <= 1}
-              className="p-0.5 rounded bg-surface-2 border border-border hover:bg-ink/5 disabled:opacity-30 cursor-pointer"
+              title={node.scaleLevel > 1 ? `Downgrade → Lv.${node.scaleLevel - 1} (no refund)` : 'Already at minimum'}
+              className="p-0.5 rounded bg-surface-2 border border-border hover:bg-red-soft disabled:opacity-30 cursor-pointer"
             >
-              <Minus className="w-2.5 h-2.5 text-ink-soft" />
+              <ArrowDown className="w-2.5 h-2.5 text-red" />
             </button>
-            <button
-              onClick={() => setNodeScale(rackId, slotIndex, 1)}
-              disabled={node.scaleLevel >= 5}
-              className="p-0.5 rounded bg-surface-2 border border-border hover:bg-ink/5 disabled:opacity-30 cursor-pointer"
-            >
-              <Plus className="w-2.5 h-2.5 text-ink-soft" />
-            </button>
+            {(() => {
+              const cost = getUpgradeCost(node);
+              const disabled = cost === null || cash < cost;
+              return (
+                <button
+                  onClick={() => upgradeNode(node.id, 1)}
+                  disabled={disabled}
+                  title={cost === null ? 'Max level' : `Upgrade → Lv.${node.scaleLevel + 1} — $${cost}`}
+                  className="p-0.5 rounded bg-surface-2 border border-border hover:bg-green-soft disabled:opacity-30 cursor-pointer"
+                >
+                  <ArrowUp className="w-2.5 h-2.5 text-green" />
+                </button>
+              );
+            })()}
           </div>
-        </div>
-      )}
+        ) : (
+          <span className="flex items-center gap-1 text-[9px] text-ink-soft" title="Unlock the Hardware Overclocking perk">
+            <Lock className="w-2.5 h-2.5" /> Overclock
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -166,10 +182,13 @@ export function ServerPanel() {
   const scaleRental = useGameStore(s => s.scaleRental);
   const features = useGameStore(s => s.features);
   const racks = useGameStore(s => s.racks);
+  const events = useGameStore(s => s.events);
+  const selectedProduct = useGameStore(s => s.selectedProduct);
   const [shopOpen, setShopOpen] = useState(false);
 
   const hasFeatures = features.some(f => f.level > 0);
   const compliance = hasFeatures ? getComplianceStatus(features, racks, rentedServers) : null;
+  const dbStatus = getDatabaseStatus(racks, getPlatformStats(features, events, selectedProduct).effectiveRps, rentedServers);
 
   return (
     <div className="space-y-3">
@@ -196,6 +215,7 @@ export function ServerPanel() {
           <ComplianceBar label="Data" value={compliance.data.provided} max={compliance.data.required} />
           <ComplianceBar label="Network" value={compliance.network.provided} max={compliance.network.required} />
           <ComplianceBar label="Security" value={compliance.security.provided} max={compliance.security.provided || 1} />
+          <ComplianceBar label="Database" value={dbStatus.provided} max={Math.max(dbStatus.demand, 0.01)} />
           {compliance.overall !== 'ok' && (
             <div className="text-[10px] text-ink-soft pt-1 border-t border-border mt-1">
               {compliance.overall === 'critical' ? 'Service offline — insufficient hardware' : 'Users capped — upgrade hardware'}
