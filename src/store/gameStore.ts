@@ -1404,9 +1404,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   rentInternet: (providerId, tierId) => {
     const sub = makeInternetSubscription(providerId, tierId);
     if (!sub) return;
-    const exists = get().internetSubscriptions.some(s => s.providerId === providerId && s.tierId === tierId);
-    if (exists) {
-      get().addNotification(`${sub.providerName} ${sub.speedMbps} Mbps sudah aktif`, 'warning');
+    const activeFromProvider = get().internetSubscriptions.some(s => s.providerId === providerId);
+    if (activeFromProvider) {
+      get().addNotification(`${sub.providerName} already active — cancel first to switch tier`, 'warning');
       return;
     }
     get().addLog(`Subscribed ${sub.providerName} ${sub.speedMbps} Mbps ($${sub.monthlyCost}/mo)`);

@@ -32,7 +32,7 @@ const MONETIZATION_STRATEGIES: StratDef[] = [
 function MonetizationStrategySection() {
   const {
     activeMonetization, setMonetizationStrategy,
-    currentUsers, features, racks, rentedServers, selectedProduct, events, userMood,
+    currentUsers, features, racks, rentedServers, internetSubscriptions, selectedProduct, events, userMood,
   } = useGameStore();
 
   const adPlatformLevel = getAdPlatformLevel(features);
@@ -40,7 +40,7 @@ function MonetizationStrategySection() {
   const hasBusinessLv3 = features.some(f => f.group === 'business' && f.level >= 3 && f.enabled);
   const synergyActive = hasActiveSynergy(features, selectedProduct);
   const compliance = features.some(f => f.level > 0)
-    ? getComplianceStatus(features, racks, rentedServers)
+    ? getComplianceStatus(features, racks, rentedServers, internetSubscriptions)
     : null;
   const dataRatio = compliance?.data.ratio ?? 1;
   const platformStats = getPlatformStats(features, events, selectedProduct);
@@ -113,7 +113,7 @@ function MonetizationStrategySection() {
                 <span className="text-[9px] text-ink-soft">{ok ? s.desc : reason}</span>
                 <span className="flex gap-1 shrink-0">
                   {isActive && (
-                    <span className="text-[9px] px-1 rounded bg-indigo-soft text-indigo border border-indigo/20 font-semibold">mood {Math.round(userMood)}</span>
+                    <span className="text-[9px] px-1 rounded bg-indigo-soft text-indigo border border-indigo/20 font-semibold">{userMood >= 80 ? '😊' : userMood >= 60 ? '😐' : '😠'} {Math.round(userMood)}</span>
                   )}
                   <span className={`text-[9px] px-1 rounded border font-semibold ${moodChip.cls}`}>{moodChip.text}</span>
                   {mods.growthMult !== 1 && (

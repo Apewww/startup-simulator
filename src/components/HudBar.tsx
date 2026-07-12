@@ -138,12 +138,12 @@ export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps
 
         {/* User mood indicator */}
         {features.some(f => f.level > 0) && (() => {
-          const moodPct = Math.round(userMood);
+          const moodEmoji = userMood >= MOOD_BASELINE ? '😊' : userMood >= 60 ? '😐' : '😠';
           const moodColor = userMood >= MOOD_BASELINE ? 'text-green' : userMood >= 60 ? 'text-amber' : 'text-red';
           const moodLabel = userMood >= MOOD_BASELINE ? 'Users happy' : userMood >= 60 ? 'Users uneasy' : 'Users unhappy';
           return (
-            <span className={`flex items-center gap-1 text-[10px] ${moodColor}`} title={`User Mood: ${moodLabel} (${moodPct}/100) — affects churn`}>
-              <Circle className="w-2 h-2 fill-current" />{moodPct}
+            <span className={`flex items-center gap-1 text-[10px] ${moodColor}`} title={`User Mood: ${moodLabel} (${Math.round(userMood)}/100) — affects churn`}>
+              {moodEmoji}
             </span>
           );
         })()}

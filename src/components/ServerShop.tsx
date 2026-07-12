@@ -81,6 +81,7 @@ export function ServerShop({ onClose }: { onClose: () => void }) {
               <div className="grid grid-cols-2 gap-1">
                 {p.tiers.map(t => {
                   const active = internetSubscriptions.some(s => s.providerId === p.id && s.tierId === t.id);
+                  const hasProvider = internetSubscriptions.some(s => s.providerId === p.id);
                   const cost = Math.round(t.baseCost * p.costMult);
                   const net = Math.round(t.network * p.networkMult * 10) / 10;
                   const rps = Math.round(t.rpsBonus * p.rpsMult);
@@ -89,8 +90,9 @@ export function ServerShop({ onClose }: { onClose: () => void }) {
                     <button
                       key={t.id}
                       onClick={() => rentInternet(p.id, t.id)}
-                      disabled={active}
-                      className={`text-left rounded-md border px-1.5 py-1 transition-colors ${active ? 'border-green/40 bg-green-soft cursor-default' : 'border-border bg-surface-2 hover:bg-surface cursor-pointer'}`}
+                      disabled={active || (hasProvider && !active)}
+                      title={hasProvider && !active ? 'Cancel current subscription first' : active ? 'Active' : `$${cost}/mo`}
+                      className={`text-left rounded-md border px-1.5 py-1 transition-colors ${active ? 'border-green/40 bg-green-soft cursor-default' : hasProvider ? 'border-border bg-surface-2 opacity-50 cursor-not-allowed' : 'border-border bg-surface-2 hover:bg-surface cursor-pointer'}`}
                     >
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-bold text-ink">{t.speedMbps} Mbps</span>
