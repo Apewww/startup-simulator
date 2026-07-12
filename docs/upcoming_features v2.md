@@ -277,24 +277,25 @@ Dipecah supaya bisa dicicil per PR/commit, tiap fase idealnya tetap dalam kondis
 - [x] Tampilkan preview efek (+revenue, −growth/churn) sebelum pemain konfirmasi switch
 - [x] Sinkronkan dengan `HudBar.tsx` kalau perlu indikator strategi monetisasi aktif
 
-### Fase D — Cooling Logic
-- [ ] `systems/server.ts` — implementasi `calculateHeatRatio()` per rack (§6.4)
-- [ ] `systems/server.ts` — integrasikan overclock nonlinear heat scaling (`baseHeat × level^1.5`) ke heat generation existing (§6.2)
-- [ ] `systems/server.ts` — tambah state **Critical Overheat** (>130%) dengan throttle RPS ×0.5, di atas overheat existing (100-130%)
-- [ ] `systems/server.ts` — implementasi heat spread antar rack bersebelahan (§6.5), baca `adjacentRackIds` dari grid `ServerRoomView`
+### ~~Fase D — Cooling Logic~~ ✅ `v1.5.4`
+- [x] `systems/server.ts` — implementasi `calculateHeatRatio()` per rack (§6.4)
+- [x] `systems/server.ts` — integrasikan overclock nonlinear heat scaling (`baseHeat × level^1.5`) ke heat generation existing (§6.2)
+- [x] `systems/server.ts` — tambah state **Critical Overheat** (>130%) dengan crash chance ×2, di atas overheat existing (100-130%)
+- [x] `systems/server.ts` — implementasi heat spread antar rack bersebelahan (§6.5), baca `adjacentRackIds` dari grid `ServerRoomView`
 - [ ] Balancing check: simulasikan rack full-slot server tanpa cooling tambahan di tiap tier (Basic/Advanced/Enterprise) — pastikan heat budget §6.1 sesuai tujuan (rack rendah sedikit overheat, bukan auto-critical; rack tinggi bukan otomatis kebal)
 
-### Fase E — Cooling UI
-- [ ] `components/ServerRoomView.tsx` — render 4 status warna rack (Cool/Warm/Overheat/Critical), ganti indikator border merah binary yang sekarang jadi gradasi
-- [ ] `components/LandMap.tsx` — reflect status rack yang overheat di level plot (biar kelihatan dari luar grid)
-- [ ] Hover state: highlight rack tetangga yang kena efek heat spread (§6.5) supaya pemain paham kenapa rack tiba-tiba overheat
-- [ ] `components/ServerShop.tsx` — tampilkan Cooling Fan/Industrial Fan/Liquid Cooling di shop dengan info cooling capacity & upkeep
+### ~~Fase E — Cooling UI~~ ✅ `v1.5.4`
+- [x] `components/ServerRoomView.tsx` — render 4 status warna rack (Cool/Warm/Overheat/Critical), ganti indikator border merah binary yang sekarang jadi gradasi
+- [x] `components/LandMap.tsx` — reflect status rack yang overheat di level plot (biar kelihatan dari luar grid)
+- [x] Hover state: highlight rack tetangga yang kena efek heat spread (§6.5) supaya pemain paham kenapa rack tiba-tiba overheat
+- [x] `components/ServerShop.tsx` — tampilkan Cooling Fan/Industrial Fan/Liquid Cooling di shop dengan info cooling capacity & upkeep (sudah sejak v1.5)
 
-### Fase F — SysAdmin Tie-in & Optional Event
-- [ ] Tambah `heatSpreadReduction = sysAdminLevel × 3%` dan `overheatRecoveryTime × (1 − sysAdminLevel × 5%)` di tempat logic SysAdmin berada (§6.6)
-- [ ] (Opsional) `systems/events.ts` — tambah event "Coolant Leak" khusus Liquid Cooling (§6.7) — bisa di-skip kalau dirasa nambah kompleksitas berlebih
+### ~~Fase F — SysAdmin Tie-in & Optional Event~~ ✅ `v1.5.4`
+- [x] Tambah `heatSpreadReduction = sysAdminLevel × 3%` dan overheat recovery `max(3, 12 − sysAdminLevel × 2)` di logic SysAdmin (§6.6)
+- [x] Overheating node auto-recover saat rack dingin — konsisten untuk semua node type
+- [x] (Opsional) Coolant Leak §6.7 — **skip**, tidak diadopsi
 
-### Fase G — Full Balancing & Polish Pass
+### Fase G — Full Balancing & Polish Pass 🔄 (belum selesai)
 - [ ] Simulasi tick-by-tick gabungan (monetisasi + cooling aktif bareng) di 3 titik game (early/mid/late) untuk tiap produk — cek revenue vs biaya operasional & vs risiko overheat
 - [ ] Playtest manual minimal 1 sesi penuh per produk (Social Media, E-Commerce, Search Engine) dari awal sampai ada funding round, catat momen yang terasa timpang
 - [ ] Update README (tabel Data & Balancing, Roadmap — pindahkan "Cooling Grid Refactor" dari 📝 Planned ke ✅ setelah Fase E selesai)

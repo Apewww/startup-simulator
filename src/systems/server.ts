@@ -284,6 +284,20 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
         return { ...slot, node: { ...node, load: 0 } };
       }
 
+      if (node.status === 'overheating') {
+        // Keep status, jangan override — recovery di Pass 3.
+        // Hitung load buat display.
+        if (node.category === 'web_server') {
+          newLoad = Math.round(ownedLoadMap.get(`${rack.id}:${slot.index}`) ?? 0);
+        } else if (node.category === 'database') {
+          newLoad = totalDbCapacity > 0 ? Math.round((dbRPS / totalDbCapacity) * 100) : 0;
+        } else {
+          newLoad = 50;
+        }
+        if (node.category !== 'cooling') rawHeat += scaled.effectiveHeat;
+        return { ...slot, node: { ...node, load: newLoad, status: 'overheating' as const, crashTicks: 0, recoveryTicks: node.recoveryTicks } };
+      }
+
       if (node.category === 'web_server') {
         const waterLoad = ownedLoadMap.get(`${rack.id}:${slot.index}`);
         newLoad = waterLoad !== undefined ? Math.round(waterLoad) : 0;
@@ -403,6 +417,21 @@ export function calculateNodeLoads(racks: ServerRack[], incomingRPS: number, ren
             slot.node.crashTicks = 0;
           } else {
             slot.node.status = 'overheating';
+          }
+        }
+      });
+    }
+
+    // Overheating recovery: saat rack dingin, node overheating pulih.
+    // SysAdmin percepat recovery (§6.6).
+    if (!isOverheating) {
+      const recoveryThreshold = Math.max(3, 12 - sysAdminLevel * 2);
+      data.slots.forEach(slot => {
+        if (slot.node?.status === 'overheating') {
+          slot.node.recoveryTicks = (slot.node.recoveryTicks || 0) + 1;
+          if (slot.node.recoveryTicks >= recoveryThreshold) {
+            slot.node.status = 'active';
+            slot.node.recoveryTicks = 0;
           }
         }
       });
