@@ -652,19 +652,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       const updated = { ...c, ticksElapsed: c.ticksElapsed + 1 };
       if (updated.ticksElapsed >= updated.totalTicks) {
         updated.status = 'completed';
-        // Auto-renew check — always succeeds (loyal client, perk convenience)
-        const specialist = newEmployees.find(e => e.id === c.specialistId);
-        const hasPerk = get().unlockedPerks.includes('sales_auto_renew');
-        if (specialist && specialist.happiness >= 15 && hasPerk && c.renewalCount < 5) {
-          const renewalValue = calcAutoRenewValue(c.dealValue, c.renewalCount);
-          const renewedCampaign = makeCampaign(
-            { id: `renew-${c.id}`, clientName: c.clientName, budget: renewalValue, defaultDays: c.offeredDays, expiresAt: 0, status: 'pending' as const, specialistId: c.specialistId },
-            renewalValue, c.offeredDays,
-          );
-          renewedCampaign.renewalCount = c.renewalCount + 1;
-          get().addNotification(`Auto-renewed ${c.clientName} campaign — $${renewalValue}`, 'success');
-          return updated; // completed with renewal spawning
-        }
       }
       return updated;
     });
