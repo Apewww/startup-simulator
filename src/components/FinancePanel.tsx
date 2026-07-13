@@ -23,7 +23,7 @@ function fmtStat(label: string, value: string, icon: React.ReactNode) {
 }
 
 export function FinancePanel() {
-  const { features, totalSalary, racks, rentedServers, month, cash, employees, cashFlowHistory, pendingFunding, fundingRounds, currentUsers, events, selectedProduct, adCampaigns, activeMonetization, activePricingTier } = useGameStore();
+  const { features, totalSalary, racks, rentedServers, month, cash, employees, cashFlowHistory, pendingFunding, fundingRounds, currentUsers, events, selectedProduct, adCampaigns, activeMonetization, activePricingTier, loan } = useGameStore();
   const [chartOpen, setChartOpen] = useState(false);
   const [fundingOpen, setFundingOpen] = useState(false);
   const platformStats = getPlatformStats(features, events, selectedProduct);
@@ -36,8 +36,9 @@ export function FinancePanel() {
 
   const activeCampaigns = adCampaigns.filter(c => c.status === 'active');
   const campaignMonthlyRevenue = activeCampaigns.reduce((s, c) => s + c.revenuePerTick, 0) * TICKS_PER_MONTH;
+  const loanPayment = loan?.status === 'active' ? loan.monthlyPayment : 0;
   const totalRevenue = revenue.total + campaignMonthlyRevenue;
-  const net = totalRevenue - totalSalary - serverCost;
+  const net = totalRevenue - totalSalary - serverCost - loanPayment;
   const hasData = employees.length > 0 || racks.length > 0;
 
   return (
@@ -78,6 +79,7 @@ export function FinancePanel() {
             </div>
             <Row label={`Payroll (${employees.length})`} value={`-${formatCash(totalSalary)}`} color="red" />
             {serverCost > 0 && <Row label="Server Cost" value={`-${formatCash(serverCost)}`} color="red" />}
+            {loanPayment > 0 && <Row label="Loan Payment" value={`-${formatCash(loanPayment)}`} color="red" />}
           </div>
 
           <div className="pt-2 border-t border-border space-y-1">

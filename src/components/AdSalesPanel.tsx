@@ -270,6 +270,7 @@ export function AdSalesPanel() {
           <h4 className="text-[10px] font-semibold text-ink-soft uppercase tracking-wider mb-1.5 flex items-center gap-1">
             <RefreshCw className="w-3 h-3" strokeWidth={2} />
             History ({completedCampaigns.length})
+            <span className="ml-auto text-[9px]">{fmtCash(completedCampaigns.reduce((s, c) => s + c.dealValue, 0))} lifetime</span>
           </h4>
           <div className="flex flex-col gap-1">
             {completedCampaigns.slice(-5).map(c => (

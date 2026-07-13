@@ -272,6 +272,12 @@ function PricingSliderSection() {
   const { activePricingTier, setPricingTier, selectedProduct } = useGameStore();
   const tiers = getPricingTiers(selectedProduct);
   if (tiers.length === 0) return null;
+  const activeTier = tiers.find(t => t.id === activePricingTier);
+
+  function Delta({ val, ref }: { val: number; ref: number }) {
+    if (val === ref) return null;
+    return <span className={`text-[8px] ${val > ref ? 'text-green' : 'text-red'}`}>{val > ref ? '▲' : '▼'}</span>;
+  }
 
   return (
     <div className="border border-border rounded-lg p-2 bg-surface">
@@ -292,16 +298,21 @@ function PricingSliderSection() {
             >
               <div className="flex items-center justify-between gap-2">
                 <span className={`text-[11px] font-semibold ${isActive ? 'text-amber' : 'text-ink'}`}>{t.label}</span>
-                <span className={`text-[10px] font-mono font-semibold ${t.revenueMult >= 1 ? 'text-green' : 'text-red'}`}>×{t.revenueMult}</span>
+                <span className={`flex items-center gap-0.5 text-[10px] font-mono font-semibold ${t.revenueMult >= 1 ? 'text-green' : 'text-red'}`}>
+                  ×{t.revenueMult}
+                  {!isActive && activeTier && <Delta val={t.revenueMult} ref={activeTier.revenueMult} />}
+                </span>
               </div>
               <div className="flex items-center justify-between gap-2 mt-0.5">
                 <span className="text-[9px] text-ink-soft">{isDefault ? 'Balanced' : t.growthMult < 1 ? 'Aggressive' : 'Premium'}</span>
                 <span className="flex gap-1 shrink-0">
                   <span className={`text-[9px] px-1 rounded border font-semibold ${t.growthMult < 1 ? 'bg-red-soft text-red border-red/20' : 'bg-green-soft text-green border-green/20'}`}>
                     growth ×{t.growthMult}
+                    {!isActive && activeTier && <Delta val={t.growthMult} ref={activeTier.growthMult} />}
                   </span>
                   <span className={`text-[9px] px-1 rounded border font-semibold ${t.moodTarget < 70 ? 'bg-red-soft text-red border-red/20' : 'bg-green-soft text-green border-green/20'}`}>
                     mood {t.moodTarget}
+                    {!isActive && activeTier && <Delta val={t.moodTarget} ref={activeTier.moodTarget} />}
                   </span>
                 </span>
               </div>

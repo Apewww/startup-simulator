@@ -29,16 +29,15 @@ Efek setelah fix:
 
 ### 3.2 Revenue Breakdown
 ✅ Revenue sources (Ads, Campaigns, Subscription, B2B, Freemium) tampil di FinancePanel sejak V1.6.
-✅ Loan Payment — sudah include di monthly billing (`gameStore.ts:708-711`).
-- Loan payment belum ditampilkan di cost breakdown FinancePanel — minor, tidak memengaruhi gameplay.
+✅ Loan Payment — tampil di Expenses + masuk ke net calculation.
 
 ### 3.3 Client History
-✅ Active Campaigns + Completed Campaigns (last 5) di AdSalesPanel.
-- Lifetime total revenue dari campaigns belum ditampilkan — minor.
+✅ Active Campaigns + Completed Campaigns di AdSalesPanel.
+✅ Lifetime total revenue dari campaigns tampil di History header.
 
 ### 3.4 Pricing Impact Preview
 ✅ Revenue ×, Growth ×, Mood target tampil inline per tier.
-- Comparison arrow (▲/▼) vs current tier belum — minor visual.
+✅ Comparison arrow (▲/▼) vs current tier — ▲ hijau (lebih tinggi), ▼ merah (lebih rendah).
 
 ---
 
@@ -47,8 +46,9 @@ Efek setelah fix:
 | File | Perubahan |
 |------|----------|
 | `src/store/gameStore.ts` | Funding revOpts + `pricingRevenueMult` |
-| `src/components/FeaturesPanel.tsx` | Preview revOpts + `pricingRevenueMult` + import getPricingTier |
-| `src/components/FinancePanel.tsx` | Revenue calc + `pricingRevenueMult` + import getPricingTier |
+| `src/components/FeaturesPanel.tsx` | Preview revOpts + `pricingRevenueMult` + import getPricingTier + pricing arrows ▲/▼ |
+| `src/components/FinancePanel.tsx` | Revenue calc + `pricingRevenueMult` + import getPricingTier + loan payment display & net fix |
+| `src/components/AdSalesPanel.tsx` | Lifetime revenue total di History header |
 | `docs/update/update_v1.8.md` | BARU |
 
 ---
@@ -58,5 +58,8 @@ Efek setelah fix:
 - [x] Fix pricing revenueMult di funding offer calc
 - [x] Fix pricing revenueMult di monetization preview
 - [x] Fix pricing revenueMult di finance display
-- [ ] Build sukses (`tsc -b` + `vite build`)
+- [x] Loan payment di FinancePanel expenses + net fix
+- [x] Lifetime revenue campaigns di History
+- [x] Pricing comparison arrow ▲/▼ vs current tier
+- [x] Build sukses (`tsc -b` + `vite build`)
 - [ ] Commit
