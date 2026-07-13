@@ -38,6 +38,8 @@ export interface AdSalesContext {
   dataRatio: number;
   userMood: number;
   synergyActive: boolean;
+  specialistLevel: number;
+  productFeaturesLevel: number;
 }
 
 function pickRandomClient(exclude: string[]): string {
@@ -46,14 +48,89 @@ function pickRandomClient(exclude: string[]): string {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-function calcBudgetRange(users: number): { min: number; max: number; count: number } {
-  if (users >= 100_000) return { min: 10_000, max: 50_000, count: Math.floor(Math.random() * 3) + 2 };
-  if (users >= 20_000) return { min: 2_000, max: 10_000, count: Math.floor(Math.random() * 2) + 2 };
-  return { min: 500, max: 2_000, count: Math.floor(Math.random() * 2) + 1 };
+export function calcFeatureAdjustedBudgetRange(
+  users: number, 
+  adPlatformLevel: number, 
+  productFeaturesLevel: number, 
+  dataRatio: number, 
+  synergyActive: boolean,
+  specialistLevel: number
+): { min: number; max: number; count: number } {
+  const baseRanges = {
+    enterprise: { min: 10_000, max: 50_000, count: 3 },
+    medium: { min: 2_000, max: 10_000, count: 2 },
+    small: { min: 500, max: 2_000, count: 1 },
+  };
+
+  const userTier = users >= 100_000 ? 'enterprise' : users >= 20_000 ? 'medium' : 'small';
+  let range = baseRanges[userTier];
+
+  const platformMultiplier = calcAdPlatformMult(adPlatformLevel);
+  const dataMultiplier = dataRatio >= 1 ? 1.2 : 1.0;
+  const synergyMultiplier = synergyActive ? 1.1 : 1.0;
+  const specialistMultiplier = 1 + (specialistLevel * 0.05);
+
+  const minAdjusted = Math.round(range.min * platformMultiplier * dataMultiplier * synergyMultiplier * specialistMultiplier);
+  const maxAdjusted = Math.round(range.max * platformMultiplier * dataMultiplier * synergyMultiplier * specialistMultiplier);
+  const countAdjusted = Math.max(1, Math.min(5, range.count + Math.floor(productFeaturesLevel / 2)));
+
+  const finalMin = Math.max(100, Math.min(100_000, minAdjusted));
+  const finalMax = Math.max(finalMin + 500, Math.min(200_000, maxAdjusted));
+
+  return { min: finalMin, max: finalMax, count: countAdjusted };
 }
 
-export function generateLeads(ctx: AdSalesContext, specialistId: string, existingClients: string[]): AdLead[] {
-  const budgetRange = calcBudgetRange(ctx.currentUsers);
+export function calcFeatureAdjustedBudgetMin(
+  users: number,
+  adPlatformLevel: number,
+  productFeaturesLevel: number,
+  dataRatio: number,
+  synergyActive: boolean,
+  specialistLevel: number
+): number {
+  const baseMin = users >= 100_000 ? 10_000 : users >= 20_000 ? 2_000 : 500;
+  const platformMultiplier = calcAdPlatformMult(adPlatformLevel);
+  const dataMultiplier = dataRatio >= 1 ? 1.2 : 1.0;
+  const synergyMultiplier = synergyActive ? 1.1 : 1.0;
+  const specialistMultiplier = 1 + (specialistLevel * 0.05);
+  
+  let adjusted = baseMin * platformMultiplier * dataMultiplier * synergyMultiplier * specialistMultiplier;
+  
+  if (productFeaturesLevel > 0) adjusted *= (1 + productFeaturesLevel * 0.1);
+  
+  return Math.max(100, Math.min(100_000, Math.round(adjusted)));
+}
+
+export function calcFeatureAdjustedBudgetMax(
+  users: number,
+  adPlatformLevel: number,
+  productFeaturesLevel: number,
+  dataRatio: number,
+  synergyActive: boolean,
+  specialistLevel: number
+): number {
+  const baseMax = users >= 100_000 ? 50_000 : users >= 20_000 ? 10_000 : 2_000;
+  const platformMultiplier = calcAdPlatformMult(adPlatformLevel);
+  const dataMultiplier = dataRatio >= 1 ? 1.2 : 1.0;
+  const synergyMultiplier = synergyActive ? 1.1 : 1.0;
+  const specialistMultiplier = 1 + (specialistLevel * 0.05);
+  
+  let adjusted = baseMax * platformMultiplier * dataMultiplier * synergyMultiplier * specialistMultiplier;
+  
+  if (productFeaturesLevel > 0) adjusted *= (1 + productFeaturesLevel * 0.1);
+  
+  return Math.max(500, Math.min(200_000, Math.round(adjusted)));
+}
+
+export function generateLeads(ctx: AdSalesContext, specialistId: string, existingClients: string[], currentTick: number): AdLead[] {
+  const budgetRange = calcFeatureAdjustedBudgetRange(
+    ctx.currentUsers,
+    ctx.adPlatformLevel,
+    ctx.adPlatformLevel, // Use adPlatformLevel as proxy for product features
+    ctx.dataRatio,
+    ctx.synergyActive,
+    1 // Default specialist level
+  );
   const count = budgetRange.count;
   const leads: AdLead[] = [];
   const usedNames = new Set(existingClients);
@@ -71,7 +148,7 @@ export function generateLeads(ctx: AdSalesContext, specialistId: string, existin
 
     const budget = Math.floor(Math.random() * (budgetRange.max - budgetRange.min) + budgetRange.min);
     const days = calcLeadExpiryDays(ctx.adPlatformLevel);
-    const expiresAt = Date.now() + days * TICKS_PER_DAY * 2;
+    const expiresAt = currentTick + days * TICKS_PER_DAY;
 
     leads.push({
       id: newAdLeadId(),
@@ -93,19 +170,7 @@ export function getMaxLeadsCount(users: number): number {
   return 3;
 }
 
-function calcBudgetMin(users: number): number {
-  if (users >= 100_000) return 10_000;
-  if (users >= 20_000) return 2_000;
-  return 500;
-}
-
-function calcBudgetMax(users: number): number {
-  if (users >= 100_000) return 50_000;
-  if (users >= 20_000) return 10_000;
-  return 2_000;
-}
-
-export function generateSingleLead(ctx: AdSalesContext, specialistId: string, existingClients: string[]): AdLead {
+export function generateSingleLead(ctx: AdSalesContext, specialistId: string, existingClients: string[], currentTick: number): AdLead {
   const clientName = pickRandomClient(existingClients);
   let matchPercent = Math.floor(Math.random() * 50) + 20;
   if (ctx.dataRatio >= 1) matchPercent += Math.min(Math.round((ctx.dataRatio - 1) * 20), 10);
@@ -113,9 +178,26 @@ export function generateSingleLead(ctx: AdSalesContext, specialistId: string, ex
   if (ctx.synergyActive) matchPercent += 10;
   matchPercent = Math.max(20, Math.min(95, matchPercent));
 
-  const budget = Math.floor(Math.random() * (calcBudgetMax(ctx.currentUsers) - calcBudgetMin(ctx.currentUsers)) + calcBudgetMin(ctx.currentUsers));
+  const minBudget = calcFeatureAdjustedBudgetMin(
+    ctx.currentUsers,
+    ctx.adPlatformLevel,
+    ctx.productFeaturesLevel,
+    ctx.dataRatio,
+    ctx.synergyActive,
+    ctx.specialistLevel
+  );
+  const maxBudget = calcFeatureAdjustedBudgetMax(
+    ctx.currentUsers,
+    ctx.adPlatformLevel,
+    ctx.productFeaturesLevel,
+    ctx.dataRatio,
+    ctx.synergyActive,
+    ctx.specialistLevel
+  );
+  
+  const budget = Math.floor(Math.random() * (maxBudget - minBudget) + minBudget);
   const days = calcLeadExpiryDays(ctx.adPlatformLevel);
-  const expiresAt = Date.now() + days * TICKS_PER_DAY * 2;
+  const expiresAt = currentTick + days * TICKS_PER_DAY;
 
   return {
     id: newAdLeadId(),
@@ -132,16 +214,6 @@ export function calcAdPlatformMult(adPlatformLevel: number): number {
   return 1 + adPlatformLevel * 0.2;
 }
 
-export function calcPriceRange(budget: number, days: number, currentUsers: number, adPlatformLevel: number, synergyActive: boolean): { minPerDay: number; maxPerDay: number } {
-  const mult = calcPlatformMultiplier(currentUsers, adPlatformLevel, synergyActive);
-  const minTotal = calcMinBudget(budget);
-  const maxTotal = calcMaxBudget(budget, mult);
-  return {
-    minPerDay: Math.ceil(minTotal / days),
-    maxPerDay: Math.floor(maxTotal / days),
-  };
-}
-
 export function calcPlatformMultiplier(currentUsers: number, adPlatformLevel: number, synergyActive: boolean): number {
   return 1 + (currentUsers * 0.00001 + adPlatformLevel * 0.1 + (synergyActive ? 0.2 : 0));
 }
@@ -154,30 +226,67 @@ export function calcMinBudget(budget: number): number {
   return Math.round(budget * 0.4);
 }
 
+export function calcMidBudget(budget: number, platformMult: number): number {
+  return Math.round((calcMinBudget(budget) + calcMaxBudget(budget, platformMult)) / 2);
+}
+
+export function calcPriceRange(budget: number, days: number, currentUsers: number, adPlatformLevel: number, synergyActive: boolean): { minPerDay: number; maxPerDay: number; midPerDay: number } {
+  const mult = calcPlatformMultiplier(currentUsers, adPlatformLevel, synergyActive);
+  const minTotal = calcMinBudget(budget);
+  const maxTotal = calcMaxBudget(budget, mult);
+  const midTotal = calcMidBudget(budget, mult);
+  return {
+    minPerDay: Math.ceil(minTotal / days),
+    maxPerDay: Math.floor(maxTotal / days),
+    midPerDay: Math.ceil(midTotal / days),
+  };
+}
+
+export function calcOfferChance(totalDeal: number, budget: number): number {
+  if (budget <= 0) return 0;
+  const ratio = totalDeal / budget;
+
+  // Extreme lowball — still decent but not a free win
+  if (ratio < 0.2) return Math.round(70 + (ratio / 0.2) * 30);
+  // Below budget — client accepts (bargain)
+  if (ratio < 1.0) return 100;
+  // Exactly at budget
+  if (ratio === 1.0) return 90;
+  // Above budget — makin mahal makin turun minat
+  return Math.max(10, Math.round(90 - (ratio - 1.0) * 40));
+}
+
 export interface NegotiationContext {
   currentUsers: number;
   adPlatformLevel: number;
   synergyActive: boolean;
 }
 
-export function evaluateOffer(lead: AdLead, offeredDays: number, offeredPrice: number, ctx: NegotiationContext): { success: boolean; reason: string; minPrice: number; maxPrice: number } {
+export function evaluateOffer(lead: AdLead, offeredDays: number, offeredPrice: number, ctx: NegotiationContext): { success: boolean; reason: string; chance: number } {
   const totalDeal = offeredPrice * offeredDays;
 
-  if (offeredDays < 7) return { success: false, reason: 'Campaign too short (min 7 days)', minPrice: 0, maxPrice: 0 };
-  if (offeredPrice <= 0) return { success: false, reason: 'Invalid price', minPrice: 0, maxPrice: 0 };
+  if (offeredDays < 7) return { success: false, reason: 'Campaign too short (min 7 days)', chance: 0 };
+  if (offeredPrice <= 0) return { success: false, reason: 'Invalid price', chance: 0 };
 
-  const platformMult = calcPlatformMultiplier(ctx.currentUsers, ctx.adPlatformLevel, ctx.synergyActive);
-  const maxBudget = calcMaxBudget(lead.budget, platformMult);
-  const minBudget = calcMinBudget(lead.budget);
+  let chance = calcOfferChance(totalDeal, lead.budget);
 
-  if (totalDeal < minBudget) return { success: false, reason: `Price too low — need at least $${minBudget.toLocaleString()} total`, minPrice: Math.ceil(minBudget / offeredDays), maxPrice: Math.floor(maxBudget / offeredDays) };
-  if (totalDeal > maxBudget) return { success: false, reason: `Too expensive for platform value — max $${maxBudget.toLocaleString()}`, minPrice: Math.ceil(minBudget / offeredDays), maxPrice: Math.floor(maxBudget / offeredDays) };
+  // Platform quality bonus
+  const platformBonus = (ctx.currentUsers * 0.00001 + ctx.adPlatformLevel * 0.05) * 20;
+  chance = Math.round(Math.min(100, chance + platformBonus));
+  chance = Math.max(10, chance);
 
-  return { success: true, reason: 'Deal accepted', minPrice: Math.ceil(minBudget / offeredDays), maxPrice: Math.floor(maxBudget / offeredDays) };
+  const success = Math.random() * 100 < chance;
+
+  if (success) return { success: true, reason: 'Deal accepted', chance };
+
+  const ratio = totalDeal / lead.budget;
+  if (ratio < 0.15) return { success: false, reason: 'Price too low — looks suspicious', chance };
+  if (ratio > 1.5) return { success: false, reason: `Too expensive — max $${Math.ceil(lead.budget * 1.5 / offeredDays)}/day`, chance };
+  return { success: false, reason: 'Client declined', chance };
 }
 
 export function makeCampaign(lead: AdLead, dealValue: number, offeredDays: number): AdCampaign {
-  const totalTicks = offeredDays * 24;
+  const totalTicks = offeredDays * TICKS_PER_DAY;
   return {
     id: newAdCampaignId(),
     leadId: lead.id,

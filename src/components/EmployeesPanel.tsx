@@ -21,6 +21,7 @@ function EmployeeCard({ employee }: { employee: Employee }) {
   const giveBonus = useGameStore((s) => s.giveBonus);
   const startVacation = useGameStore((s) => s.startVacation);
   const cancelVacation = useGameStore((s) => s.cancelVacation);
+  const fireEmployee = useGameStore((s) => s.fireEmployee);
   const cash = useGameStore((s) => s.cash);
   const allEmployees = useGameStore((s) => s.employees);
   const availableComponents = getAvailableComponents(employee.role, employee.level);
@@ -219,6 +220,12 @@ function EmployeeCard({ employee }: { employee: Employee }) {
               Start
             </button>
           </div>
+          {!employee.isPlayer && (
+            <button onClick={() => fireEmployee(employee.id)}
+              className="w-full flex items-center justify-center gap-1 px-2 py-1.5 rounded text-[10px] font-semibold bg-red/10 text-red hover:bg-red/20 transition-colors cursor-pointer">
+              <XCircle className="w-3 h-3" /> Fire Employee
+            </button>
+          )}
         </div>
       )}
 

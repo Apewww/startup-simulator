@@ -36,6 +36,14 @@ export interface Notification {
   type: 'info' | 'success' | 'warning' | 'error';
 }
 
+export interface AdNotification extends Notification {
+  leadId?: string;
+  clientName?: string;
+  dealValue?: number;
+  pricePerDay?: number;
+  durationDays?: number;
+}
+
 export interface MonthlySnapshot {
   month: number;
   revenue: number;
@@ -178,6 +186,7 @@ interface GameState {
   stopSearching: (specialistId: string) => void;
   sendOffer: (leadId: string, days: number, price: number) => void;
   cancelLead: (leadId: string) => void;
+  fireEmployee: (id: string) => void;
   unlockAllPerks: () => void;
   devSpawnFurniture: () => void;
 }
@@ -326,14 +335,24 @@ export const useGameStore = create<GameState>((set, get) => ({
     const newResources = resources.map(r => ({ ...r }));
     const resignedIds: string[] = [];
     const fx = computeFurnitureEffects(state.furniture, state.employees);
+    const productFeaturesLevel = features.reduce((sum, f) => sum + f.level, 0);
+    const unlockedFeatureLevels = features.filter(f => f.level > 0).map(f => f.level);
+    const platformLevel = unlockedFeatureLevels.length > 0
+      ? unlockedFeatureLevels.reduce((sum, l) => sum + l, 0) / unlockedFeatureLevels.length
+      : 0;
     const adSalesCtx = {
       currentUsers: state.currentUsers,
-      adPlatformLevel: state.features.find(f => f.id === 'ad_platform')?.level ?? 0,
+      adPlatformLevel: platformLevel,
       dataRatio: (features.some(f => f.level > 0) ? getComplianceStatus(features, racks, rentedServers, internetSubs) : null)?.data.ratio ?? 1,
       userMood: state.userMood,
       synergyActive: hasActiveSynergy(features, selectedProduct),
+      specialistLevel: 0,
+      productFeaturesLevel,
     };
     const leadGenEvents: AdLead[] = [];
+    const resolvedLeads: { id: string; status: 'won' | 'lost' }[] = [];
+    const resolvedCampaigns: AdCampaign[] = [];
+    const pendingNotifications: { msg: string; type: Notification['type'] }[] = [];
     const newEmployees = employees
       .map(emp => {
         const def = emp.currentTask ? getComponentDef(emp.currentTask) : undefined;
@@ -374,7 +393,8 @@ export const useGameStore = create<GameState>((set, get) => ({
                 ...state.adLeads.map(l => l.clientName),
                 ...state.adCampaigns.map(c => c.clientName),
               ];
-              const lead = generateSingleLead(adSalesCtx, emp.id, existingClients);
+              const lead = generateSingleLead({ ...adSalesCtx, specialistLevel: emp.level }, emp.id, existingClients, newTick);
+              if (state.devMode) get().addLog(`[ADS] lead ${lead.clientName}: budget $${lead.budget}, match ${lead.matchPercent}%, pLvl ${platformLevel.toFixed(2)}, spec Lv${emp.level}, featLvl ${productFeaturesLevel}`);
               leadGenEvents.push(lead);
             }
           }
@@ -387,22 +407,18 @@ export const useGameStore = create<GameState>((set, get) => ({
             if (lead && lead.offeredDays && lead.offeredPrice) {
               const negoCtx = { currentUsers: adSalesCtx.currentUsers, adPlatformLevel: adSalesCtx.adPlatformLevel, synergyActive: adSalesCtx.synergyActive };
               const result = evaluateOffer(lead, lead.offeredDays, lead.offeredPrice, negoCtx);
+              if (state.devMode) get().addLog(`[ADS] offer ${lead.clientName}: $${lead.offeredPrice}/day x${lead.offeredDays}=$${(lead.offeredPrice * lead.offeredDays).toLocaleString()}, budget $${lead.budget.toLocaleString()}, ratio ${((lead.offeredPrice * lead.offeredDays) / lead.budget).toFixed(2)}, chance ${result.chance}%, ${result.success ? 'WON' : 'LOST: ' + result.reason}`);
               if (result.success) {
                 const dealValue = lead.offeredPrice * lead.offeredDays;
-                const campaign = makeCampaign(lead, dealValue, lead.offeredDays);
+                resolvedCampaigns.push(makeCampaign(lead, dealValue, lead.offeredDays));
+                resolvedLeads.push({ id: lead.id, status: 'won' });
                 emp.failStreak = 0;
-                get().addNotification(`Deal closed with ${lead.clientName}: $${dealValue.toLocaleString()} (${lead.offeredDays}d)`, 'success');
-                set({
-                  adLeads: get().adLeads.map(l => l.id === lead.id ? { ...l, status: 'won' } : l),
-                  adCampaigns: [...get().adCampaigns, campaign],
-                });
+                pendingNotifications.push({ msg: `Deal closed with ${lead.clientName}: $${dealValue.toLocaleString()} (${lead.offeredDays}d)`, type: 'success' });
               } else {
                 emp.failStreak = (emp.failStreak ?? 0) + 1;
                 if (emp.failStreak >= 3) newHappiness = Math.max(0, newHappiness - 10);
-                get().addNotification(`${lead.clientName} rejected — ${result.reason}`, 'warning');
-                set({
-                  adLeads: get().adLeads.map(l => l.id === lead.id ? { ...l, status: 'lost' } : l),
-                });
+                resolvedLeads.push({ id: lead.id, status: 'lost' });
+                pendingNotifications.push({ msg: `${lead.clientName} rejected — ${result.reason} (${result.chance}% chance)`, type: 'warning' });
               }
             }
           }
@@ -574,7 +590,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     // Ad Sales unlock notification
-    const adSalesUnlocked = newCurrentUsers >= 5_000 && adSalesCtx.adPlatformLevel >= 3;
+    const adPlatformFeatureLevel = state.features.find(f => f.id === 'ad_platform')?.level ?? 0;
+    const adSalesUnlocked = newCurrentUsers >= 5_000 && adPlatformFeatureLevel >= 3;
     if (adSalesUnlocked && !state.adSalesUnlockNotified) {
       get().addNotification('Ad Sales unlocked! Hire an Ad Monetization Specialist to start selling ads.', 'success');
       set({ adSalesUnlockNotified: true });
@@ -670,6 +687,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
       }
     }
+    const finalAdCampaigns = resolvedCampaigns.length > 0 ? [...newAdCampaigns, ...resolvedCampaigns] : newAdCampaigns;
 
     let cashChange = 0;
     let newTotalSalary = state.totalSalary;
@@ -750,6 +768,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     const mergedAdLeads = leadGenEvents.length > 0 ? [...newAdLeads, ...leadGenEvents] : newAdLeads;
+    const finalAdLeads = mergedAdLeads.map(l => {
+      const r = resolvedLeads.find(x => x.id === l.id);
+      return r ? { ...l, status: r.status } : l;
+    });
     set({
       tick: newTick,
       month: newMonth,
@@ -767,9 +789,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       currentUsers: Math.round(newCurrentUsers),
       events: finalEvents,
       userMood: newMood,
-      adLeads: mergedAdLeads,
-      adCampaigns: [...newAdCampaigns.filter(c => c.status !== 'completed'), ...renewSpawns],
+      adLeads: finalAdLeads,
+      adCampaigns: [...finalAdCampaigns.filter(c => c.status !== 'completed'), ...renewSpawns],
     });
+
+    pendingNotifications.forEach(n => get().addNotification(n.msg, n.type));
 
     get().checkMilestones();
   },
@@ -958,6 +982,26 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => ({
       adLeads: state.adLeads.filter(l => l.id !== leadId),
     }));
+  },
+
+  fireEmployee: (id) => {
+    const state = get();
+    const emp = state.employees.find(e => e.id === id);
+    if (!emp || emp.isPlayer) return;
+    const employees = state.employees
+      .filter(e => e.id !== id)
+      .map(e => e.supervisedBy === id ? { ...e, supervisedBy: undefined } : e);
+    let adLeads = state.adLeads;
+    if (emp.role === 'Ad_Monetization_Specialist') {
+      adLeads = state.adLeads.map(l =>
+        (l.specialistId === id && l.status === 'negotiating')
+          ? { ...l, status: 'pending', offeredDays: undefined, offeredPrice: undefined }
+          : l
+      );
+    }
+    const selectedHrId = state.selectedHrId === id ? null : state.selectedHrId;
+    set({ employees, adLeads, selectedHrId });
+    get().addNotification(`${emp.name} was fired.`, 'warning');
   },
 
   initPlayer: (name: string) => {

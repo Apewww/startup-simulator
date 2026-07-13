@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
-import { useGameStore } from '../store/gameStore';
+import { useState, useEffect, useRef } from 'react';
+import { useGameStore, TICKS_PER_DAY } from '../store/gameStore';
 import { Target, Search, X, RefreshCw, TrendingUp, Send } from 'lucide-react';
-import { calcPriceRange } from '../systems/adSales';
+import { calcOfferChance } from '../systems/adSales';
 
 function fmtCash(n: number): string {
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
@@ -14,6 +14,7 @@ export function AdSalesPanel() {
   const adLeads = useGameStore((s) => s.adLeads);
   const adCampaigns = useGameStore((s) => s.adCampaigns);
   const currentUsers = useGameStore((s) => s.currentUsers);
+  const tick = useGameStore((s) => s.tick);
   const searchLeads = useGameStore((s) => s.searchLeads);
   const stopSearching = useGameStore((s) => s.stopSearching);
   const sendOffer = useGameStore((s) => s.sendOffer);
@@ -22,7 +23,9 @@ export function AdSalesPanel() {
   const unlockedPerks = useGameStore((s) => s.unlockedPerks);
   const [negotiatingLead, setNegotiatingLead] = useState<string | null>(null);
   const [offerDays, setOfferDays] = useState(30);
-  const [offerPrice, setOfferPrice] = useState(0);
+  const [offerPriceStr, setOfferPriceStr] = useState('');
+  const [adResult, setAdResult] = useState<{ kind: 'won' | 'lost'; text: string } | null>(null);
+  const prevPendingRef = useRef<Set<string>>(new Set());
 
   const specialists = employees.filter(e => e.role === 'Ad_Monetization_Specialist');
   const adPlatformLevel = features.find(f => f.id === 'ad_platform')?.level ?? 0;
@@ -33,6 +36,23 @@ export function AdSalesPanel() {
   const activeCampaigns = adCampaigns.filter(c => c.status === 'active');
   const campaignRevenue = activeCampaigns.reduce((s, c) => s + c.revenuePerTick, 0);
   const completedCampaigns = adCampaigns.filter(c => c.status === 'completed' || c.status === 'cancelled');
+
+  useEffect(() => {
+    const currentPending = new Set(adLeads.filter(l => l.status === 'pending').map(l => l.id));
+    for (const id of prevPendingRef.current) {
+      if (currentPending.has(id)) continue;
+      const won = adCampaigns.find(c => c.leadId === id && c.status === 'active');
+      if (won) setAdResult({ kind: 'won', text: `Deal closed with ${won.clientName}: $${won.dealValue.toLocaleString()}` });
+      else setAdResult({ kind: 'lost', text: 'Negotiation rejected' });
+    }
+    prevPendingRef.current = currentPending;
+  }, [adLeads, adCampaigns]);
+
+  useEffect(() => {
+    if (!adResult) return;
+    const t = setTimeout(() => setAdResult(null), 5000);
+    return () => clearTimeout(t);
+  }, [adResult]);
 
   if (currentUsers < 5_000) {
     return (
@@ -104,6 +124,13 @@ export function AdSalesPanel() {
         })
       )}
 
+      {adResult && (
+        <div className={`flex items-center gap-2 p-2 rounded-lg border text-[10px] ${adResult.kind === 'won' ? 'bg-green-soft border-green/30 text-green' : 'bg-red-soft border-red/30 text-red'}`}>
+          <span className="flex-1">{adResult.text}</span>
+          <button onClick={() => setAdResult(null)} className="p-0.5 hover:opacity-70 cursor-pointer"><X className="w-3 h-3" /></button>
+        </div>
+      )}
+
       {/* Active Leads */}
       <div>
         <h4 className="text-[10px] font-semibold text-ink-soft uppercase tracking-wider mb-1.5 flex items-center gap-1">
@@ -128,11 +155,17 @@ export function AdSalesPanel() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1 ml-2">
-                    <span className="text-[9px] text-ink-soft whitespace-nowrap">⏳ {Math.max(1, Math.ceil((lead.expiresAt - Date.now()) / (20 * 24)))}d</span>
+                     <span className="text-[9px] text-ink-soft whitespace-nowrap">⏳ {Math.max(0, Math.ceil((lead.expiresAt - tick) / TICKS_PER_DAY))}d</span>
                     {negotiatingLead !== lead.id ? (
                       <>
                         <button
-                          onClick={() => { setNegotiatingLead(lead.id); setOfferDays(30); setOfferPrice(lead.budget); }}
+                          onClick={() => {
+                            setNegotiatingLead(lead.id);
+                            setOfferDays(30);
+                            const suggested = Math.floor(lead.budget / 30);
+                            const price = suggested * 30 >= lead.budget ? suggested - 1 : suggested;
+                            setOfferPriceStr(String(Math.max(1, price)));
+                          }}
                           className="px-2 py-1 bg-indigo hover:bg-indigo/90 text-white rounded-[6px] transition-colors cursor-pointer text-[10px]"
                           title="Start negotiation"
                         >
@@ -172,41 +205,51 @@ export function AdSalesPanel() {
                       />
                       <div className="flex justify-between text-[9px] text-ink-soft">
                         <span>{offerDays} days</span>
-                        <span>{fmtCash(offerPrice * offerDays)} total</span>
+                        <span>{fmtCash((Number(offerPriceStr) || 0) * offerDays)} total</span>
                       </div>
                     </div>
                     <div>
                       <label className="text-[10px] text-ink-soft font-semibold">Price per day</label>
+                      <input
+                        type="range"
+                        min={1}
+                        max={Math.max(1000, lead.budget)}
+                        step={Math.max(1, Math.round(Math.max(1000, lead.budget) / 200))}
+                        value={Number(offerPriceStr) || 0}
+                        onChange={(e) => setOfferPriceStr(e.target.value)}
+                        className="w-full accent-indigo"
+                      />
                       <div className="flex items-center gap-1 mt-0.5">
                         <span className="text-[10px] text-ink-soft">$</span>
                         <input
                           type="number"
                           min={1}
-                          value={offerPrice}
-                          onChange={(e) => setOfferPrice(Math.max(1, Number(e.target.value)))}
+                          value={offerPriceStr}
+                          onChange={(e) => setOfferPriceStr(e.target.value)}
                           className="flex-1 bg-surface-2 border border-border rounded-[6px] px-2 py-1 text-xs font-mono text-ink outline-none focus:border-indigo"
                         />
                         <span className="text-[10px] text-ink-soft">/day</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[9px] text-ink-soft whitespace-nowrap">Budget: {fmtCash(lead.budget)}</span>
-                      <EstimatedRate
-                        price={offerPrice}
-                        budget={lead.budget}
-                        days={offerDays}
-                        currentUsers={currentUsers}
-                        adPlatformLevel={adPlatformLevel}
-                        synergyActive={false}
-                      />
-                    </div>
+                     <div className="flex items-center gap-2">
+                       <span className="text-[9px] text-ink-soft whitespace-nowrap">Budget: {fmtCash(lead.budget)}</span>
+                       <EstimatedRate
+                         price={Number(offerPriceStr) || 0}
+                         budget={lead.budget}
+                         days={offerDays}
+                       />
+                     </div>
+                     <div className="text-[9px] text-ink-soft">
+                       Saran ~{fmtCash(Math.round(lead.budget / offerDays))}/day (budget ÷ hari) · Total {fmtCash((Number(offerPriceStr) || 0) * offerDays)} / {fmtCash(lead.budget)}
+                     </div>
                     <div className="flex justify-end">
                       <button
                         onClick={() => {
-                          sendOffer(lead.id, offerDays, offerPrice);
+                          const price = Number(offerPriceStr) || 0;
+                          sendOffer(lead.id, offerDays, price);
                           setNegotiatingLead(null);
                         }}
-                        disabled={offerPrice <= 0 || offerDays < 7}
+                        disabled={!offerPriceStr || Number(offerPriceStr) <= 0 || offerDays < 7}
                         className="flex items-center gap-1 px-3 py-1.5 bg-indigo hover:bg-indigo/90 disabled:opacity-40 text-white rounded-[6px] transition-colors cursor-pointer text-[10px]"
                       >
                         <Send className="w-3 h-3" strokeWidth={2} />
@@ -243,7 +286,7 @@ export function AdSalesPanel() {
                     <div className="flex-1 h-1.5 bg-border rounded-full overflow-hidden">
                       <div className="h-full bg-indigo rounded-full transition-all" style={{ width: `${pct}%` }} />
                     </div>
-                    <span className="whitespace-nowrap">{Math.round(c.ticksElapsed / 24)} / {Math.round(c.totalTicks / 24)} days</span>
+                    <span className="whitespace-nowrap">{Math.round(c.ticksElapsed / TICKS_PER_DAY)} / {Math.round(c.totalTicks / TICKS_PER_DAY)} days</span>
                   </div>
                   {hasPerk && <span className="text-[9px] text-amber">Auto-renew ready</span>}
                 </div>
@@ -274,23 +317,23 @@ export function AdSalesPanel() {
   );
 }
 
-function EstimatedRate({ price, budget, days, currentUsers, adPlatformLevel, synergyActive }: { price: number; budget: number; days: number; currentUsers: number; adPlatformLevel: number; synergyActive: boolean }) {
-  const range = useMemo(() => calcPriceRange(budget, days, currentUsers, adPlatformLevel, synergyActive), [budget, days, currentUsers, adPlatformLevel, synergyActive]);
+const CHANCE_COLORS = ['#D1453B', '#E8844A', '#B7791F', '#4F5EFF', '#17A366'];
+
+function EstimatedRate({ price, budget, days }: { price: number; budget: number; days: number }) {
+  const features = useGameStore((s) => s.features);
+  const currentUsers = useGameStore((s) => s.currentUsers);
   const total = price * days;
-  const minTotal = range.minPerDay * days;
-  const maxTotal = range.maxPerDay * days;
-  const inRange = total >= minTotal && total <= maxTotal;
-  const isLow = total < minTotal;
-  const pct = Math.min(100, Math.max(0, ((total - minTotal * 0.5) / (maxTotal * 1.2 - minTotal * 0.5)) * 100));
+  const unlocked = features.filter((f) => f.level > 0).map((f) => f.level);
+  const meanLevel = unlocked.length > 0 ? unlocked.reduce((s, l) => s + l, 0) / unlocked.length : 0;
+  const platformBonus = (currentUsers * 0.00001 + meanLevel * 0.05) * 20;
+  const chance = Math.max(10, Math.min(100, Math.round(calcOfferChance(total, budget) + platformBonus)));
+  const idx = chance < 20 ? 0 : chance < 40 ? 1 : chance < 60 ? 2 : chance < 80 ? 3 : 4;
   return (
-    <div className="flex items-center gap-1.5" title={inRange ? `Acceptable: $${range.minPerDay}–$${range.maxPerDay}/day` : isLow ? `Minimum $${range.minPerDay}/day` : `Maximum $${range.maxPerDay}/day`}>
-      <div className="w-16 h-1.5 bg-border rounded-full overflow-hidden relative">
-        <div className="absolute inset-y-0 left-0 rounded-full bg-green/30" style={{ left: `${(minTotal / (maxTotal * 1.2)) * 100}%`, right: `${(1 - maxTotal / (maxTotal * 1.2)) * 100}%` }} />
-        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: inRange ? '#17A366' : isLow ? '#D1453B' : '#E8844A' }} />
+    <div className="flex items-center gap-1.5" title={`Estimated: ${chance}% — adjust price/days to improve`}>
+      <div className="w-14 h-1.5 bg-border rounded-full overflow-hidden">
+        <div className="h-full rounded-full transition-all" style={{ width: `${chance}%`, backgroundColor: CHANCE_COLORS[idx] }} />
       </div>
-      <span className={`text-[9px] font-semibold ${inRange ? 'text-green' : isLow ? 'text-red' : 'text-amber'}`}>
-        {inRange ? `$${range.minPerDay}–$${range.maxPerDay}/d` : isLow ? `Min $${range.minPerDay}` : `Max $${range.maxPerDay}`}
-      </span>
+      <span className="text-[9px] font-semibold" style={{ color: CHANCE_COLORS[idx] }}>{chance}%</span>
     </div>
   );
 }
