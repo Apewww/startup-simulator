@@ -59,6 +59,7 @@ src/
 │   ├── ServerRoomView.tsx    # Grid server room + rack placement
 │   ├── ServerShop.tsx        # Shop beli rack, node, rental
 │   ├── CharacterAvatar.tsx   # Sprite karakter
+│   ├── AdSalesPanel.tsx      # Panel Ad Sales (Accept/Negotiate/Campaigns)
 │   └── DevPanel.tsx          # Dev mode cheat panel
 │
 ├── store/
@@ -71,6 +72,7 @@ src/
 │   ├── events.ts             # Random events: DDoS, traffic spike, PR crisis
 │   ├── monetization.ts       # Revenue kalkulasi
 │   ├── recruitment.ts        # Applicant generation, negotiation
+│   ├── adSales.ts            # Lead generation, negotiation chance, campaign
 │   └── saveLoad.ts           # Save/load IndexedDB
 │
 ├── data/                     # Data statis
@@ -124,7 +126,7 @@ Setiap tick:
 
 ### Karyawan
 
-**Roles:** Developer, Designer, Lead_Developer, SysAdmin, HR
+**Roles:** Developer, Designer, Lead_Developer, SysAdmin, HR, Ad_Monetization_Specialist
 
 | Role | Fungsi |
 |---|---|
@@ -133,6 +135,7 @@ Setiap tick:
 | Lead Developer | Supervisi Developer: boost output tiap dev = `leadSpeed × 0.1` dengan soft diminishing return (dev tambahan -5%, floor 50%); cap developer scale per level |
 | SysAdmin | Recovery node crash lebih cepat, kurangi crash chance |
 | HR | Recruitment boost: campaign lebih cepat, applicant quality lebih tinggi |
+| Ad Monetization Specialist | Mencari client luar untuk pasang iklan (leads), negosiasi deal, kelola campaign |
 
 **Atribut:** level (1+), happiness (0-100), speed, salary, currentTask, isTraining, onVacation
 
@@ -338,7 +341,7 @@ IndexedDB via Dexie.js. Autosave tiap 60 detik. Field: tick, cash, employees, re
 | DDoS crash bonus | +15% crash chance |
 | Bangkrut | 3 bulan cash negatif |
 | Sell refund | 50% harga |
-| DB version | 11 |
+| DB version | 14 |
 
 ---
 
@@ -357,6 +360,9 @@ IndexedDB via Dexie.js. Autosave tiap 60 detik. Field: tick, cash, employees, re
 | v1.3.4 — Cohesion, Events, Compliance | ✅ |
 | v1.4 — Lead Developer + Furniture System | ✅ |
 | v1.5 — Monetization Rebalance + Cooling Grid | ✅ |
+| v1.6 — Ad Sales Pipeline | ✅ |
+| v1.7 — Pricing Controls & Banking | ✅ |
+| v1.8 — Revenue Visualization & Polish | ✅ |
 | Kompetitor AI | 📝 Planned |
 
 ---
@@ -389,3 +395,6 @@ IndexedDB via Dexie.js. Autosave tiap 60 detik. Field: tick, cash, employees, re
 | v1.5.2 | [docs/update/update_v1.5.2.md](docs/update/update_v1.5.2.md) |
 | v1.5.3 | [docs/update/update_v1.5.3.md](docs/update/update_v1.5.3.md) |
 | v1.5.4 | [docs/update/update_v1.5.4.md](docs/update/update_v1.5.4.md) |
+| v1.6 | [docs/update/update_v1.6.md](docs/update/update_v1.6.md) |
+| v1.7 | [docs/update/update_v1.7.md](docs/update/update_v1.7.md) |
+| v1.8 | [docs/update/update_v1.8.md](docs/update/update_v1.8.md) |

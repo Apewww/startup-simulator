@@ -44,6 +44,14 @@ export async function saveGame(): Promise<void> {
     unlockedPerks: state.unlockedPerks,
     furnitureInventory: state.furnitureInventory,
     furniture: state.furniture,
+    adLeads: state.adLeads,
+    adCampaigns: state.adCampaigns,
+    adSalesUnlockNotified: state.adSalesUnlockNotified,
+    activePricingTier: state.activePricingTier,
+    loan: state.loan,
+    creditScore: state.creditScore,
+    missedPaymentTicks: state.missedPaymentTicks,
+    autoRenewEnabled: state.autoRenewEnabled,
   });
 }
 
@@ -99,6 +107,14 @@ export async function loadGame(): Promise<boolean> {
     unlockedPerks: save.unlockedPerks ?? [],
     furnitureInventory: save.furnitureInventory ?? [],
     furniture: save.furniture ?? [],
+    adLeads: save.adLeads ?? [],
+    adCampaigns: save.adCampaigns ?? [],
+    adSalesUnlockNotified: save.adSalesUnlockNotified ?? false,
+    activePricingTier: save.activePricingTier ?? '',
+    loan: save.loan ?? null,
+    creditScore: save.creditScore ?? 50,
+    missedPaymentTicks: save.missedPaymentTicks ?? 0,
+    autoRenewEnabled: save.autoRenewEnabled ?? true,
   });
 
   return true;

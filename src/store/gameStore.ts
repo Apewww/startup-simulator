@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetProviderId, InternetSubscription } from '../types';
+import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetProviderId, InternetSubscription, AdCampaign, AdLead } from '../types';
 import { calcFundingOffer, calcMaxSupervised } from '../types/employee';
 import { getComponentDef, COMPONENTS } from '../data/components';
 import { getProductDef } from '../data/products';
@@ -13,15 +13,23 @@ import { getSupervisionBoost } from '../systems/leadDeveloper';
 import { computeFurnitureEffects } from '../systems/radiusEffect';
 import { getFurnitureDef, FURNITURE } from '../data/furniture';
 import { calculateRevenue, getMonetizationMods, getMoodTarget, MOOD_BASELINE, MOOD_DRIFT_RATE, MOOD_PENALTY_K } from '../systems/monetization';
-import { generateApplicant, CAMPAIGN_COST, getCampaignTicks, negotiate, applicantToEmployee } from '../systems/recruitment';
+import { generateApplicant, CAMPAIGN_COST, getCampaignTicks, negotiate, applicantToEmployee, ALL_ROLES } from '../systems/recruitment';
 import { checkEventTrigger, processEvents, calcSecurityLevel } from '../systems/events';
 import { getComplianceStatus } from '../systems/compliance';
+import {
+  generateSingleLead, evaluateOffer,
+  makeCampaign, calcAutoRenewValue,
+  getSearchCap, calcLeadGenChance,
+  calcSearchDuration,
+} from '../systems/adSales';
+import { makeLoan, calcCompanyValuation, calcMaxLoan, updateCreditScore } from '../systems/banking';
+import { getPricingTier, getDefaultPricingTier, type BusinessLoan } from '../types/monetization';
 
 export type GameSpeed = 1 | 2 | 4;
 export const TICKS_PER_MONTH = 600;
 export const TICKS_PER_DAY = 20;
 
-export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment' | 'perks';
+export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment' | 'perks' | 'adsales' | 'banking';
 export type PanelOpenState = Record<PanelId, boolean>;
 export type GameScreen = 'menu' | 'select' | 'playerSetup' | 'playing';
 
@@ -29,6 +37,14 @@ export interface Notification {
   id: string;
   message: string;
   type: 'info' | 'success' | 'warning' | 'error';
+}
+
+export interface AdNotification extends Notification {
+  leadId?: string;
+  clientName?: string;
+  dealValue?: number;
+  pricePerDay?: number;
+  durationDays?: number;
 }
 
 export interface MonthlySnapshot {
@@ -166,8 +182,27 @@ interface GameState {
   unplaceFurniture: (furnId: string) => void;
   moveFurniture: (furnId: string, x: number, y: number) => void;
   sellFurnitureItem: (id: string) => void;
+  adLeads: AdLead[];
+  adCampaigns: AdCampaign[];
+  adSalesUnlockNotified: boolean;
+  searchLeads: (specialistId: string) => void;
+  stopSearching: (specialistId: string) => void;
+  sendOffer: (leadId: string, days: number, price: number) => void;
+  cancelLead: (leadId: string) => void;
+  acceptLead: (leadId: string) => void;
+  fireEmployee: (id: string) => void;
   unlockAllPerks: () => void;
   devSpawnFurniture: () => void;
+  activePricingTier: string;
+  loan: BusinessLoan | null;
+  creditScore: number;
+  missedPaymentTicks: number;
+  autoRenewEnabled: boolean;
+  toggleAutoRenew: () => void;
+  cancelCampaign: (campaignId: string) => void;
+  setPricingTier: (tierId: string) => void;
+  takeLoan: (amount: number, tenor: number) => void;
+  payLoanEarly: () => void;
 }
 
 function calcTotalSalary(employees: Employee[]): number {
@@ -180,6 +215,7 @@ const EMPLOYEE_NAMES: Record<EmployeeRole, string[]> = {
   Lead_Developer: ['Mallory', 'Oscar', 'Peggy', 'Sam', 'Uma', 'Walter'],
   SysAdmin: ['Trent', 'Victor', 'Wendy', 'Xavier', 'Yara', 'Zane'],
   HR: ['Riley', 'Jordan', 'Casey', 'Morgan', 'Avery', 'Quinn', 'Skyler', 'Harper'],
+  Ad_Monetization_Specialist: ['Sterling', 'Blake', 'Phoenix', 'Rowan', 'Sage', 'Jade', 'Onyx', 'Zion'],
 };
 
 let rackCounter = 0;
@@ -206,6 +242,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   selectedProduct: null,
   activeMonetization: 'none',
   userMood: 80,
+  adLeads: [],
+  adCampaigns: [],
+  adSalesUnlockNotified: false,
+  autoRenewEnabled: true,
   devMode: false,
   inventoryNodes: [],
   activeView: { type: 'office' },
@@ -214,8 +254,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   isBankrupt: false,
   negativeCashMonths: 0,
   screen: 'menu',
-  panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false },
-  panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false },
+      panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false },
+      panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false },
   maximizedPanel: null,
   selectedEmployeeId: null,
   darkMode: (() => { try { return localStorage.getItem('ss-dark') === '1'; } catch { return false; } })(),
@@ -236,6 +276,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       furnitureInventory: [],
       furniture: [],
       placementFurnitureId: null,
+      activePricingTier: '',
+      loan: null,
+      creditScore: 50,
+      missedPaymentTicks: 0,
 
   setScreen: (screen) => set({ screen }),
   togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
@@ -269,6 +313,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       resignTicks: 0, gridX, gridY, isPlayer: false,
       isTraining: false, trainingProgress: 0, overworkTicks: 0,
       onVacation: false, vacationTicksLeft: 0,
+      failStreak: 0,
     };
 
     const updated = [...state.employees, newEmp];
@@ -309,6 +354,24 @@ export const useGameStore = create<GameState>((set, get) => ({
     const newResources = resources.map(r => ({ ...r }));
     const resignedIds: string[] = [];
     const fx = computeFurnitureEffects(state.furniture, state.employees);
+    const productFeaturesLevel = features.reduce((sum, f) => sum + f.level, 0);
+    const unlockedFeatureLevels = features.filter(f => f.level > 0).map(f => f.level);
+    const platformLevel = unlockedFeatureLevels.length > 0
+      ? unlockedFeatureLevels.reduce((sum, l) => sum + l, 0) / unlockedFeatureLevels.length
+      : 0;
+    const adSalesCtx = {
+      currentUsers: state.currentUsers,
+      adPlatformLevel: platformLevel,
+      dataRatio: (features.some(f => f.level > 0) ? getComplianceStatus(features, racks, rentedServers, internetSubs) : null)?.data.ratio ?? 1,
+      userMood: state.userMood,
+      synergyActive: hasActiveSynergy(features, selectedProduct),
+      specialistLevel: 0,
+      productFeaturesLevel,
+    };
+    const leadGenEvents: AdLead[] = [];
+    const resolvedLeads: { id: string; status: 'won' | 'lost' }[] = [];
+    const resolvedCampaigns: AdCampaign[] = [];
+    const pendingNotifications: { msg: string; type: Notification['type'] }[] = [];
     const newEmployees = employees
       .map(emp => {
         const def = emp.currentTask ? getComponentDef(emp.currentTask) : undefined;
@@ -338,6 +401,29 @@ export const useGameStore = create<GameState>((set, get) => ({
             newTrainingProgress = 0;
             get().addNotification(`${emp.name} completed training — now Lv.${newLevel}!`, 'success');
           }
+        } else if (emp.role === 'Ad_Monetization_Specialist' && emp.currentTask === 'searching_leads') {
+          newProgress = emp.taskProgress + 1;
+          if (newProgress >= calcSearchDuration()) {
+            newCurrentTask = null;
+            newProgress = 0;
+            if (state.devMode) get().addLog(`[ADS] search ended: ${emp.name} (${getSearchCap(emp.level)} cap)`);
+          } else {
+            const existingLeadCount = state.adLeads.filter(l => l.specialistId === emp.id && l.status === 'pending').length;
+            const cap = getSearchCap(emp.level);
+            const chance = calcLeadGenChance(emp.speed, existingLeadCount, cap);
+            if (Math.random() < chance) {
+              const existingClients = [
+                ...state.adLeads.map(l => l.clientName),
+                ...state.adCampaigns.map(c => c.clientName),
+              ];
+              const lead = generateSingleLead({ ...adSalesCtx, specialistLevel: emp.level }, emp.id, existingClients, newTick);
+              if (state.devMode) get().addLog(`[ADS] lead ${lead.clientName}: budget $${lead.budget}, ${lead.defaultDays}d, pLvl ${platformLevel.toFixed(2)}, spec Lv${emp.level}, featLvl ${productFeaturesLevel}`);
+              leadGenEvents.push(lead);
+            }
+          }
+        } else if (emp.role === 'Ad_Monetization_Specialist' && emp.currentTask === 'negotiating') {
+          newCurrentTask = null;
+          newProgress = 0;
         } else if (emp.currentTask && def) {
           newProgress = emp.taskProgress + emp.speed;
           if (newProgress >= def.baseTicks) {
@@ -353,9 +439,12 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
 
         const isWorking = newCurrentTask !== null || newIsTraining;
+        const isIdleSpecialist = emp.role === 'Ad_Monetization_Specialist' && !newCurrentTask && !newIsTraining && emp.onVacation === false;
         if (newOnVacation) {
         } else if (isWorking) {
           newHappiness -= fx.coffee.has(emp.id) ? 0.025 : 0.05;
+        } else if (isIdleSpecialist && (emp.taskProgress ?? 0) > 30) {
+          newHappiness -= 0.15;
         } else if (fx.water.has(emp.id)) {
           newHappiness += 0.15;
         } else {
@@ -451,9 +540,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     const cohesionScore = platformStats.cohesionScore;
 
     // Dynamic users
+    const pricingTier = getPricingTier(state.activePricingTier, state.selectedProduct);
     const eventEffects = getAppliedEffects(events);
     const monetizationMods = getMonetizationMods(state.activeMonetization);
-    const userDelta = (targetUsers - currentUsers) * 0.005 * cohesionScore * monetizationMods.growthMult;
+    const pricingGrowthMult = pricingTier?.growthMult ?? 1;
+    const userDelta = (targetUsers - currentUsers) * 0.005 * cohesionScore * monetizationMods.growthMult * pricingGrowthMult;
     const hasCrash = placedRacks.some(r => r.slots.some(s => s.node?.status === 'crashed'));
     const crashPenalty = hasCrash ? currentUsers * 0.05 : 0;
     const baseChurnRate = (1 - cohesionScore) * 0.0002 + monetizationMods.churnDelta;
@@ -464,8 +555,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     const synergyActive = hasActiveSynergy(features, selectedProduct);
     const earlyDataRatio = complianceBefore?.data.ratio ?? 1;
 
-    // User mood (satisfaction) — drifts toward strategy target; feeds churn (no separate system)
-    const moodTarget = Math.min(100, getMoodTarget(state.activeMonetization, synergyActive, earlyDataRatio) + internetMoodSum * 100);
+    // User mood (satisfaction) — drifts toward strategy target × pricing target; feeds churn
+    const strategyMoodTarget = getMoodTarget(state.activeMonetization, synergyActive, earlyDataRatio);
+    const combinedMoodTarget = Math.min(strategyMoodTarget, pricingTier?.moodTarget ?? 100);
+    const moodTarget = Math.min(100, combinedMoodTarget + internetMoodSum * 100);
     const newMood = Math.max(0, Math.min(100, state.userMood + (moodTarget - state.userMood) * MOOD_DRIFT_RATE));
     const moodPenalty = Math.max(0, (MOOD_BASELINE - newMood) * MOOD_PENALTY_K);
     const churn = Math.max(0, currentUsers * (baseChurnRate + moodPenalty));
@@ -500,6 +593,14 @@ export const useGameStore = create<GameState>((set, get) => ({
       } else if (compliance.userCap < 1) {
         newCurrentUsers = Math.min(newCurrentUsers, Math.round(platformStats.targetUsers * compliance.userCap));
       }
+    }
+
+    // Ad Sales unlock notification
+    const adPlatformFeatureLevel = state.features.find(f => f.id === 'ad_platform')?.level ?? 0;
+    const adSalesUnlocked = newCurrentUsers >= 5_000 && adPlatformFeatureLevel >= 3;
+    if (adSalesUnlocked && !state.adSalesUnlockNotified) {
+      get().addNotification('Ad Sales unlocked! Hire an Ad Monetization Specialist to start selling ads.', 'success');
+      set({ adSalesUnlockNotified: true });
     }
 
     // Event trigger & processing
@@ -545,16 +646,79 @@ export const useGameStore = create<GameState>((set, get) => ({
       get().addNotification('Viral growth! Users increased by 10%', 'success');
     }
 
+    // Ad Sales: lead expiry & campaign progress
+    const currentTick = newTick;
+    const newAdLeads = state.adLeads
+      .map(l => (l.status === 'pending' && currentTick >= l.expiresAt) ? { ...l, status: 'expired' as const } : l)
+      .filter(l => l.status !== 'expired' && l.status !== 'lost');
+    const newAdCampaigns = state.adCampaigns.map(c => {
+      if (c.status !== 'active') return c;
+      const updated = { ...c, ticksElapsed: c.ticksElapsed + 1 };
+      if (updated.ticksElapsed >= updated.totalTicks) {
+        updated.status = 'completed';
+      }
+      return updated;
+    });
+
+    // Count auto-renew spawns and add them
+    const renewSpawns: AdCampaign[] = [];
+    for (const c of newAdCampaigns) {
+      if (c.status === 'completed') {
+        const specialist = newEmployees.find(e => e.id === c.specialistId);
+        const hasPerk = get().unlockedPerks.includes('sales_auto_renew');
+        const isEnabled = get().autoRenewEnabled;
+        if (specialist && specialist.happiness >= 15 && hasPerk && isEnabled && c.renewalCount < 5) {
+          const renewalValue = calcAutoRenewValue(c.dealValue, c.renewalCount);
+          const renewedCampaign = makeCampaign(
+            { id: `renew-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, clientName: c.clientName, budget: renewalValue, defaultDays: c.offeredDays, expiresAt: 0, status: 'pending' as const, specialistId: c.specialistId },
+            renewalValue, c.offeredDays,
+          );
+          renewedCampaign.renewalCount = c.renewalCount + 1;
+          renewSpawns.push(renewedCampaign);
+          get().addNotification(`Auto-renewed ${c.clientName} campaign — $${renewalValue}`, 'success');
+        }
+      }
+    }
+    const finalAdCampaigns = resolvedCampaigns.length > 0 ? [...newAdCampaigns, ...resolvedCampaigns] : newAdCampaigns;
+
     let cashChange = 0;
     let newTotalSalary = state.totalSalary;
     let newNegativeCashMonths = state.negativeCashMonths;
     const dataRatio = compliance?.data.ratio ?? 1;
     const revOpts = { strategy: state.activeMonetization, productId: selectedProduct, dataRatio, synergyActive };
+    const pricingRevMult = pricingTier?.revenueMult ?? 1;
+    const revOptsWithPricing = { ...revOpts, pricingRevenueMult: pricingRevMult };
+    const campaignRevenue = newAdCampaigns
+      .filter(c => c.status === 'active')
+      .reduce((sum, c) => sum + c.revenuePerTick, 0);
     if (newMonth > oldMonth) {
       newTotalSalary = calcTotalSalary(newEmployees);
       const serverCost = calcMonthlyServerCost(finalRacks, rentedServers, internetSubs);
-      const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore * (compliance?.revenueMult ?? 1), platformStats.synergyRevenueBonus, revOpts);
-      cashChange = revenue.total - (newTotalSalary + serverCost);
+      const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore * (compliance?.revenueMult ?? 1), platformStats.synergyRevenueBonus, revOptsWithPricing);
+      const adCampaignMonthly = campaignRevenue * TICKS_PER_MONTH;
+      let loanPayment = 0;
+      if (state.loan?.status === 'active') {
+        loanPayment = state.loan.monthlyPayment;
+      }
+      cashChange = revenue.total + adCampaignMonthly - (newTotalSalary + serverCost + loanPayment);
+
+      // Loan payment tracking
+      if (state.loan?.status === 'active') {
+        const cashAfterLoan = state.cash + cashChange;
+        if (cashAfterLoan < 0) {
+          set({ missedPaymentTicks: get().missedPaymentTicks + 1 });
+        } else {
+          const updatedLoan = { ...state.loan, monthsPaid: state.loan.monthsPaid + 1 };
+          if (updatedLoan.monthsPaid >= updatedLoan.totalMonths) {
+            updatedLoan.status = 'paid' as const;
+          }
+          set({ loan: updatedLoan, creditScore: updateCreditScore(state.creditScore, 'on_time') });
+        }
+      }
+      if (state.loan?.status === 'active' && get().missedPaymentTicks >= 3) {
+        set({ loan: { ...state.loan, status: 'defaulted' }, creditScore: updateCreditScore(state.creditScore, 'default') });
+        get().addNotification('Loan defaulted! Credit score -30', 'error');
+      }
 
       const cashAfter = state.cash + cashChange;
       if (cashAfter < 0) {
@@ -565,7 +729,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       const snapshot: MonthlySnapshot = {
         month: newMonth,
-        revenue: revenue.total,
+        revenue: revenue.total + adCampaignMonthly,
         expenses: newTotalSalary + serverCost,
         net: cashChange,
         cash: state.cash + cashChange,
@@ -578,7 +742,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     let newPendingFunding = state.pendingFunding;
     if (newMonth > oldMonth && !newPendingFunding) {
-      const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore * (compliance?.revenueMult ?? 1), platformStats.synergyRevenueBonus, revOpts);
+      const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore * (compliance?.revenueMult ?? 1), platformStats.synergyRevenueBonus, revOptsWithPricing);
       const offer = calcFundingOffer(newMonth, newCurrentUsers, revenue.total);
       if (offer) {
         const lastRound = state.fundingRounds[state.fundingRounds.length - 1];
@@ -608,9 +772,10 @@ export const useGameStore = create<GameState>((set, get) => ({
         const hrEmp = state.selectedHrId ? state.employees.find(e => e.id === state.selectedHrId) : undefined;
         const hrLevel = hrEmp?.role === 'HR' ? hrEmp.level : 0;
         const count = newCampaign.tier === 'basic' ? 1 : newCampaign.tier === 'pro' ? 1 + Math.floor(Math.random() * 2) : 2 + Math.floor(Math.random() * 2);
+        const unlockedRoles = ALL_ROLES.filter(r => r !== 'Ad_Monetization_Specialist' || (newCurrentUsers >= 5_000 && adSalesCtx.adPlatformLevel >= 3));
         const batch: Applicant[] = [];
         for (let i = 0; i < count; i++) {
-          batch.push(generateApplicant(newCampaign, hrLevel));
+          batch.push(generateApplicant(newCampaign, hrLevel, unlockedRoles));
         }
         newApplicants.push(...batch);
         newCampaign = null;
@@ -618,6 +783,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
     }
 
+    const mergedAdLeads = leadGenEvents.length > 0 ? [...newAdLeads, ...leadGenEvents] : newAdLeads;
+    const finalAdLeads = mergedAdLeads.map(l => {
+      const r = resolvedLeads.find(x => x.id === l.id);
+      return r ? { ...l, status: r.status } : l;
+    });
     set({
       tick: newTick,
       month: newMonth,
@@ -635,7 +805,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       currentUsers: Math.round(newCurrentUsers),
       events: finalEvents,
       userMood: newMood,
+      adLeads: finalAdLeads,
+      adCampaigns: [...finalAdCampaigns.filter(c => c.status !== 'completed'), ...renewSpawns],
     });
+
+    pendingNotifications.forEach(n => get().addNotification(n.msg, n.type));
 
     get().checkMilestones();
   },
@@ -657,6 +831,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       productId: state.selectedProduct,
       dataRatio: compliance?.data.ratio ?? 1,
       synergyActive,
+      pricingRevenueMult: getPricingTier(state.activePricingTier, state.selectedProduct)?.revenueMult ?? 1,
     };
     const revenue = calculateRevenue(state.currentUsers, state.features, state.racks, traffic.cohesionScore * (compliance?.revenueMult ?? 1), traffic.synergyRevenueBonus, revOpts);
     const offer = calcFundingOffer(state.month, state.currentUsers, revenue.total);
@@ -772,11 +947,175 @@ export const useGameStore = create<GameState>((set, get) => ({
       group: f.group,
       requiredComponents: f.requiredComponents, trafficGenerated: 0, enabled: true,
     }));
-    set({ selectedProduct: productId, features, screen: 'playerSetup', currentUsers: 0, userMood: 80, internetSubscriptions: [] });
+    set({ selectedProduct: productId, features, screen: 'playerSetup', currentUsers: 0, userMood: 80, internetSubscriptions: [], adLeads: [], adCampaigns: [], adSalesUnlockNotified: false, activePricingTier: getDefaultPricingTier(productId), loan: null, creditScore: 50, missedPaymentTicks: 0 });
   },
 
   setMonetizationStrategy: (strategy) => {
     set({ activeMonetization: strategy });
+  },
+
+  setPricingTier: (tierId: string) => {
+    set({ activePricingTier: tierId });
+  },
+
+  takeLoan: (amount: number, tenor: number) => {
+    const state = get();
+    if (state.loan?.status === 'active') {
+      get().addNotification('You already have an active loan — pay it first', 'warning');
+      return;
+    }
+    const valuation = calcCompanyValuation(state.currentUsers, 0);
+    const maxLoan = calcMaxLoan(valuation, state.creditScore);
+    if (amount > maxLoan) {
+      get().addNotification(`Maximum loan is $${maxLoan.toLocaleString('en-US')}`, 'warning');
+      return;
+    }
+    const result = makeLoan(amount, tenor, state.creditScore, state.loan);
+    if (result.error) {
+      get().addNotification(result.error, 'warning');
+      return;
+    }
+    set({ loan: result.loan, cash: state.cash + amount });
+    get().addNotification(`Loan approved: $${amount.toLocaleString('en-US')}`, 'success');
+  },
+
+  payLoanEarly: () => {
+    const state = get();
+    const loan = state.loan;
+    if (!loan || loan.status !== 'active') return;
+    const remainingMonths = loan.totalMonths - loan.monthsPaid;
+    const totalRatio = remainingMonths / loan.totalMonths;
+    const remainingPrincipal = Math.round(loan.principal * totalRatio);
+    const totalDue = Math.round(remainingPrincipal * (1 + loan.interestRate * totalRatio));
+    if (state.cash < totalDue) {
+      get().addNotification(`Need $${totalDue.toLocaleString('en-US')} to pay off loan`, 'warning');
+      return;
+    }
+    set({
+      cash: state.cash - totalDue,
+      loan: { ...loan, status: 'paid', monthsPaid: loan.totalMonths },
+      creditScore: updateCreditScore(state.creditScore, 'early'),
+    });
+    get().addNotification(`Loan paid early! Credit score +10`, 'success');
+  },
+
+  searchLeads: (specialistId: string) => {
+    const state = get();
+    const specialist = state.employees.find(e => e.id === specialistId);
+    if (!specialist || specialist.role !== 'Ad_Monetization_Specialist') return;
+    if (specialist.onVacation || specialist.isTraining || specialist.currentTask) return;
+    set({
+      employees: state.employees.map(emp =>
+        emp.id === specialistId ? { ...emp, currentTask: 'searching_leads', taskProgress: 0, failStreak: 0 } : emp
+      ),
+    });
+    get().addNotification(`Searching for advertisers...`, 'info');
+  },
+
+  stopSearching: (specialistId: string) => {
+    set((state) => ({
+      employees: state.employees.map(emp =>
+        emp.id === specialistId && emp.currentTask === 'searching_leads'
+          ? { ...emp, currentTask: null, taskProgress: 0 }
+          : emp
+      ),
+    }));
+    get().addNotification('Ad search stopped.', 'info');
+  },
+
+  sendOffer: (leadId: string, days: number, price: number) => {
+    const state = get();
+    const lead = state.adLeads.find(l => l.id === leadId);
+    if (!lead || lead.status !== 'pending') {
+      get().addNotification('Lead no longer available (expired or resolved)', 'warning');
+      return;
+    }
+    if (price <= 0 || days < 7 || days > 180) {
+      get().addNotification('Invalid offer (min 7 days, max 180 days, price > 0)', 'warning');
+      return;
+    }
+    const activeForSpec = state.adCampaigns.filter(c => c.specialistId === lead.specialistId && c.status === 'active').length;
+    const maxCap = state.unlockedPerks.includes('sales_dual_cap') ? 2 : 1;
+    if (activeForSpec >= maxCap) {
+      get().addNotification(`Specialist at max active campaigns (${maxCap}). Complete existing campaigns or unlock Dual Campaigns perk.`, 'warning');
+      return;
+    }
+    const result = evaluateOffer(lead, days, price);
+    if (result.success) {
+      const dealValue = price * days;
+      const campaign = makeCampaign(lead, dealValue, days);
+      set({
+        adLeads: state.adLeads.map(l => l.id === leadId ? { ...l, status: 'won' } : l),
+        adCampaigns: [...state.adCampaigns, campaign],
+      });
+      get().addNotification(`Deal closed with ${lead.clientName}: $${dealValue.toLocaleString()} (${days}d)`, 'success');
+      if (state.devMode) get().addLog(`[ADS] negotiate won ${lead.clientName}: $${dealValue} ${days}d, within budget ${dealValue <= lead.budget}`);
+    } else {
+      set({
+        adLeads: state.adLeads.map(l => l.id === leadId ? { ...l, status: 'lost' } : l),
+      });
+      get().addNotification(`${lead.clientName} rejected — ${result.reason} (${result.chance}% chance)`, 'warning');
+      if (state.devMode) get().addLog(`[ADS] negotiate lost ${lead.clientName}: ${result.reason} (${result.chance}%)`);
+    }
+  },
+
+  cancelLead: (leadId: string) => {
+    set((state) => ({
+      adLeads: state.adLeads.filter(l => l.id !== leadId),
+    }));
+  },
+
+  cancelCampaign: (campaignId: string) => {
+    set((state) => ({
+      adCampaigns: state.adCampaigns.map(c => c.id === campaignId ? { ...c, status: 'cancelled' as const } : c),
+    }));
+    get().addNotification('Campaign cancelled.', 'info');
+  },
+
+  toggleAutoRenew: () => {
+    set((state) => ({ autoRenewEnabled: !state.autoRenewEnabled }));
+  },
+
+  acceptLead: (leadId: string) => {
+    const state = get();
+    const lead = state.adLeads.find(l => l.id === leadId);
+    if (!lead || lead.status !== 'pending') {
+      get().addNotification('Lead no longer available', 'warning');
+      return;
+    }
+    const activeForSpec = state.adCampaigns.filter(c => c.specialistId === lead.specialistId && c.status === 'active').length;
+    const maxCap = state.unlockedPerks.includes('sales_dual_cap') ? 2 : 1;
+    if (activeForSpec >= maxCap) {
+      get().addNotification(`Specialist at max active campaigns (${maxCap}). Complete existing campaigns or unlock Dual Campaigns perk.`, 'warning');
+      return;
+    }
+    const campaign = makeCampaign(lead, lead.budget, lead.defaultDays);
+    set({
+      adLeads: state.adLeads.map(l => l.id === leadId ? { ...l, status: 'won' } : l),
+      adCampaigns: [...state.adCampaigns, campaign],
+    });
+    get().addNotification(`Deal accepted with ${lead.clientName}: $${lead.budget.toLocaleString()} (${lead.defaultDays}d)`, 'success');
+    if (state.devMode) get().addLog(`[ADS] accept ${lead.clientName}: $${lead.budget} ${lead.defaultDays}d, rev ${campaign.revenuePerTick}/tick`);
+  },
+
+  fireEmployee: (id) => {
+    const state = get();
+    const emp = state.employees.find(e => e.id === id);
+    if (!emp || emp.isPlayer) return;
+    const employees = state.employees
+      .filter(e => e.id !== id)
+      .map(e => e.supervisedBy === id ? { ...e, supervisedBy: undefined } : e);
+    let adLeads = state.adLeads;
+    if (emp.role === 'Ad_Monetization_Specialist') {
+      adLeads = state.adLeads.map(l =>
+        (l.specialistId === id && l.status === 'negotiating')
+          ? { ...l, status: 'pending', offeredDays: undefined, offeredPrice: undefined }
+          : l
+      );
+    }
+    const selectedHrId = state.selectedHrId === id ? null : state.selectedHrId;
+    set({ employees, adLeads, selectedHrId });
+    get().addNotification(`${emp.name} was fired.`, 'warning');
   },
 
   initPlayer: (name: string) => {
@@ -799,6 +1138,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       overworkTicks: 0,
       onVacation: false,
       vacationTicksLeft: 0,
+      failStreak: 0,
     };
     set({ employees: [player], totalSalary: 0, screen: 'playing' });
   },
@@ -1639,6 +1979,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       features: state.features,
       racks: state.racks,
       month: state.month,
+      adCampaigns: state.adCampaigns,
     };
 
     const earned = [...state.earnedMilestones];
@@ -1838,8 +2179,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       inventoryNodes: [], activeView: { type: 'office' }, visitedPlots: [], gameLog: [],
       cashFlowHistory: [], notifications: [],
       isBankrupt: false, negativeCashMonths: 0, screen: 'menu',
-      panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false },
-      panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false },
+  panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false },
+  panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false },
       maximizedPanel: null,
       selectedEmployeeId: null,
   darkMode: (() => { try { return localStorage.getItem('ss-dark') === '1'; } catch { return false; } })(),
@@ -1850,12 +2191,20 @@ export const useGameStore = create<GameState>((set, get) => ({
       events: [],
       officeGridCols: 8,
       officeGridRows: 8,
+      adLeads: [],
+      adCampaigns: [],
+      adSalesUnlockNotified: false,
+      autoRenewEnabled: true,
       perkPoints: 0,
       earnedMilestones: [],
       unlockedPerks: [],
       furnitureInventory: [],
       furniture: [],
       placementFurnitureId: null,
+      activePricingTier: '',
+      loan: null,
+      creditScore: 50,
+      missedPaymentTicks: 0,
     });
   },
 }));

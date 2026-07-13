@@ -1,6 +1,6 @@
 import type { Applicant, ApplicantMood, EmployeeRole, Employee, SourcingCampaign } from '../types';
 
-const ROLES: EmployeeRole[] = ['Developer', 'Designer', 'Lead_Developer', 'SysAdmin', 'HR'];
+export const ALL_ROLES: EmployeeRole[] = ['Developer', 'Designer', 'Lead_Developer', 'SysAdmin', 'HR', 'Ad_Monetization_Specialist'];
 
 const FIRST_NAMES = [
   'Alice', 'Bob', 'Charlie', 'Diana', 'Eve', 'Frank', 'Grace', 'Henry',
@@ -36,8 +36,8 @@ function rollLevelHR(tier: SourcingCampaign['tier'], hrLevel: number): number {
   }
 }
 
-export function generateApplicant(campaign: SourcingCampaign, hrLevel: number = 0): Applicant {
-  const role = pick(ROLES);
+export function generateApplicant(campaign: SourcingCampaign, hrLevel: number = 0, availableRoles?: EmployeeRole[]): Applicant {
+  const role = pick(availableRoles ?? ALL_ROLES);
   const level = rollLevelHR(campaign.tier, hrLevel);
   const speed = parseFloat((0.8 + Math.random() * 0.7).toFixed(2));
 
@@ -46,6 +46,7 @@ export function generateApplicant(campaign: SourcingCampaign, hrLevel: number = 
   else if (role === 'Lead_Developer') baseSalary = 600 + level * 250;
   else if (role === 'SysAdmin') baseSalary = 350 + level * 150;
   else if (role === 'HR') baseSalary = 250 + level * 120;
+  else if (role === 'Ad_Monetization_Specialist') baseSalary = 300 + level * 180;
   const expectedSalary = Math.round(baseSalary * (0.85 + speed * 0.15));
 
   const mood = pick(['patient', 'stubborn', 'volatile'] as const);
@@ -163,5 +164,6 @@ export function applicantToEmployee(applicant: Applicant, gridX: number, gridY: 
     overworkTicks: 0,
     onVacation: false,
     vacationTicksLeft: 0,
+    failStreak: 0,
   };
 }

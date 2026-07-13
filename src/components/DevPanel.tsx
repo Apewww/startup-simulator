@@ -1,16 +1,46 @@
 import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
-import type { EmployeeRole, SourcingCampaign } from '../types';
+import type { EmployeeRole, SourcingCampaign, AdLead } from '../types';
 import { COMPONENTS } from '../data/components';
 import { NODE_DEFS, RACK_TIERS } from '../data/servers';
 import { generateApplicant } from '../systems/recruitment';
+import { generateSingleLead, calcFeatureAdjustedBudgetRange, calcNegotiateChance } from '../systems/adSales';
+import { hasActiveSynergy } from '../systems/platform';
 
 const ROLES: EmployeeRole[] = ['Developer', 'Designer'];
 
 export function DevPanel() {
-  const { devMode, toggleDevMode, cash, addCash, employees, hireEmployee, addResources, features, unlockAllFeatures, racks, fillRack, selectedProduct, perkPoints, unlockedPerks, unlockAllPerks, devSpawnFurniture } = useGameStore();
+  const { devMode, toggleDevMode, cash, addCash, employees, hireEmployee, addResources, features, unlockAllFeatures, racks, fillRack, selectedProduct, perkPoints, unlockedPerks, unlockAllPerks, devSpawnFurniture, currentUsers, adLeads, adCampaigns, gameLog } = useGameStore();
   const [cashAmount, setCashAmount] = useState('100000');
   const [resAmount, setResAmount] = useState('10');
+  const [spawnedLeads, setSpawnedLeads] = useState<AdLead[]>([]);
+  const [offerBudget, setOfferBudget] = useState('29000');
+  const [offerDays, setOfferDays] = useState('30');
+  const [offerPrice, setOfferPrice] = useState('966');
+
+  const unlockedLevels = features.filter(f => f.level > 0).map(f => f.level);
+  const platformLevel = unlockedLevels.length > 0 ? unlockedLevels.reduce((s, l) => s + l, 0) / unlockedLevels.length : 0;
+  const productFeaturesLevel = features.reduce((s, f) => s + f.level, 0);
+  const synergyActive = hasActiveSynergy(features, selectedProduct);
+  const specialists = employees.filter(e => e.role === 'Ad_Monetization_Specialist');
+  const specLevel = specialists[0]?.level ?? 1;
+
+  const b = Number(offerBudget), d = Number(offerDays), p = Number(offerPrice);
+  const offerTotal = p * d;
+  const offerChance = calcNegotiateChance(offerTotal, b);
+
+  const budgetRange = calcFeatureAdjustedBudgetRange(currentUsers, platformLevel, productFeaturesLevel, 1, synergyActive, specLevel);
+
+  const spawnLead = () => {
+    const s = useGameStore.getState();
+    const lead = generateSingleLead(
+      { currentUsers: s.currentUsers, adPlatformLevel: platformLevel, dataRatio: 1, synergyActive, specialistLevel: specLevel, productFeaturesLevel },
+      specialists[0]?.id ?? 'dev',
+      s.adLeads.map(l => l.clientName),
+      s.tick,
+    );
+    setSpawnedLeads(prev => [lead, ...prev].slice(0, 8));
+  };
 
   if (!import.meta.env.DEV || !devMode) return null;
 
@@ -129,12 +159,50 @@ export function DevPanel() {
           <div className="text-ink-soft text-[10px] mt-1">{perkPoints} points · {unlockedPerks.length} perks unlocked</div>
         </DevSection>
 
+        <DevSection title="Ad Sales">
+          <div className="space-y-0.5 text-[10px] text-ink-soft">
+            <div>Users: <span className="text-ink">{Math.round(currentUsers).toLocaleString()}</span></div>
+            <div>platformLevel (mean): <span className="text-ink">{platformLevel.toFixed(2)}</span></div>
+            <div>productFeaturesLevel: <span className="text-ink">{productFeaturesLevel}</span></div>
+            <div>synergy: <span className="text-ink">{String(synergyActive)}</span> · specialists: <span className="text-ink">{specialists.length}</span></div>
+            <div>Budget range: <span className="text-ink">${budgetRange.min.toLocaleString()}–${budgetRange.max.toLocaleString()}</span> (count {budgetRange.count})</div>
+            <div>Live: {adLeads.length} leads · {adCampaigns.length} campaigns</div>
+          </div>
+
+          <div className="mt-2 text-amber font-semibold text-[10px] uppercase tracking-wider">Offer Chance Calc</div>
+          <div className="flex gap-1 mt-1">
+            <input value={offerBudget} onChange={e => setOfferBudget(e.target.value)} className="w-20 bg-surface-2 border border-border rounded px-1 py-0.5 text-[10px] text-ink" title="Client budget (total)" />
+            <input value={offerDays} onChange={e => setOfferDays(e.target.value)} className="w-12 bg-surface-2 border border-border rounded px-1 py-0.5 text-[10px] text-ink" title="Days" />
+            <input value={offerPrice} onChange={e => setOfferPrice(e.target.value)} className="w-16 bg-surface-2 border border-border rounded px-1 py-0.5 text-[10px] text-ink" title="Price/day" />
+          </div>
+          <div className="text-[10px] text-ink-soft mt-1">
+            Total ${offerTotal.toLocaleString()} · ratio {(offerTotal / b).toFixed(2)} · chance <span className="text-ink font-semibold">{offerChance}%</span> {offerChance >= 100 ? '(within budget)' : '(above budget)'}
+          </div>
+
+          <button onClick={spawnLead} className="mt-2 px-2 py-1 bg-indigo hover:bg-indigo/90 text-white rounded-lg text-[10px]">Spawn Lead</button>
+          {spawnedLeads.length > 0 && (
+            <div className="mt-1 space-y-1">
+              {spawnedLeads.map(l => (
+                <div key={l.id} className="bg-surface-2 border border-border rounded px-2 py-1 text-[10px] text-ink-soft">
+                  {l.clientName}: <span className="text-ink">${l.budget.toLocaleString()}</span> · {l.defaultDays}d · expires tick {l.expiresAt}
+                </div>
+              ))}
+            </div>
+          )}
+        </DevSection>
+
         <DevSection title="Game State">
           <div className="text-[10px] text-ink-soft">Tick: {useGameStore.getState().tick} | Month: {useGameStore.getState().month}</div>
           <button onClick={() => { const s = useGameStore.getState(); for (let i = 0; i < 20; i++) s.incrementTick(); }}
             className="px-2 py-1 bg-surface-2 hover:bg-surface border border-border rounded-lg text-[10px] mt-1">
             Fast-forward 1 day
           </button>
+          <div className="text-amber font-semibold text-[10px] uppercase tracking-wider mt-2">Log (last 12)</div>
+          <div className="space-y-0.5 mt-1 max-h-40 overflow-y-auto">
+            {gameLog.slice(-12).reverse().map((m, i) => (
+              <div key={i} className="text-[9px] text-ink-soft font-mono break-all">{m}</div>
+            ))}
+          </div>
         </DevSection>
       </div>
     </div>

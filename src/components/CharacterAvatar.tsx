@@ -1,4 +1,4 @@
-import { Code, PenTool, Star, Wrench, UserCheck } from 'lucide-react';
+import { Code, PenTool, Star, Wrench, UserCheck, DollarSign } from 'lucide-react';
 import type { EmployeeRole } from '../types';
 
 const ROLE_META: Record<EmployeeRole, { color: string; Icon: typeof Code; label: string }> = {
@@ -7,6 +7,7 @@ const ROLE_META: Record<EmployeeRole, { color: string; Icon: typeof Code; label:
   Lead_Developer: { color: '#B7791F', Icon: Star, label: 'LEAD' },
   SysAdmin: { color: '#17A366', Icon: Wrench, label: 'SYS' },
   HR: { color: '#B7791F', Icon: UserCheck, label: 'HR' },
+  Ad_Monetization_Specialist: { color: '#4F5EFF', Icon: DollarSign, label: 'ADS' },
 };
 
 export function CharacterAvatar({ role, size = 40 }: { role: EmployeeRole; size?: number }) {

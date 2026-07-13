@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Employee, ComponentResource, PlatformFeature, ServerRack, Plot, RentedServer, ServerNode, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetSubscription } from '../types';
+import type { Employee, ComponentResource, PlatformFeature, ServerRack, Plot, RentedServer, ServerNode, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetSubscription, AdLead, AdCampaign } from '../types';
 import type { GameSpeed, GameScreen, MonthlySnapshot, MonetizationStrategy } from '../store/gameStore';
 
 export interface GameSave {
@@ -41,6 +41,14 @@ export interface GameSave {
   unlockedPerks?: string[];
   furnitureInventory?: FurnitureInventoryItem[];
   furniture?: PlacedFurniture[];
+  adLeads?: AdLead[];
+  adCampaigns?: AdCampaign[];
+  adSalesUnlockNotified?: boolean;
+  activePricingTier?: string;
+  loan?: import('../types/monetization').BusinessLoan | null;
+  creditScore?: number;
+  missedPaymentTicks?: number;
+  autoRenewEnabled?: boolean;
 }
 
 export class GameDB extends Dexie {
@@ -60,6 +68,8 @@ export class GameDB extends Dexie {
     this.version(10).stores({ saves: '++id, timestamp' });
     this.version(11).stores({ saves: '++id, timestamp' });
     this.version(12).stores({ saves: '++id, timestamp' });
+    this.version(13).stores({ saves: '++id, timestamp' });
+    this.version(14).stores({ saves: '++id, timestamp' });
   }
 }
 

@@ -6,7 +6,8 @@ import { getComponentDef } from '../data/components';
 import { calculateRevenue, getMonetizationMods, getAdPlatformLevel, getMoodTarget, MOOD_BASELINE } from '../systems/monetization';
 import { getPlatformStats, hasActiveSynergy } from '../systems/platform';
 import { getComplianceStatus } from '../systems/compliance';
-import { LayoutGrid, Package, Zap, ToggleLeft, ToggleRight, ChevronDown, Server, DollarSign } from 'lucide-react';
+import { getPricingTiers, getPricingTier } from '../types/monetization';
+import { LayoutGrid, Package, Zap, ToggleLeft, ToggleRight, ChevronDown, Server, DollarSign, Sliders } from 'lucide-react';
 
 function fmtCash(n: number): string {
   if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
@@ -32,7 +33,7 @@ const MONETIZATION_STRATEGIES: StratDef[] = [
 function MonetizationStrategySection() {
   const {
     activeMonetization, setMonetizationStrategy,
-    currentUsers, features, racks, rentedServers, internetSubscriptions, selectedProduct, events, userMood,
+    currentUsers, features, racks, rentedServers, internetSubscriptions, selectedProduct, events, userMood, activePricingTier,
   } = useGameStore();
 
   const adPlatformLevel = getAdPlatformLevel(features);
@@ -70,11 +71,12 @@ function MonetizationStrategySection() {
   }
 
   function preview(id: MonetizationStrategy) {
+    const pricingMult = getPricingTier(activePricingTier, selectedProduct)?.revenueMult ?? 1;
     const rev = calculateRevenue(
       currentUsers, features, racks,
       platformStats.cohesionScore * (compliance?.revenueMult ?? 1),
       platformStats.synergyRevenueBonus,
-      { strategy: id, productId: selectedProduct, dataRatio, synergyActive },
+      { strategy: id, productId: selectedProduct, dataRatio, synergyActive, pricingRevenueMult: pricingMult },
     );
     return { total: rev.total, mods: getMonetizationMods(id) };
   }
@@ -266,9 +268,67 @@ export function FeaturesPanel() {
   const { features, resources, selectedProduct } = useGameStore();
   const product = getProductDef(selectedProduct || '');
 
+function PricingSliderSection() {
+  const { activePricingTier, setPricingTier, selectedProduct } = useGameStore();
+  const tiers = getPricingTiers(selectedProduct);
+  if (tiers.length === 0) return null;
+  const activeTier = tiers.find(t => t.id === activePricingTier);
+
+  function Delta({ val, ref }: { val: number; ref: number }) {
+    if (val === ref) return null;
+    return <span className={`text-[8px] ${val > ref ? 'text-green' : 'text-red'}`}>{val > ref ? '▲' : '▼'}</span>;
+  }
+
+  return (
+    <div className="border border-border rounded-lg p-2 bg-surface">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <Sliders className="w-3.5 h-3.5 text-amber" />
+        <h3 className="text-[11px] font-semibold text-ink-soft uppercase tracking-wider">Pricing</h3>
+      </div>
+      <div className="space-y-1">
+        {tiers.map(t => {
+          const isActive = activePricingTier === t.id;
+          const isDefault = t === tiers[0];
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setPricingTier(t.id)}
+              className={`w-full text-left rounded-lg border px-2 py-1.5 transition-colors cursor-pointer ${isActive ? 'border-amber bg-amber-soft' : 'border-border bg-surface-2 hover:bg-surface'}`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className={`text-[11px] font-semibold ${isActive ? 'text-amber' : 'text-ink'}`}>{t.label}</span>
+                <span className={`flex items-center gap-0.5 text-[10px] font-mono font-semibold ${t.revenueMult >= 1 ? 'text-green' : 'text-red'}`}>
+                  ×{t.revenueMult}
+                  {!isActive && activeTier && <Delta val={t.revenueMult} ref={activeTier.revenueMult} />}
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-2 mt-0.5">
+                <span className="text-[9px] text-ink-soft">{isDefault ? 'Balanced' : t.growthMult < 1 ? 'Aggressive' : 'Premium'}</span>
+                <span className="flex gap-1 shrink-0">
+                  <span className={`text-[9px] px-1 rounded border font-semibold ${t.growthMult < 1 ? 'bg-red-soft text-red border-red/20' : 'bg-green-soft text-green border-green/20'}`}>
+                    growth ×{t.growthMult}
+                    {!isActive && activeTier && <Delta val={t.growthMult} ref={activeTier.growthMult} />}
+                  </span>
+                  <span className={`text-[9px] px-1 rounded border font-semibold ${t.moodTarget < 70 ? 'bg-red-soft text-red border-red/20' : 'bg-green-soft text-green border-green/20'}`}>
+                    mood {t.moodTarget}
+                    {!isActive && activeTier && <Delta val={t.moodTarget} ref={activeTier.moodTarget} />}
+                  </span>
+                </span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
   return (
     <div className="space-y-3">
       <MonetizationStrategySection />
+
+      <PricingSliderSection />
 
       <div>
         <h3 className="text-[11px] font-semibold text-ink-soft uppercase tracking-wider mb-1.5">Inventory</h3>

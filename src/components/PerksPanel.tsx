@@ -107,9 +107,10 @@ export function PerksPanel() {
   const features = useGameStore((s) => s.features);
   const racks = useGameStore((s) => s.racks);
   const month = useGameStore((s) => s.month);
+  const adCampaigns = useGameStore((s) => s.adCampaigns);
   const unlockPerk = useGameStore((s) => s.unlockPerk);
 
-  const ctx: PerkContext = { employees, cash, currentUsers, features, racks, month };
+  const ctx: PerkContext = { employees, cash, currentUsers, features, racks, month, adCampaigns };
 
   return (
     <div className="flex flex-col gap-3">

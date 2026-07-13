@@ -276,3 +276,43 @@ Server tidak dibeli langsung — pemain harus beli **rack** dulu, lalu pasang **
 - [ ] Test: happiness tidak stuck ~100 saat coffee + water aktif
 - [ ] Test: save lama pre-v1.4.x loadable (migration otomatis)
 - [ ] Test: dev cheat unlock perks + spawn furniture berfungsi
+
+---
+
+## V1.6 — Ad Sales Pipeline
+
+### Types & Data
+- [x] `types/adSales.ts` — `AdLead`, `AdCampaign` interface
+- [x] `types/employee.ts` — role `Ad_Monetization_Specialist` + `failStreak` field
+- [x] `types/index.ts` — export tipe baru
+- [x] `data/clientNames.ts` — 20 nama perusahaan fiktif
+- [x] `data/perks.ts` — perk `sales_auto_renew` (cost 2)
+
+### Systems
+- [x] `systems/adSales.ts` — `generateSingleLead`, `getMaxLeadsCount`, `calcSearchDuration`, `calcNegotiationDuration`, `calcLeadExpiryDays`, `evaluateOffer` (deterministik), `calcPriceRange`, `makeCampaign`, `calcAutoRenewValue`, `calcAutoRenewMatch`
+
+### Store
+- [x] `gameStore.ts` — state `adLeads`, `adCampaigns`, `adSalesUnlockNotified`
+- [x] `gameStore.ts` — action `searchLeads` (continuous searching, no auto-stop), `stopSearching`, `sendOffer` (manual days+price), `cancelLead`
+- [x] `gameStore.ts` — `incrementTick`: gradual lead reveal, lead expiry, campaign progress, auto-renew, specialist idle penalty, campaign revenue di billing
+- [x] `gameStore.ts` — unlock notification ads di 5k users + ad_platform Lv.3
+- [x] `gameStore.ts` — recruitment filter: `Ad_Monetization_Specialist` hanya muncul setelah unlock
+
+### UI
+- [x] `components/AdSalesPanel.tsx` — Panel Ad Sales (user tier, specialist card, leads + negotiation form, campaigns, history)
+- [x] `components/Dock.tsx` — tombol Ad Sales (shortcut 7)
+- [x] `components/CharacterAvatar.tsx` — role meta untuk specialist
+- [x] `App.tsx` — FloatingPanel Ad Sales
+
+### Finance
+- [x] `components/FinancePanel.tsx` — breakdown revenue "Ad Campaigns" dari active campaign
+
+### Save/Load
+- [x] `db/gameDB.ts` — Dexie v13
+- [x] `systems/saveLoad.ts` — save/load adLeads, adCampaigns, adSalesUnlockNotified
+
+### Chart Fix
+- [x] `components/CashFlowChart.tsx` — hover tooltip fix (pointer-events, posisi dinamis)
+
+### Build
+- [x] `tsc -b` + `vite build` — sukses

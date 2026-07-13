@@ -16,6 +16,7 @@ export interface MonetizationOptions {
   productId: string | null;
   dataRatio: number;
   synergyActive: boolean;
+  pricingRevenueMult?: number;
 }
 
 export interface MonetizationMods {
@@ -164,7 +165,8 @@ export function calculateRevenue(
   subscription = Math.round(subscription * (1 + synergyRevenueBonus));
   freemium = Math.round(freemium * (1 + synergyRevenueBonus));
 
-  const total = ads + subscription + freemium + b2b;
+  const pricingMult = opts?.pricingRevenueMult ?? 1;
+  const total = Math.round((ads + subscription + freemium + b2b) * pricingMult);
   const hasSubscription = subscription > 0;
   return { ads, subscription, b2b, freemium, total, hasSubscription, uptimePenalty: penalty };
 }

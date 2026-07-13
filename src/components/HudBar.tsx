@@ -5,6 +5,7 @@ import { getPlatformStats } from '../systems/platform';
 import { calculateRevenue, MOOD_BASELINE } from '../systems/monetization';
 import { calcMonthlyServerCost } from '../systems/server';
 import { getComplianceStatus } from '../systems/compliance';
+import { getPricingTier } from '../types/monetization';
 
 const DAY_NAMES = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
@@ -37,7 +38,7 @@ interface HudBarProps {
 }
 
 export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps) {
-  const { tick, isPaused, speed, cash, month, features, racks, rentedServers, totalSalary, togglePause, setSpeed, negativeCashMonths, pendingFunding, currentUsers, events, selectedProduct, employees, activeMonetization, userMood, internetSubscriptions } = useGameStore();
+  const { tick, isPaused, speed, cash, month, features, racks, rentedServers, totalSalary, togglePause, setSpeed, negativeCashMonths, pendingFunding, currentUsers, events, selectedProduct, employees, activeMonetization, userMood, internetSubscriptions, activePricingTier, adCampaigns, loan } = useGameStore();
   const platformStats = getPlatformStats(features, events, selectedProduct);
   const bankruptWarning = negativeCashMonths > 0;
 
@@ -48,9 +49,12 @@ export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps
   const hour = Math.floor((tick % TICKS_PER_DAY) * (24 / TICKS_PER_DAY));
   const timeStr = `${String(hour).padStart(2, '0')}:00`;
 
-  const monthlyRevenue = calculateRevenue(currentUsers, features, racks);
+  const pricingMult = getPricingTier(activePricingTier, selectedProduct)?.revenueMult ?? 1;
+  const monthlyRevenue = calculateRevenue(currentUsers, features, racks, 1, 0, { strategy: activeMonetization, productId: selectedProduct, dataRatio: 1, synergyActive: false, pricingRevenueMult: pricingMult });
+  const campaignMonthly = adCampaigns.filter(c => c.status === 'active').reduce((s, c) => s + c.revenuePerTick, 0) * TICKS_PER_MONTH;
+  const loanPayment = loan?.status === 'active' ? loan.monthlyPayment : 0;
   const monthlyServerCost = calcMonthlyServerCost(racks, rentedServers);
-  const monthlyNet = monthlyRevenue.total - (totalSalary + monthlyServerCost);
+  const monthlyNet = monthlyRevenue.total + campaignMonthly - (totalSalary + monthlyServerCost + loanPayment);
   const profitable = monthlyNet >= 0;
   const CashArrow = profitable ? TrendingUp : TrendingDown;
   const cashColor = profitable ? 'text-green' : 'text-red';
