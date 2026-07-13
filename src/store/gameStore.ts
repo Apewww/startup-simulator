@@ -1042,6 +1042,12 @@ export const useGameStore = create<GameState>((set, get) => ({
       get().addNotification('Invalid offer (min 7 days, max 180 days, price > 0)', 'warning');
       return;
     }
+    const activeForSpec = state.adCampaigns.filter(c => c.specialistId === lead.specialistId && c.status === 'active').length;
+    const maxCap = state.unlockedPerks.includes('sales_dual_cap') ? 2 : 1;
+    if (activeForSpec >= maxCap) {
+      get().addNotification(`Specialist at max active campaigns (${maxCap}). Complete existing campaigns or unlock Dual Campaigns perk.`, 'warning');
+      return;
+    }
     const result = evaluateOffer(lead, days, price);
     if (result.success) {
       const dealValue = price * days;
@@ -1072,6 +1078,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     const lead = state.adLeads.find(l => l.id === leadId);
     if (!lead || lead.status !== 'pending') {
       get().addNotification('Lead no longer available', 'warning');
+      return;
+    }
+    const activeForSpec = state.adCampaigns.filter(c => c.specialistId === lead.specialistId && c.status === 'active').length;
+    const maxCap = state.unlockedPerks.includes('sales_dual_cap') ? 2 : 1;
+    if (activeForSpec >= maxCap) {
+      get().addNotification(`Specialist at max active campaigns (${maxCap}). Complete existing campaigns or unlock Dual Campaigns perk.`, 'warning');
       return;
     }
     const campaign = makeCampaign(lead, lead.budget, lead.defaultDays);
@@ -1964,6 +1976,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       features: state.features,
       racks: state.racks,
       month: state.month,
+      adCampaigns: state.adCampaigns,
     };
 
     const earned = [...state.earnedMilestones];

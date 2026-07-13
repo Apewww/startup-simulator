@@ -1,4 +1,4 @@
-import type { Employee, PlatformFeature, ServerRack } from '../types';
+import type { Employee, PlatformFeature, ServerRack, AdCampaign } from '../types';
 
 export interface PerkContext {
   employees: Employee[];
@@ -7,6 +7,7 @@ export interface PerkContext {
   features: PlatformFeature[];
   racks: ServerRack[];
   month: number;
+  adCampaigns: AdCampaign[];
 }
 
 export interface MilestoneDef {
@@ -100,6 +101,15 @@ export const MILESTONES: MilestoneDef[] = [
     icon: 'LayoutGrid',
     repeatable: false,
     check: (ctx) => ctx.features.length > 0 && ctx.features.every((f) => f.level >= 3),
+  },
+  {
+    id: 'first_ad_deal',
+    name: 'First Ad Deal',
+    description: 'Complete your first ad campaign deal',
+    icon: 'Handshake',
+    repeatable: false,
+    check: (ctx) => ctx.adCampaigns.some(c => c.status === 'completed' || c.ticksElapsed > 0),
+    getProgress: (ctx) => ({ current: Math.min(1, ctx.adCampaigns.filter(c => c.status === 'completed' || c.ticksElapsed > 0).length), target: 1 }),
   },
   {
     id: 'first_rack',

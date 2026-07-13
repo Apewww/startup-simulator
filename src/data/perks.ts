@@ -40,6 +40,13 @@ export const PERKS: PerkDef[] = [
     cost: 2,
   },
   {
+    id: 'sales_dual_cap',
+    name: 'Dual Campaigns',
+    description: 'Increases active campaign limit per Ad Monetization Specialist from 1 to 2.',
+    icon: 'Layers',
+    cost: 2,
+  },
+  {
     id: 'hardware_overclock',
     name: 'Hardware Overclocking',
     description: 'Upgrade/downgrade node langsung di rack & inventory untuk hemat plot. Upgrade berbayar (skala harga node), downgrade tanpa refund.',

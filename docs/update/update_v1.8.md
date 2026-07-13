@@ -41,14 +41,32 @@ Efek setelah fix:
 
 ---
 
+## Bonus: Campaign Cap & Dual Campaigns Perk
+
+**Masalah:** Specialist bisa punya banyak active campaign simultan, tidak ada batasan.
+**Solusi:** Tiap specialist cuma bisa handle **1 active campaign** dalam satu waktu. Perk baru **Dual Campaigns** naikkan cap jadi 2.
+
+Perk `sales_dual_cap`:
+- Cost: 2 perk points
+- Icon: Layers
+- Efek: `maxCap = 1 → 2 active campaign per specialist`
+
+Milestone baru `first_ad_deal` — "First Ad Deal": complete first campaign → +1 perk point.
+
+Guard di `acceptLead` & `sendOffer`: cek `activeForSpec < maxCap`, reject + notifikasi jika penuh.
+
 ## Files Changed
 
 | File | Perubahan |
 |------|----------|
-| `src/store/gameStore.ts` | Funding revOpts + `pricingRevenueMult` |
+| `src/store/gameStore.ts` | Funding revOpts + `pricingRevenueMult` + cap guard di acceptLead & sendOffer + adCampaigns di PerkContext |
 | `src/components/FeaturesPanel.tsx` | Preview revOpts + `pricingRevenueMult` + import getPricingTier + pricing arrows ▲/▼ |
 | `src/components/FinancePanel.tsx` | Revenue calc + `pricingRevenueMult` + import getPricingTier + loan payment display & net fix |
 | `src/components/AdSalesPanel.tsx` | Lifetime revenue total di History header |
+| `src/components/HudBar.tsx` | Net indicator fix — missing monetization strategy, pricing mult, campaign rev, loan payment |
+| `src/components/PerksPanel.tsx` | Add adCampaigns ke PerkContext |
+| `src/data/perks.ts` | BARU: `sales_dual_cap` perk |
+| `src/data/milestones.ts` | BARU: `first_ad_deal` milestone + `adCampaigns` di PerkContext |
 | `docs/update/update_v1.8.md` | BARU |
 
 ---
@@ -61,5 +79,8 @@ Efek setelah fix:
 - [x] Loan payment di FinancePanel expenses + net fix
 - [x] Lifetime revenue campaigns di History
 - [x] Pricing comparison arrow ▲/▼ vs current tier
+- [x] Campaign cap: max 1 active per specialist, 2 with perk
+- [x] Perk baru: `sales_dual_cap` (Dual Campaigns, cost 2)
+- [x] Milestone baru: `first_ad_deal` (First Ad Deal, +1 point)
 - [x] Build sukses (`tsc -b` + `vite build`)
 - [ ] Commit
