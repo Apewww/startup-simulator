@@ -65,14 +65,14 @@ Tiap produk punya 4 pricing tier dengan trade-off: harga tinggi → revenue naik
 
 ## Checklist
 
-- [ ] Types: `PricingTier` + `BusinessLoan` + pricing data per produk
-- [ ] Store: state + actions pricing/loan/credit
-- [ ] Store: `incrementTick` — mood dari pricing, loan billing check
-- [ ] Systems: `banking.ts` — `takeLoan`, `payLoanEarly`, default check, credit score
-- [ ] Systems: `monetization.ts` — pricing multiplier di `calculateRevenue`, growth/mood effect
-- [ ] UI: Pricing slider di `FeaturesPanel.tsx`
-- [ ] UI: `BankingPanel.tsx`
-- [ ] UI: Dock button Banking (shortcut 8)
-- [ ] UI: Register FloatingPanel di `App.tsx`
-- [ ] Save/load: Dexie v14 + 4 field baru
-- [ ] Build sukses (`tsc -b` + `vite build`)
+- [x] Types: `PricingTier` + `BusinessLoan` + pricing data per produk
+- [x] Store: state + actions pricing/loan/credit
+- [x] Store: `incrementTick` — mood dari pricing, loan billing check
+- [x] Systems: `banking.ts` — `takeLoan`, `payLoanEarly`, default check, credit score
+- [x] Systems: `monetization.ts` — pricing multiplier di `calculateRevenue`, growth/mood effect
+- [x] UI: Pricing slider di `FeaturesPanel.tsx`
+- [x] UI: `BankingPanel.tsx`
+- [x] UI: Dock button Banking (shortcut 8)
+- [x] UI: Register FloatingPanel di `App.tsx`
+- [x] Save/load: Dexie v14 + 4 field baru
+- [x] Build sukses (`tsc -b` + `vite build`)

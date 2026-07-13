@@ -6,7 +6,7 @@ import { getComponentDef } from '../data/components';
 import { calculateRevenue, getMonetizationMods, getAdPlatformLevel, getMoodTarget, MOOD_BASELINE } from '../systems/monetization';
 import { getPlatformStats, hasActiveSynergy } from '../systems/platform';
 import { getComplianceStatus } from '../systems/compliance';
-import { getPricingTiers, getPricingTier } from '../types/monetization';
+import { getPricingTiers } from '../types/monetization';
 import { LayoutGrid, Package, Zap, ToggleLeft, ToggleRight, ChevronDown, Server, DollarSign, Sliders } from 'lucide-react';
 
 function fmtCash(n: number): string {
@@ -268,11 +268,9 @@ export function FeaturesPanel() {
   const product = getProductDef(selectedProduct || '');
 
 function PricingSliderSection() {
-  const { activePricingTier, setPricingTier, selectedProduct, currentUsers } = useGameStore();
+  const { activePricingTier, setPricingTier, selectedProduct } = useGameStore();
   const tiers = getPricingTiers(selectedProduct);
   if (tiers.length === 0) return null;
-
-  const activeTier = getPricingTier(activePricingTier, selectedProduct);
 
   return (
     <div className="border border-border rounded-lg p-2 bg-surface">

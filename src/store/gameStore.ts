@@ -536,6 +536,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const cohesionScore = platformStats.cohesionScore;
 
     // Dynamic users
+    const pricingTier = getPricingTier(state.activePricingTier, state.selectedProduct);
     const eventEffects = getAppliedEffects(events);
     const monetizationMods = getMonetizationMods(state.activeMonetization);
     const pricingGrowthMult = pricingTier?.growthMult ?? 1;
@@ -551,7 +552,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     const earlyDataRatio = complianceBefore?.data.ratio ?? 1;
 
     // User mood (satisfaction) — drifts toward strategy target × pricing target; feeds churn
-    const pricingTier = getPricingTier(state.activePricingTier, state.selectedProduct);
     const strategyMoodTarget = getMoodTarget(state.activeMonetization, synergyActive, earlyDataRatio);
     const combinedMoodTarget = Math.min(strategyMoodTarget, pricingTier?.moodTarget ?? 100);
     const moodTarget = Math.min(100, combinedMoodTarget + internetMoodSum * 100);
@@ -694,18 +694,17 @@ export const useGameStore = create<GameState>((set, get) => ({
     let newNegativeCashMonths = state.negativeCashMonths;
     const dataRatio = compliance?.data.ratio ?? 1;
     const revOpts = { strategy: state.activeMonetization, productId: selectedProduct, dataRatio, synergyActive };
+    const pricingRevMult = pricingTier?.revenueMult ?? 1;
+    const revOptsWithPricing = { ...revOpts, pricingRevenueMult: pricingRevMult };
     const campaignRevenue = newAdCampaigns
       .filter(c => c.status === 'active')
       .reduce((sum, c) => sum + c.revenuePerTick, 0);
     if (newMonth > oldMonth) {
       newTotalSalary = calcTotalSalary(newEmployees);
       const serverCost = calcMonthlyServerCost(finalRacks, rentedServers, internetSubs);
-      const pricingRevMult = pricingTier?.revenueMult ?? 1;
-      const revOptsWithPricing = { ...revOpts, pricingRevenueMult: pricingRevMult };
       const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore * (compliance?.revenueMult ?? 1), platformStats.synergyRevenueBonus, revOptsWithPricing);
       const adCampaignMonthly = campaignRevenue * TICKS_PER_MONTH;
       let loanPayment = 0;
-      let loanPaidThisMonth = false;
       if (state.loan?.status === 'active') {
         loanPayment = state.loan.monthlyPayment;
       }
@@ -722,7 +721,6 @@ export const useGameStore = create<GameState>((set, get) => ({
             updatedLoan.status = 'paid' as const;
           }
           set({ loan: updatedLoan, creditScore: updateCreditScore(state.creditScore, 'on_time') });
-          loanPaidThisMonth = true;
         }
       }
       if (state.loan?.status === 'active' && get().missedPaymentTicks >= 3) {

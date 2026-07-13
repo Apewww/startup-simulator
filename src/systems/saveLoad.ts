@@ -109,6 +109,10 @@ export async function loadGame(): Promise<boolean> {
     adLeads: save.adLeads ?? [],
     adCampaigns: save.adCampaigns ?? [],
     adSalesUnlockNotified: save.adSalesUnlockNotified ?? false,
+    activePricingTier: save.activePricingTier ?? '',
+    loan: save.loan ?? null,
+    creditScore: save.creditScore ?? 50,
+    missedPaymentTicks: save.missedPaymentTicks ?? 0,
   });
 
   return true;
