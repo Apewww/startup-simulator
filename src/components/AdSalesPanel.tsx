@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useGameStore, TICKS_PER_DAY } from '../store/gameStore';
-import { Target, Search, X, RefreshCw, TrendingUp, Send } from 'lucide-react';
+import { Target, Search, X, RefreshCw, TrendingUp, Send, ToggleLeft, ToggleRight } from 'lucide-react';
 import { calcNegotiateChance, getSearchCap, calcSearchDuration } from '../systems/adSales';
 
 function fmtCash(n: number): string {
@@ -26,6 +26,9 @@ export function AdSalesPanel() {
   const cancelLead = useGameStore((s) => s.cancelLead);
   const features = useGameStore((s) => s.features);
   const unlockedPerks = useGameStore((s) => s.unlockedPerks);
+  const autoRenewEnabled = useGameStore((s) => s.autoRenewEnabled);
+  const toggleAutoRenew = useGameStore((s) => s.toggleAutoRenew);
+  const cancelCampaign = useGameStore((s) => s.cancelCampaign);
   const [negotiatingLead, setNegotiatingLead] = useState<string | null>(null);
   const [offerDays, setOfferDays] = useState(30);
   const [offerPriceStr, setOfferPriceStr] = useState('');
@@ -82,7 +85,14 @@ export function AdSalesPanel() {
           <span className="font-semibold text-ink">{userTier}</span>
           {currentUsers >= 5_000 && <span className="text-[10px] text-ink-soft">| Ad Platform Lv.{adPlatformLevel}</span>}
         </div>
-        <div className="flex items-center gap-1.5 text-ink-soft">
+        <div className="flex items-center gap-2 text-ink-soft">
+          {hasPerk && (
+            <button onClick={toggleAutoRenew}
+              className="flex items-center gap-1 text-[9px] font-semibold cursor-pointer hover:opacity-80">
+              {autoRenewEnabled ? <ToggleRight className="w-3 h-3 text-green" /> : <ToggleLeft className="w-3 h-3 text-red" />}
+              <span className={autoRenewEnabled ? 'text-green' : 'text-red'}>Renew</span>
+            </button>
+          )}
           <TrendingUp className="w-3 h-3" strokeWidth={2} />
           <span>{fmtCash(campaignRevenue)}/tick</span>
         </div>
@@ -255,8 +265,12 @@ export function AdSalesPanel() {
                       <div className="h-full bg-indigo rounded-full transition-all" style={{ width: `${pct}%` }} />
                     </div>
                     <span className="whitespace-nowrap">{Math.round(c.ticksElapsed / TICKS_PER_DAY)} / {Math.round(c.totalTicks / TICKS_PER_DAY)} days</span>
+                    <button onClick={() => cancelCampaign(c.id)}
+                      className="px-1.5 py-0.5 bg-red/10 hover:bg-red/20 text-red border border-red/20 rounded text-[9px] cursor-pointer font-semibold shrink-0">
+                      Cancel
+                    </button>
                   </div>
-                  {hasPerk && <span className="text-[9px] text-amber">Auto-renew ready</span>}
+                  {hasPerk && autoRenewEnabled && <span className="text-[9px] text-amber">Auto-renew on</span>}
                 </div>
               );
             })}

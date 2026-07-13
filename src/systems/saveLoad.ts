@@ -51,6 +51,7 @@ export async function saveGame(): Promise<void> {
     loan: state.loan,
     creditScore: state.creditScore,
     missedPaymentTicks: state.missedPaymentTicks,
+    autoRenewEnabled: state.autoRenewEnabled,
   });
 }
 
@@ -113,6 +114,7 @@ export async function loadGame(): Promise<boolean> {
     loan: save.loan ?? null,
     creditScore: save.creditScore ?? 50,
     missedPaymentTicks: save.missedPaymentTicks ?? 0,
+    autoRenewEnabled: save.autoRenewEnabled ?? true,
   });
 
   return true;

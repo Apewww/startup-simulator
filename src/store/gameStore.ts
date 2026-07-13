@@ -197,6 +197,9 @@ interface GameState {
   loan: BusinessLoan | null;
   creditScore: number;
   missedPaymentTicks: number;
+  autoRenewEnabled: boolean;
+  toggleAutoRenew: () => void;
+  cancelCampaign: (campaignId: string) => void;
   setPricingTier: (tierId: string) => void;
   takeLoan: (amount: number, tenor: number) => void;
   payLoanEarly: () => void;
@@ -242,6 +245,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   adLeads: [],
   adCampaigns: [],
   adSalesUnlockNotified: false,
+  autoRenewEnabled: true,
   devMode: false,
   inventoryNodes: [],
   activeView: { type: 'office' },
@@ -662,7 +666,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       if (c.status === 'completed') {
         const specialist = newEmployees.find(e => e.id === c.specialistId);
         const hasPerk = get().unlockedPerks.includes('sales_auto_renew');
-        if (specialist && specialist.happiness >= 15 && hasPerk && c.renewalCount < 5) {
+        const isEnabled = get().autoRenewEnabled;
+        if (specialist && specialist.happiness >= 15 && hasPerk && isEnabled && c.renewalCount < 5) {
           const renewalValue = calcAutoRenewValue(c.dealValue, c.renewalCount);
           const renewedCampaign = makeCampaign(
             { id: `renew-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, clientName: c.clientName, budget: renewalValue, defaultDays: c.offeredDays, expiresAt: 0, status: 'pending' as const, specialistId: c.specialistId },
@@ -1058,6 +1063,17 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => ({
       adLeads: state.adLeads.filter(l => l.id !== leadId),
     }));
+  },
+
+  cancelCampaign: (campaignId: string) => {
+    set((state) => ({
+      adCampaigns: state.adCampaigns.map(c => c.id === campaignId ? { ...c, status: 'cancelled' as const } : c),
+    }));
+    get().addNotification('Campaign cancelled.', 'info');
+  },
+
+  toggleAutoRenew: () => {
+    set((state) => ({ autoRenewEnabled: !state.autoRenewEnabled }));
   },
 
   acceptLead: (leadId: string) => {
@@ -2178,6 +2194,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       adLeads: [],
       adCampaigns: [],
       adSalesUnlockNotified: false,
+      autoRenewEnabled: true,
       perkPoints: 0,
       earnedMilestones: [],
       unlockedPerks: [],

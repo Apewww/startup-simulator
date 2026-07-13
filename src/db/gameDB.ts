@@ -48,6 +48,7 @@ export interface GameSave {
   loan?: import('../types/monetization').BusinessLoan | null;
   creditScore?: number;
   missedPaymentTicks?: number;
+  autoRenewEnabled?: boolean;
 }
 
 export class GameDB extends Dexie {
