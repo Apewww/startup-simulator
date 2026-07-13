@@ -839,6 +839,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       productId: state.selectedProduct,
       dataRatio: compliance?.data.ratio ?? 1,
       synergyActive,
+      pricingRevenueMult: getPricingTier(state.activePricingTier, state.selectedProduct)?.revenueMult ?? 1,
     };
     const revenue = calculateRevenue(state.currentUsers, state.features, state.racks, traffic.cohesionScore * (compliance?.revenueMult ?? 1), traffic.synergyRevenueBonus, revOpts);
     const offer = calcFundingOffer(state.month, state.currentUsers, revenue.total);

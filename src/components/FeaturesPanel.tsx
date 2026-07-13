@@ -6,7 +6,7 @@ import { getComponentDef } from '../data/components';
 import { calculateRevenue, getMonetizationMods, getAdPlatformLevel, getMoodTarget, MOOD_BASELINE } from '../systems/monetization';
 import { getPlatformStats, hasActiveSynergy } from '../systems/platform';
 import { getComplianceStatus } from '../systems/compliance';
-import { getPricingTiers } from '../types/monetization';
+import { getPricingTiers, getPricingTier } from '../types/monetization';
 import { LayoutGrid, Package, Zap, ToggleLeft, ToggleRight, ChevronDown, Server, DollarSign, Sliders } from 'lucide-react';
 
 function fmtCash(n: number): string {
@@ -33,7 +33,7 @@ const MONETIZATION_STRATEGIES: StratDef[] = [
 function MonetizationStrategySection() {
   const {
     activeMonetization, setMonetizationStrategy,
-    currentUsers, features, racks, rentedServers, internetSubscriptions, selectedProduct, events, userMood,
+    currentUsers, features, racks, rentedServers, internetSubscriptions, selectedProduct, events, userMood, activePricingTier,
   } = useGameStore();
 
   const adPlatformLevel = getAdPlatformLevel(features);
@@ -71,11 +71,12 @@ function MonetizationStrategySection() {
   }
 
   function preview(id: MonetizationStrategy) {
+    const pricingMult = getPricingTier(activePricingTier, selectedProduct)?.revenueMult ?? 1;
     const rev = calculateRevenue(
       currentUsers, features, racks,
       platformStats.cohesionScore * (compliance?.revenueMult ?? 1),
       platformStats.synergyRevenueBonus,
-      { strategy: id, productId: selectedProduct, dataRatio, synergyActive },
+      { strategy: id, productId: selectedProduct, dataRatio, synergyActive, pricingRevenueMult: pricingMult },
     );
     return { total: rev.total, mods: getMonetizationMods(id) };
   }

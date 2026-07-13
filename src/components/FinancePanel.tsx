@@ -4,6 +4,7 @@ import { useGameStore, TICKS_PER_MONTH } from '../store/gameStore';
 import { getPlatformStats, hasActiveSynergy } from '../systems/platform';
 import { calcMonthlyServerCost } from '../systems/server';
 import { calculateRevenue } from '../systems/monetization';
+import { getPricingTier } from '../types/monetization';
 import { CashFlowChart } from './CashFlowChart';
 import { FundingPanel } from './FundingPanel';
 
@@ -22,14 +23,15 @@ function fmtStat(label: string, value: string, icon: React.ReactNode) {
 }
 
 export function FinancePanel() {
-  const { features, totalSalary, racks, rentedServers, month, cash, employees, cashFlowHistory, pendingFunding, fundingRounds, currentUsers, events, selectedProduct, adCampaigns, activeMonetization } = useGameStore();
+  const { features, totalSalary, racks, rentedServers, month, cash, employees, cashFlowHistory, pendingFunding, fundingRounds, currentUsers, events, selectedProduct, adCampaigns, activeMonetization, activePricingTier } = useGameStore();
   const [chartOpen, setChartOpen] = useState(false);
   const [fundingOpen, setFundingOpen] = useState(false);
   const platformStats = getPlatformStats(features, events, selectedProduct);
   const serverCost = (racks.length > 0 || rentedServers.length > 0) ? calcMonthlyServerCost(racks, rentedServers) : 0;
   const synergyActive = hasActiveSynergy(features, selectedProduct);
+  const pricingMult = getPricingTier(activePricingTier, selectedProduct)?.revenueMult ?? 1;
   const revenue = racks.length > 0 || features.some((f) => f.level > 0)
-    ? calculateRevenue(currentUsers, features, racks, 1, 0, { strategy: activeMonetization, productId: selectedProduct, dataRatio: 1, synergyActive })
+    ? calculateRevenue(currentUsers, features, racks, 1, 0, { strategy: activeMonetization, productId: selectedProduct, dataRatio: 1, synergyActive, pricingRevenueMult: pricingMult })
     : { ads: 0, subscription: 0, b2b: 0, freemium: 0, total: 0, hasSubscription: false, uptimePenalty: 1 };
 
   const activeCampaigns = adCampaigns.filter(c => c.status === 'active');
