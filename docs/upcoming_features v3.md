@@ -1,6 +1,6 @@
 # Upcoming Feature v3 — Pricing, Banking & Revenue Visualization
 
-Status: 📝 V1.6 ✅ selesai, V1.7-V1.8 masih planned
+Status: 📝 V1.6 ✅ selesai, V1.7 ✅ selesai, V1.8 ✅ selesai
 Terkait: `store/gameStore.ts`, `systems/monetization.ts`, `components/`
 
 ---
