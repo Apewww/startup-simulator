@@ -1,76 +1,60 @@
-# Update V1.6 — Ad Sales Pipeline (Ad Monetization Specialist + Manual Negotiation)
+# Update V1.6 — Ad Sales Pipeline (Redesigned)
 
 **Induk:** `docs/upcoming_features v3.md` — V1.6
-**Tujuan:** Revenue aktif — pemain bisa jual jasa iklan ke client luar lewat role Ad Monetization Specialist. Negosiasi manual: pemain tentukan durasi campaign + harga per hari, sukses/gagal berdasarkan kewajaran tawaran terhadap platform value.
+**Tujuan:** Revenue aktif — pemain bisa jual jasa iklan ke client luar lewat role Ad Monetization Specialist. Simplified: instant Accept + instant Negotiate, no tick-based negotiation.
 
 ---
 
-## Perubahan
+## Perubahan dari Desain Awal
 
-### 1. Role Baru: Ad Monetization Specialist
+V1.6 di-rebuild dari konsep awal. Perbedaan utama:
 
-- `EmployeeRole` baru: `Ad_Monetization_Specialist`
-- Unlock saat `currentUsers >= 5.000` **dan** fitur `ad_platform` Lv. >= 3
-- Notifikasi unlock muncul satu kali
-- Recruitment filter: hanya muncul di applicant pool setelah unlock
-- Nama pool: Sterling, Blake, Phoenix, Rowan, Sage, Jade, Onyx, Zion
+| Aspek | V1.6 Awal | V1.6 Baru (implementasi) |
+|---|---|---|
+| Search duration | 24-50 tick (level-based) | Fixed **3 hari (72 tick)** |
+| Search cap | Per user tier (3-5) | Per specialist **level × 5** |
+| Lead muncul | Random chance per tick | Gradual via `calcLeadGenChance(speed, count, cap)` |
+| matchPercent | Ya, mempengaruhi success | **Dihapus** — client punya budget, itu acuan |
+| Negosiasi | Tick-based (12-30 tick), specialist harus idle | **Instant** — hasil langsung, specialist gak perlu idle |
+| Accept button | Tidak ada | **Ada** — instant campaign, budget penuh, defaultDays |
+| Specialist busy guard | Ya, nego butuh specialist idle | **Tidak** — Accept & Negotiate selalu bisa |
+| Notifikasi silent fail | Ya, guard silent return | **Tidak** — tiap guard kasih warning notification |
+| Campaign default duration | Random 30-90 hari | `clamp(budget/400, 14, 90)` — proporsional budget |
 
-### 2. Continuous Searching (tidak auto-stop)
+---
 
-- Klik [Find Leads] → specialist mulai searching terus sampai tombol [Stop] ditekan
-- Selama searching: lead muncul gradual dengan random chance per tick:
+## Ringkasan Sistem Baru
 
-```
-chance per tick = 0.08 × emp.speed × (1 - existingCount / maxLeads)
-```
+### 1. Search (3 hari)
+- Klik [Find Leads] → specialist cari client selama **72 tick**
+- Leads muncul gradual: `chance/tick = 0.04 × speed × (1 - count/cap)`
+- Cap = **specialist level × 5** (Lv1=5, Lv2=10, Lv3=15)
+- Auto-stop setelah 72 tick ATAU cap tercapai
+- Tombol [Stop] untuk hentikan manual
 
-- Max leads per tier: Small 3, Medium 4, Enterprise 5
-- Specialist idle > 30 tick → happiness decay ×3 (0.15/tick)
+### 2. Accept (Instant)
+- Tombol hijau [Accept] di tiap lead
+- Campaign langsung jadi: **budget penuh × defaultDays**
+- `defaultDays = clamp(budget/400, 14, 90)`
+- Tidak butuh specialist — player langsung setuju offer client
 
-### 3. Manual Negotiation (no RNG, deterministik)
+### 3. Negotiate (Instant)
+- Tombol indigo [Negotiate] → form duration + price
+- [Send Offer] → evaluasi INSTANT:
+  - **Total ≤ budget → 100% accept** (garansi)
+  - **Total > budget → chance penalty** (`max(10%, 100 - (ratio-1)×50)`)
+- Hasil langsung: campaign (won) atau lead hilang (lost)
 
-- Player klik [Negotiate] pada lead → form inline:
-  - Duration slider (7–180 hari)
-  - Price per day input
-  - Estimated rate bar (hijau/merah/oranye)
-- Klik [Send Offer] → specialist mulai negosiasi
-- Setelah durasi negosiasi selesai → hasil deterministik:
+### 4. Campaign
+- Revenue per tick: `round(dealValue / (days × 24))`
+- Campaign progres tiap tick, auto-complete saat `ticksElapsed >= totalTicks`
+- Auto-renew perk: renewal otomatis 70-90% value, max 5× per client
 
-```
-platformMultiplier = 1 + (users × 0.00001 + adPlatformLevel × 0.1 + synergy × 0.2)
-minTotal = budget × 0.4
-maxTotal = budget × platformMultiplier
-
-SUCCESS jika: minTotal <= offeredPrice × offeredDays <= maxTotal
-```
-
-- Tidak ada random roll. Jika tawaran dalam range → deal auto accepted.
-
-### 4. Campaign & Revenue
-
-- Campaign aktif: `revenuePerTick = dealValue / totalTicks`
-- Revenue per tick ditambahkan ke cash setiap tick (bukan cuma bulanan)
-- Monthly billing: `campaignMonthlyRevenue = sum(revenuePerTick) × 600`
-
-### 5. Auto-Renew Perk
-
-- Perk `sales_auto_renew` (cost 2) — unlock di Perks panel
-- Saat campaign selesai, specialist auto-renew dengan loyal client (selalu sukses)
-- Renewal value: 70–90% dari original deal
-- Max 5 renewal per client
-
-### 6. Finance Panel
-
-```
-Income:
-  Ads Revenue:        $1,200   (passive formula)
-  Ad Campaigns:       $2,800   ← active campaign revenue
-  Subscription:       $950
-```
-
-### 7. Chart Fix
-
-- CashFlowChart hover tooltip: `pointer-events: all` + posisi dinamis (mengikuti bar) + `z-50`
+### 5. UI Changes
+- Compact card per lead: `[Budget] · [Days] · [Price/d] ⏳Xd [Accept] [Negotiate] [×]`
+- Search progress bar: leads found / cap + day counter
+- Negotiating leads section dihapus (instant nego, gak perlu progress bar)
+- CashFlowChart: revenue snapshot include campaign revenue
 
 ---
 
@@ -78,37 +62,26 @@ Income:
 
 | File | Perubahan |
 |---|---|
-| `src/types/adSales.ts` | **BARU** — `AdLead`, `AdCampaign` |
-| `src/data/clientNames.ts` | **BARU** — 20 nama perusahaan |
-| `src/systems/adSales.ts` | **BARU** — lead gen, evaluateOffer, makeCampaign, auto-renew |
-| `src/components/AdSalesPanel.tsx` | **BARU** — panel ad sales |
-| `src/types/employee.ts` | Role `Ad_Monetization_Specialist` + field `failStreak` |
-| `src/types/index.ts` | Export `AdLead`, `AdCampaign` |
-| `src/data/perks.ts` | Perk `sales_auto_renew` |
-| `src/store/gameStore.ts` | State + actions + incrementTick hooks |
-| `src/systems/recruitment.ts` | `ALL_ROLES` export + salary specialist |
-| `src/systems/saveLoad.ts` | Save/load 3 field baru |
-| `src/db/gameDB.ts` | Dexie v13 |
-| `src/components/Dock.tsx` | Tombol Ad Sales (shortcut 7) |
-| `src/components/CharacterAvatar.tsx` | Role meta specialist |
-| `src/components/CashFlowChart.tsx` | Fix hover tooltip |
-| `src/components/FinancePanel.tsx` | Ad Campaigns revenue breakdown |
-| `src/App.tsx` | FloatingPanel Ad Sales |
-| `docs/upcoming_features v3.md` | V1.6 ✅ |
+| `src/types/adSales.ts` | `matchPercent` → `defaultDays` |
+| `src/systems/adSales.ts` | rewrite: `calcNegotiateChance`, `getSearchCap`, `calcDefaultDays`, `calcLeadGenChance`; hapus match/ctx |
+| `src/store/gameStore.ts` | `acceptLead` baru; `sendOffer` instant; search timer 72 tick; hapus negotiating tick block |
+| `src/components/AdSalesPanel.tsx` | Accept button; compact card; hapus isBusy guard; hapus negotiating section |
+| `src/components/DevPanel.tsx` | Hapus matchPercent; pakai `calcNegotiateChance` |
+| `src/components/FinancePanel.tsx` | Revenue breakdown: Ads Strategy, Ad Campaigns, B2B, Freemium |
+| `src/components/CashFlowChart.tsx` | Tooltip clamp container; revenue snapshot fix |
+| `docs/upcoming_features v3.md` | V1.6 redesigned ✅ |
 
 ---
 
 ## Checklist
 
-- [x] Types + data foundation
-- [x] Role recruitment & unlock notification
-- [x] Continuous searching + gradual lead reveal
-- [x] Manual negotiation form (days + price)
-- [x] Deterministic negotiation evaluation
-- [x] Campaign lifecycle & revenue per tick
-- [x] Auto-renew perk
-- [x] Specialist idle mood penalty
-- [x] Finance panel revenue breakdown
-- [x] Chart hover fix
-- [x] Save/load Dexie v13
+- [x] Redesigned AdLead type (defaultDays instead of matchPercent)
+- [x] Fixed 3-day search with level-based cap
+- [x] Accept button — instant campaign, full budget
+- [x] Negotiate — instant, total≤budget→100%, above→penalty
+- [x] No specialist busy guard for Accept/Negotiate
+- [x] Guard notifications instead of silent fail
+- [x] Compact lead card UI
+- [x] Cash flow chart revenue fix (include campaign)
+- [x] Finance panel full revenue breakdown
 - [x] Build sukses (`tsc -b` + `vite build`)

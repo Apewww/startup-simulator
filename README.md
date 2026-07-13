@@ -59,6 +59,7 @@ src/
 │   ├── ServerRoomView.tsx    # Grid server room + rack placement
 │   ├── ServerShop.tsx        # Shop beli rack, node, rental
 │   ├── CharacterAvatar.tsx   # Sprite karakter
+│   ├── AdSalesPanel.tsx      # Panel Ad Sales (Accept/Negotiate/Campaigns)
 │   └── DevPanel.tsx          # Dev mode cheat panel
 │
 ├── store/
@@ -71,6 +72,7 @@ src/
 │   ├── events.ts             # Random events: DDoS, traffic spike, PR crisis
 │   ├── monetization.ts       # Revenue kalkulasi
 │   ├── recruitment.ts        # Applicant generation, negotiation
+│   ├── adSales.ts            # Lead generation, negotiation chance, campaign
 │   └── saveLoad.ts           # Save/load IndexedDB
 │
 ├── data/                     # Data statis

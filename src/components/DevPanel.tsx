@@ -4,7 +4,7 @@ import type { EmployeeRole, SourcingCampaign, AdLead } from '../types';
 import { COMPONENTS } from '../data/components';
 import { NODE_DEFS, RACK_TIERS } from '../data/servers';
 import { generateApplicant } from '../systems/recruitment';
-import { generateSingleLead, calcFeatureAdjustedBudgetRange, calcOfferChance } from '../systems/adSales';
+import { generateSingleLead, calcFeatureAdjustedBudgetRange, calcNegotiateChance } from '../systems/adSales';
 import { hasActiveSynergy } from '../systems/platform';
 
 const ROLES: EmployeeRole[] = ['Developer', 'Designer'];
@@ -27,16 +27,14 @@ export function DevPanel() {
 
   const b = Number(offerBudget), d = Number(offerDays), p = Number(offerPrice);
   const offerTotal = p * d;
-  const offerRaw = calcOfferChance(offerTotal, b);
-  const offerBonus = (currentUsers * 0.00001 + platformLevel * 0.05) * 20;
-  const offerChance = Math.max(5, Math.min(95, Math.round(offerRaw + offerBonus)));
+  const offerChance = calcNegotiateChance(offerTotal, b);
 
   const budgetRange = calcFeatureAdjustedBudgetRange(currentUsers, platformLevel, productFeaturesLevel, 1, synergyActive, specLevel);
 
   const spawnLead = () => {
     const s = useGameStore.getState();
     const lead = generateSingleLead(
-      { currentUsers: s.currentUsers, adPlatformLevel: platformLevel, dataRatio: 1, userMood: s.userMood, synergyActive, specialistLevel: specLevel, productFeaturesLevel },
+      { currentUsers: s.currentUsers, adPlatformLevel: platformLevel, dataRatio: 1, synergyActive, specialistLevel: specLevel, productFeaturesLevel },
       specialists[0]?.id ?? 'dev',
       s.adLeads.map(l => l.clientName),
       s.tick,
@@ -178,7 +176,7 @@ export function DevPanel() {
             <input value={offerPrice} onChange={e => setOfferPrice(e.target.value)} className="w-16 bg-surface-2 border border-border rounded px-1 py-0.5 text-[10px] text-ink" title="Price/day" />
           </div>
           <div className="text-[10px] text-ink-soft mt-1">
-            Total ${offerTotal.toLocaleString()} · ratio {(offerTotal / b).toFixed(2)} · chance <span className="text-ink font-semibold">{offerChance}%</span> (raw {Math.round(offerRaw)} + bonus {Math.round(offerBonus)})
+            Total ${offerTotal.toLocaleString()} · ratio {(offerTotal / b).toFixed(2)} · chance <span className="text-ink font-semibold">{offerChance}%</span> {offerChance >= 100 ? '(within budget)' : '(above budget)'}
           </div>
 
           <button onClick={spawnLead} className="mt-2 px-2 py-1 bg-indigo hover:bg-indigo/90 text-white rounded-lg text-[10px]">Spawn Lead</button>
@@ -186,7 +184,7 @@ export function DevPanel() {
             <div className="mt-1 space-y-1">
               {spawnedLeads.map(l => (
                 <div key={l.id} className="bg-surface-2 border border-border rounded px-2 py-1 text-[10px] text-ink-soft">
-                  {l.clientName}: <span className="text-ink">${l.budget.toLocaleString()}</span> · match {l.matchPercent}% · expires tick {l.expiresAt}
+                  {l.clientName}: <span className="text-ink">${l.budget.toLocaleString()}</span> · {l.defaultDays}d · expires tick {l.expiresAt}
                 </div>
               ))}
             </div>

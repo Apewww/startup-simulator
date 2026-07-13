@@ -1,7 +1,7 @@
-# Upcoming Feature v3 — Ad Sales Pipeline, Pricing, Banking & Revenue Visualization
+# Upcoming Feature v3 — Pricing, Banking & Revenue Visualization
 
-Status: 📝 Proposed (belum diimplementasi)
-Terkait: `types/employee.ts`, `data/products.ts`, `store/gameStore.ts`, `systems/monetization.ts`, `components/`, `data/perks.ts`
+Status: 📝 V1.6 ✅ selesai, V1.7-V1.8 masih planned
+Terkait: `store/gameStore.ts`, `systems/monetization.ts`, `components/`
 
 ---
 
@@ -9,20 +9,40 @@ Terkait: `types/employee.ts`, `data/products.ts`, `store/gameStore.ts`, `systems
 
 Saat ini pendapatan dari service yang dibangun pemain (Social Media / E-Commerce / Search Engine) murni pasif — formula matematis yang jalan sendiri setelah fitur terbangun. Pemain tidak punya **agency** untuk memengaruhi pendapatan secara aktif, terutama di early game (0–5.000 users) di mana revenue hampir nol.
 
-Dokumen ini merancang 3 fase pengembangan yang memberi pemain kontrol aktif atas revenue stream:
+Dokumen ini merancang 3 fase pengembangan, 1 sudah selesai (V1.6 — redesigned):
 
-1. **V1.6 — Ad Sales Pipeline**: Role baru Ad Monetization Specialist yang mencari client luar untuk pasang iklan. Active sales dengan negosiasi, deadline, dan reward.
-2. **V1.7 — Pricing Controls & Banking**: Slider pricing per produk + sistem pinjaman bank.
-3. **V1.8 — Revenue Visualization**: Deal notifications, revenue breakdown, client history.
-
-Prinsip desain (konsisten dengan v2):
-- **Aktif, bukan pasif.** Setiap revenue stream butuh keputusan pemain, bukan cuma "tunggu kaya".
-- **Trade-off nyata.** Setiap keputasan (ambil contract, naikkan harga, pinjam uang) punya konsekuensi.
-- **Terikat sistem existing.** Tidak ada sistem paralel baru — sales terikat ke ad_platform level, data compliance, userMood, perk points.
+1. ✅ **V1.6 — Ad Sales Pipeline**: Role Ad Monetization Specialist mencari client luar. **Redesigned**: instant Accept + instant Negotiate, no match%, no tick-based nego. Lihat `docs/update/update_v1.6.md`.
+2. 📝 **V1.7 — Pricing Controls & Banking**: Slider pricing per produk + sistem pinjaman bank.
+3. 📝 **V1.8 — Revenue Visualization**: Deal notifications, revenue breakdown, client history.
 
 ---
 
-## V1.6 — Ad Sales Pipeline
+## ✅ V1.6 — Ad Sales Pipeline (Selesai, Redesigned)
+
+> **Desain final berbeda signifikan dari proposal awal.** Detail lengkap di `docs/update/update_v1.6.md`.
+
+### Ringkasan Implementasi:
+
+| Fitur | Status |
+|---|---|
+| Role Ad Monetization Specialist | ✅ |
+| Search 3 hari (72 tick) dengan cap Lv×5 | ✅ |
+| Leads muncul gradual per tick | ✅ |
+| **[Accept]** — instant campaign, budget penuh, defaultDays | ✅ |
+| **[Negotiate]** — instant, total≤budget→100%, above→penalty | ✅ |
+| Notifikasi guard (no silent fail) | ✅ |
+| Compact lead card UI | ✅ |
+| FinancePanel revenue breakdown (Ads Strategy vs Ad Campaigns) | ✅ |
+| CashFlowChart revenue fix | ✅ |
+| Auto-renew perk | ✅ |
+
+### Poin Penting
+
+- **matchPercent dihapus** — client cuma punya budget, itu acuan utama
+- **Negotiation instant** — gak perlu tick, gak perlu specialist idle
+- **Accept gak butuh specialist** — player langsung terima offer client
+- **Campaign duration** proporsional budget: `clamp(budget/400, 14, 90)` hari
+- **Search** adalah satu-satunya fungsi specialist — hasilkan lead, sisanya urusan player
 
 ### 1.1 Role: Ad Monetization Specialist
 

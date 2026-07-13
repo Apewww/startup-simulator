@@ -44,6 +44,10 @@ export interface GameSave {
   adLeads?: AdLead[];
   adCampaigns?: AdCampaign[];
   adSalesUnlockNotified?: boolean;
+  activePricingTier?: string;
+  loan?: import('../types/monetization').BusinessLoan | null;
+  creditScore?: number;
+  missedPaymentTicks?: number;
 }
 
 export class GameDB extends Dexie {
@@ -64,6 +68,7 @@ export class GameDB extends Dexie {
     this.version(11).stores({ saves: '++id, timestamp' });
     this.version(12).stores({ saves: '++id, timestamp' });
     this.version(13).stores({ saves: '++id, timestamp' });
+    this.version(14).stores({ saves: '++id, timestamp' });
   }
 }
 

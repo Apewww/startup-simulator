@@ -47,6 +47,10 @@ export async function saveGame(): Promise<void> {
     adLeads: state.adLeads,
     adCampaigns: state.adCampaigns,
     adSalesUnlockNotified: state.adSalesUnlockNotified,
+    activePricingTier: state.activePricingTier,
+    loan: state.loan,
+    creditScore: state.creditScore,
+    missedPaymentTicks: state.missedPaymentTicks,
   });
 }
 

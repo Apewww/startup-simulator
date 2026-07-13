@@ -17,16 +17,19 @@ import { generateApplicant, CAMPAIGN_COST, getCampaignTicks, negotiate, applican
 import { checkEventTrigger, processEvents, calcSecurityLevel } from '../systems/events';
 import { getComplianceStatus } from '../systems/compliance';
 import {
-  generateSingleLead, getMaxLeadsCount, evaluateOffer,
-  makeCampaign, calcAutoRenewValue, calcAutoRenewMatch,
-  calcNegotiationDuration,
+  generateSingleLead, evaluateOffer,
+  makeCampaign, calcAutoRenewValue,
+  getSearchCap, calcLeadGenChance,
+  calcSearchDuration,
 } from '../systems/adSales';
+import { makeLoan, calcCompanyValuation, calcMaxLoan, updateCreditScore } from '../systems/banking';
+import { getPricingTier, getDefaultPricingTier, type BusinessLoan } from '../types/monetization';
 
 export type GameSpeed = 1 | 2 | 4;
 export const TICKS_PER_MONTH = 600;
 export const TICKS_PER_DAY = 20;
 
-export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment' | 'perks' | 'adsales';
+export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment' | 'perks' | 'adsales' | 'banking';
 export type PanelOpenState = Record<PanelId, boolean>;
 export type GameScreen = 'menu' | 'select' | 'playerSetup' | 'playing';
 
@@ -186,9 +189,17 @@ interface GameState {
   stopSearching: (specialistId: string) => void;
   sendOffer: (leadId: string, days: number, price: number) => void;
   cancelLead: (leadId: string) => void;
+  acceptLead: (leadId: string) => void;
   fireEmployee: (id: string) => void;
   unlockAllPerks: () => void;
   devSpawnFurniture: () => void;
+  activePricingTier: string;
+  loan: BusinessLoan | null;
+  creditScore: number;
+  missedPaymentTicks: number;
+  setPricingTier: (tierId: string) => void;
+  takeLoan: (amount: number, tenor: number) => void;
+  payLoanEarly: () => void;
 }
 
 function calcTotalSalary(employees: Employee[]): number {
@@ -239,8 +250,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   isBankrupt: false,
   negativeCashMonths: 0,
   screen: 'menu',
-      panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false },
-      panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false },
+      panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false },
+      panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false },
   maximizedPanel: null,
   selectedEmployeeId: null,
   darkMode: (() => { try { return localStorage.getItem('ss-dark') === '1'; } catch { return false; } })(),
@@ -261,6 +272,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       furnitureInventory: [],
       furniture: [],
       placementFurnitureId: null,
+      activePricingTier: '',
+      loan: null,
+      creditScore: 50,
+      missedPaymentTicks: 0,
 
   setScreen: (screen) => set({ screen }),
   togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
@@ -383,45 +398,28 @@ export const useGameStore = create<GameState>((set, get) => ({
             get().addNotification(`${emp.name} completed training — now Lv.${newLevel}!`, 'success');
           }
         } else if (emp.role === 'Ad_Monetization_Specialist' && emp.currentTask === 'searching_leads') {
-          // Continuous searching — never auto-stops, only via Stop button
-          const existingLeadCount = state.adLeads.filter(l => l.specialistId === emp.id && l.status === 'pending').length;
-          const maxLeads = getMaxLeadsCount(state.currentUsers);
-          if (existingLeadCount < maxLeads) {
-            const chance = 0.08 * emp.speed * (1 - existingLeadCount / maxLeads);
+          newProgress = emp.taskProgress + 1;
+          if (newProgress >= calcSearchDuration()) {
+            newCurrentTask = null;
+            newProgress = 0;
+            if (state.devMode) get().addLog(`[ADS] search ended: ${emp.name} (${getSearchCap(emp.level)} cap)`);
+          } else {
+            const existingLeadCount = state.adLeads.filter(l => l.specialistId === emp.id && l.status === 'pending').length;
+            const cap = getSearchCap(emp.level);
+            const chance = calcLeadGenChance(emp.speed, existingLeadCount, cap);
             if (Math.random() < chance) {
               const existingClients = [
                 ...state.adLeads.map(l => l.clientName),
                 ...state.adCampaigns.map(c => c.clientName),
               ];
               const lead = generateSingleLead({ ...adSalesCtx, specialistLevel: emp.level }, emp.id, existingClients, newTick);
-              if (state.devMode) get().addLog(`[ADS] lead ${lead.clientName}: budget $${lead.budget}, match ${lead.matchPercent}%, pLvl ${platformLevel.toFixed(2)}, spec Lv${emp.level}, featLvl ${productFeaturesLevel}`);
+              if (state.devMode) get().addLog(`[ADS] lead ${lead.clientName}: budget $${lead.budget}, ${lead.defaultDays}d, pLvl ${platformLevel.toFixed(2)}, spec Lv${emp.level}, featLvl ${productFeaturesLevel}`);
               leadGenEvents.push(lead);
             }
           }
         } else if (emp.role === 'Ad_Monetization_Specialist' && emp.currentTask === 'negotiating') {
-          newProgress = emp.taskProgress + emp.speed;
-          if (newProgress >= calcNegotiationDuration(emp.level)) {
-            newCurrentTask = null;
-            newProgress = 0;
-            const lead = get().adLeads.find(l => l.specialistId === emp.id && l.status === 'negotiating');
-            if (lead && lead.offeredDays && lead.offeredPrice) {
-              const negoCtx = { currentUsers: adSalesCtx.currentUsers, adPlatformLevel: adSalesCtx.adPlatformLevel, synergyActive: adSalesCtx.synergyActive };
-              const result = evaluateOffer(lead, lead.offeredDays, lead.offeredPrice, negoCtx);
-              if (state.devMode) get().addLog(`[ADS] offer ${lead.clientName}: $${lead.offeredPrice}/day x${lead.offeredDays}=$${(lead.offeredPrice * lead.offeredDays).toLocaleString()}, budget $${lead.budget.toLocaleString()}, ratio ${((lead.offeredPrice * lead.offeredDays) / lead.budget).toFixed(2)}, chance ${result.chance}%, ${result.success ? 'WON' : 'LOST: ' + result.reason}`);
-              if (result.success) {
-                const dealValue = lead.offeredPrice * lead.offeredDays;
-                resolvedCampaigns.push(makeCampaign(lead, dealValue, lead.offeredDays));
-                resolvedLeads.push({ id: lead.id, status: 'won' });
-                emp.failStreak = 0;
-                pendingNotifications.push({ msg: `Deal closed with ${lead.clientName}: $${dealValue.toLocaleString()} (${lead.offeredDays}d)`, type: 'success' });
-              } else {
-                emp.failStreak = (emp.failStreak ?? 0) + 1;
-                if (emp.failStreak >= 3) newHappiness = Math.max(0, newHappiness - 10);
-                resolvedLeads.push({ id: lead.id, status: 'lost' });
-                pendingNotifications.push({ msg: `${lead.clientName} rejected — ${result.reason} (${result.chance}% chance)`, type: 'warning' });
-              }
-            }
-          }
+          newCurrentTask = null;
+          newProgress = 0;
         } else if (emp.currentTask && def) {
           newProgress = emp.taskProgress + emp.speed;
           if (newProgress >= def.baseTicks) {
@@ -540,7 +538,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     // Dynamic users
     const eventEffects = getAppliedEffects(events);
     const monetizationMods = getMonetizationMods(state.activeMonetization);
-    const userDelta = (targetUsers - currentUsers) * 0.005 * cohesionScore * monetizationMods.growthMult;
+    const pricingGrowthMult = pricingTier?.growthMult ?? 1;
+    const userDelta = (targetUsers - currentUsers) * 0.005 * cohesionScore * monetizationMods.growthMult * pricingGrowthMult;
     const hasCrash = placedRacks.some(r => r.slots.some(s => s.node?.status === 'crashed'));
     const crashPenalty = hasCrash ? currentUsers * 0.05 : 0;
     const baseChurnRate = (1 - cohesionScore) * 0.0002 + monetizationMods.churnDelta;
@@ -551,8 +550,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     const synergyActive = hasActiveSynergy(features, selectedProduct);
     const earlyDataRatio = complianceBefore?.data.ratio ?? 1;
 
-    // User mood (satisfaction) — drifts toward strategy target; feeds churn (no separate system)
-    const moodTarget = Math.min(100, getMoodTarget(state.activeMonetization, synergyActive, earlyDataRatio) + internetMoodSum * 100);
+    // User mood (satisfaction) — drifts toward strategy target × pricing target; feeds churn
+    const pricingTier = getPricingTier(state.activePricingTier, state.selectedProduct);
+    const strategyMoodTarget = getMoodTarget(state.activeMonetization, synergyActive, earlyDataRatio);
+    const combinedMoodTarget = Math.min(strategyMoodTarget, pricingTier?.moodTarget ?? 100);
+    const moodTarget = Math.min(100, combinedMoodTarget + internetMoodSum * 100);
     const newMood = Math.max(0, Math.min(100, state.userMood + (moodTarget - state.userMood) * MOOD_DRIFT_RATE));
     const moodPenalty = Math.max(0, (MOOD_BASELINE - newMood) * MOOD_PENALTY_K);
     const churn = Math.max(0, currentUsers * (baseChurnRate + moodPenalty));
@@ -654,10 +656,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         const specialist = newEmployees.find(e => e.id === c.specialistId);
         const hasPerk = get().unlockedPerks.includes('sales_auto_renew');
         if (specialist && specialist.happiness >= 15 && hasPerk && c.renewalCount < 5) {
-          const newMatch = calcAutoRenewMatch(50, c.renewalCount);
           const renewalValue = calcAutoRenewValue(c.dealValue, c.renewalCount);
           const renewedCampaign = makeCampaign(
-            { id: `renew-${c.id}`, clientName: c.clientName, budget: renewalValue, matchPercent: newMatch, expiresAt: 0, status: 'pending' as const, specialistId: c.specialistId },
+            { id: `renew-${c.id}`, clientName: c.clientName, budget: renewalValue, defaultDays: c.offeredDays, expiresAt: 0, status: 'pending' as const, specialistId: c.specialistId },
             renewalValue, c.offeredDays,
           );
           renewedCampaign.renewalCount = c.renewalCount + 1;
@@ -675,10 +676,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         const specialist = newEmployees.find(e => e.id === c.specialistId);
         const hasPerk = get().unlockedPerks.includes('sales_auto_renew');
         if (specialist && specialist.happiness >= 15 && hasPerk && c.renewalCount < 5) {
-          const newMatch = calcAutoRenewMatch(50, c.renewalCount);
           const renewalValue = calcAutoRenewValue(c.dealValue, c.renewalCount);
           const renewedCampaign = makeCampaign(
-            { id: `renew-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, clientName: c.clientName, budget: renewalValue, matchPercent: newMatch, expiresAt: 0, status: 'pending' as const, specialistId: c.specialistId },
+            { id: `renew-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, clientName: c.clientName, budget: renewalValue, defaultDays: c.offeredDays, expiresAt: 0, status: 'pending' as const, specialistId: c.specialistId },
             renewalValue, c.offeredDays,
           );
           renewedCampaign.renewalCount = c.renewalCount + 1;
@@ -700,9 +700,35 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (newMonth > oldMonth) {
       newTotalSalary = calcTotalSalary(newEmployees);
       const serverCost = calcMonthlyServerCost(finalRacks, rentedServers, internetSubs);
-      const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore * (compliance?.revenueMult ?? 1), platformStats.synergyRevenueBonus, revOpts);
+      const pricingRevMult = pricingTier?.revenueMult ?? 1;
+      const revOptsWithPricing = { ...revOpts, pricingRevenueMult: pricingRevMult };
+      const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore * (compliance?.revenueMult ?? 1), platformStats.synergyRevenueBonus, revOptsWithPricing);
       const adCampaignMonthly = campaignRevenue * TICKS_PER_MONTH;
-      cashChange = revenue.total + adCampaignMonthly - (newTotalSalary + serverCost);
+      let loanPayment = 0;
+      let loanPaidThisMonth = false;
+      if (state.loan?.status === 'active') {
+        loanPayment = state.loan.monthlyPayment;
+      }
+      cashChange = revenue.total + adCampaignMonthly - (newTotalSalary + serverCost + loanPayment);
+
+      // Loan payment tracking
+      if (state.loan?.status === 'active') {
+        const cashAfterLoan = state.cash + cashChange;
+        if (cashAfterLoan < 0) {
+          set({ missedPaymentTicks: get().missedPaymentTicks + 1 });
+        } else {
+          const updatedLoan = { ...state.loan, monthsPaid: state.loan.monthsPaid + 1 };
+          if (updatedLoan.monthsPaid >= updatedLoan.totalMonths) {
+            updatedLoan.status = 'paid' as const;
+          }
+          set({ loan: updatedLoan, creditScore: updateCreditScore(state.creditScore, 'on_time') });
+          loanPaidThisMonth = true;
+        }
+      }
+      if (state.loan?.status === 'active' && get().missedPaymentTicks >= 3) {
+        set({ loan: { ...state.loan, status: 'defaulted' }, creditScore: updateCreditScore(state.creditScore, 'default') });
+        get().addNotification('Loan defaulted! Credit score -30', 'error');
+      }
 
       const cashAfter = state.cash + cashChange;
       if (cashAfter < 0) {
@@ -713,7 +739,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       const snapshot: MonthlySnapshot = {
         month: newMonth,
-        revenue: revenue.total,
+        revenue: revenue.total + adCampaignMonthly,
         expenses: newTotalSalary + serverCost,
         net: cashChange,
         cash: state.cash + cashChange,
@@ -726,7 +752,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     let newPendingFunding = state.pendingFunding;
     if (newMonth > oldMonth && !newPendingFunding) {
-      const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore * (compliance?.revenueMult ?? 1), platformStats.synergyRevenueBonus, revOpts);
+      const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore * (compliance?.revenueMult ?? 1), platformStats.synergyRevenueBonus, revOptsWithPricing);
       const offer = calcFundingOffer(newMonth, newCurrentUsers, revenue.total);
       if (offer) {
         const lastRound = state.fundingRounds[state.fundingRounds.length - 1];
@@ -930,11 +956,56 @@ export const useGameStore = create<GameState>((set, get) => ({
       group: f.group,
       requiredComponents: f.requiredComponents, trafficGenerated: 0, enabled: true,
     }));
-    set({ selectedProduct: productId, features, screen: 'playerSetup', currentUsers: 0, userMood: 80, internetSubscriptions: [], adLeads: [], adCampaigns: [], adSalesUnlockNotified: false });
+    set({ selectedProduct: productId, features, screen: 'playerSetup', currentUsers: 0, userMood: 80, internetSubscriptions: [], adLeads: [], adCampaigns: [], adSalesUnlockNotified: false, activePricingTier: getDefaultPricingTier(productId), loan: null, creditScore: 50, missedPaymentTicks: 0 });
   },
 
   setMonetizationStrategy: (strategy) => {
     set({ activeMonetization: strategy });
+  },
+
+  setPricingTier: (tierId: string) => {
+    set({ activePricingTier: tierId });
+  },
+
+  takeLoan: (amount: number, tenor: number) => {
+    const state = get();
+    if (state.loan?.status === 'active') {
+      get().addNotification('You already have an active loan — pay it first', 'warning');
+      return;
+    }
+    const valuation = calcCompanyValuation(state.currentUsers, 0);
+    const maxLoan = calcMaxLoan(valuation, state.creditScore);
+    if (amount > maxLoan) {
+      get().addNotification(`Maximum loan is $${maxLoan.toLocaleString('en-US')}`, 'warning');
+      return;
+    }
+    const result = makeLoan(amount, tenor, state.creditScore, state.loan);
+    if (result.error) {
+      get().addNotification(result.error, 'warning');
+      return;
+    }
+    set({ loan: result.loan, cash: state.cash + amount });
+    get().addNotification(`Loan approved: $${amount.toLocaleString('en-US')}`, 'success');
+  },
+
+  payLoanEarly: () => {
+    const state = get();
+    const loan = state.loan;
+    if (!loan || loan.status !== 'active') return;
+    const remainingMonths = loan.totalMonths - loan.monthsPaid;
+    const totalRatio = remainingMonths / loan.totalMonths;
+    const remainingPrincipal = Math.round(loan.principal * totalRatio);
+    const totalDue = Math.round(remainingPrincipal * (1 + loan.interestRate * totalRatio));
+    if (state.cash < totalDue) {
+      get().addNotification(`Need $${totalDue.toLocaleString('en-US')} to pay off loan`, 'warning');
+      return;
+    }
+    set({
+      cash: state.cash - totalDue,
+      loan: { ...loan, status: 'paid', monthsPaid: loan.totalMonths },
+      creditScore: updateCreditScore(state.creditScore, 'early'),
+    });
+    get().addNotification(`Loan paid early! Credit score +10`, 'success');
   },
 
   searchLeads: (specialistId: string) => {
@@ -964,24 +1035,53 @@ export const useGameStore = create<GameState>((set, get) => ({
   sendOffer: (leadId: string, days: number, price: number) => {
     const state = get();
     const lead = state.adLeads.find(l => l.id === leadId);
-    if (!lead || lead.status !== 'pending') return;
-    const specialist = state.employees.find(e => e.id === lead.specialistId);
-    if (!specialist) return;
-    if (specialist.onVacation || specialist.isTraining || specialist.currentTask) return;
-    if (price <= 0 || days < 7 || days > 180) return;
-    set({
-      employees: state.employees.map(emp =>
-        emp.id === lead.specialistId ? { ...emp, currentTask: 'negotiating', taskProgress: 0 } : emp
-      ),
-      adLeads: state.adLeads.map(l => l.id === leadId ? { ...l, status: 'negotiating', offeredDays: days, offeredPrice: price } : l),
-    });
-    get().addNotification(`Offer sent to ${lead.clientName}: $${price.toLocaleString()} for ${days} days`, 'info');
+    if (!lead || lead.status !== 'pending') {
+      get().addNotification('Lead no longer available (expired or resolved)', 'warning');
+      return;
+    }
+    if (price <= 0 || days < 7 || days > 180) {
+      get().addNotification('Invalid offer (min 7 days, max 180 days, price > 0)', 'warning');
+      return;
+    }
+    const result = evaluateOffer(lead, days, price);
+    if (result.success) {
+      const dealValue = price * days;
+      const campaign = makeCampaign(lead, dealValue, days);
+      set({
+        adLeads: state.adLeads.map(l => l.id === leadId ? { ...l, status: 'won' } : l),
+        adCampaigns: [...state.adCampaigns, campaign],
+      });
+      get().addNotification(`Deal closed with ${lead.clientName}: $${dealValue.toLocaleString()} (${days}d)`, 'success');
+      if (state.devMode) get().addLog(`[ADS] negotiate won ${lead.clientName}: $${dealValue} ${days}d, within budget ${dealValue <= lead.budget}`);
+    } else {
+      set({
+        adLeads: state.adLeads.map(l => l.id === leadId ? { ...l, status: 'lost' } : l),
+      });
+      get().addNotification(`${lead.clientName} rejected — ${result.reason} (${result.chance}% chance)`, 'warning');
+      if (state.devMode) get().addLog(`[ADS] negotiate lost ${lead.clientName}: ${result.reason} (${result.chance}%)`);
+    }
   },
 
   cancelLead: (leadId: string) => {
     set((state) => ({
       adLeads: state.adLeads.filter(l => l.id !== leadId),
     }));
+  },
+
+  acceptLead: (leadId: string) => {
+    const state = get();
+    const lead = state.adLeads.find(l => l.id === leadId);
+    if (!lead || lead.status !== 'pending') {
+      get().addNotification('Lead no longer available', 'warning');
+      return;
+    }
+    const campaign = makeCampaign(lead, lead.budget, lead.defaultDays);
+    set({
+      adLeads: state.adLeads.map(l => l.id === leadId ? { ...l, status: 'won' } : l),
+      adCampaigns: [...state.adCampaigns, campaign],
+    });
+    get().addNotification(`Deal accepted with ${lead.clientName}: $${lead.budget.toLocaleString()} (${lead.defaultDays}d)`, 'success');
+    if (state.devMode) get().addLog(`[ADS] accept ${lead.clientName}: $${lead.budget} ${lead.defaultDays}d, rev ${campaign.revenuePerTick}/tick`);
   },
 
   fireEmployee: (id) => {
@@ -2064,8 +2164,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       inventoryNodes: [], activeView: { type: 'office' }, visitedPlots: [], gameLog: [],
       cashFlowHistory: [], notifications: [],
       isBankrupt: false, negativeCashMonths: 0, screen: 'menu',
-  panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false },
-  panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false },
+  panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false },
+  panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false },
       maximizedPanel: null,
       selectedEmployeeId: null,
   darkMode: (() => { try { return localStorage.getItem('ss-dark') === '1'; } catch { return false; } })(),
@@ -2085,6 +2185,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       furnitureInventory: [],
       furniture: [],
       placementFurnitureId: null,
+      activePricingTier: '',
+      loan: null,
+      creditScore: 50,
+      missedPaymentTicks: 0,
     });
   },
 }));

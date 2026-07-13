@@ -2,7 +2,7 @@ export interface AdLead {
   id: string;
   clientName: string;
   budget: number;
-  matchPercent: number;
+  defaultDays: number;
   expiresAt: number;
   status: 'pending' | 'negotiating' | 'won' | 'lost' | 'expired';
   specialistId: string;

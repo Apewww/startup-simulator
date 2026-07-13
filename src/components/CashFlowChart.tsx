@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { useGameStore, type MonthlySnapshot } from '../store/gameStore';
 
 const CHART_HEIGHT = 140;
@@ -19,6 +19,8 @@ export function CashFlowChart() {
   const history = useGameStore((s) => s.cashFlowHistory);
   const [hovered, setHovered] = useState<MonthlySnapshot | null>(null);
   const [hoveredX, setHoveredX] = useState(0);
+  const [tooltipW, setTooltipW] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const { bars, yMax, yLabels, chartW, chartH } = useMemo(() => {
     if (history.length < 2) return { bars: [], yMax: 0, yLabels: [], chartW: 0, chartH: 0 };
@@ -65,7 +67,7 @@ export function CashFlowChart() {
   const plotH = chartH - CHART_PADDING.top - CHART_PADDING.bottom;
 
   return (
-    <div className="relative">
+    <div className="relative" ref={containerRef}>
       <svg viewBox={`0 0 ${chartW} ${chartH + 20}`} className="w-full h-auto overflow-visible" style={{ maxHeight: 200 }}>
         <defs>
           <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
@@ -149,8 +151,9 @@ export function CashFlowChart() {
 
       {hovered && (
         <div
+          ref={(el) => { if (el) setTooltipW(el.offsetWidth); }}
           className="absolute bg-surface border border-border rounded-lg px-3 py-2 shadow-[0_4px_12px_-4px_rgba(20,30,60,0.12)] text-xs space-y-1 z-50 pointer-events-none"
-          style={{ left: Math.min(hoveredX, chartW - 150), top: 0, minWidth: 140 }}
+          style={{ left: containerRef.current ? Math.max(4, Math.min(hoveredX - tooltipW / 2, containerRef.current.offsetWidth - tooltipW - 4)) : hoveredX, top: 0, minWidth: 140 }}
         >
           <div className="font-semibold text-ink">Month {hovered.month}</div>
           <div className="flex justify-between gap-4">
