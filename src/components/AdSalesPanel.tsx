@@ -80,21 +80,23 @@ export function AdSalesPanel() {
     <div className="flex flex-col gap-2 p-3 text-xs overflow-y-auto max-h-[70vh]">
       {/* User Tier & Platform Info */}
       <div className="flex items-center justify-between bg-surface-2 rounded-lg px-3 py-2 border border-border">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <Target className="w-3.5 h-3.5 text-indigo" strokeWidth={2} />
-          <span className="font-semibold text-ink">{userTier}</span>
-          {currentUsers >= 5_000 && <span className="text-[10px] text-ink-soft">| Ad Platform Lv.{adPlatformLevel}</span>}
+          <span className="font-semibold text-ink text-[11px]">{userTier}</span>
+          {currentUsers >= 5_000 && <span className="text-[10px] text-ink-soft">Ad Platform Lv.{adPlatformLevel}</span>}
         </div>
-        <div className="flex items-center gap-2 text-ink-soft">
+        <div className="flex items-center gap-3 text-ink-soft">
+          <span className="flex items-center gap-1 text-[10px] text-indigo font-semibold">
+            <TrendingUp className="w-3 h-3" strokeWidth={2} />
+            {fmtCash(campaignRevenue)}/tick
+          </span>
           {hasPerk && (
             <button onClick={toggleAutoRenew}
-              className="flex items-center gap-1 text-[9px] font-semibold cursor-pointer hover:opacity-80">
-              {autoRenewEnabled ? <ToggleRight className="w-3 h-3 text-green" /> : <ToggleLeft className="w-3 h-3 text-red" />}
-              <span className={autoRenewEnabled ? 'text-green' : 'text-red'}>Renew</span>
+              className={`flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold cursor-pointer border ${autoRenewEnabled ? 'bg-green-soft text-green border-green/30' : 'bg-surface text-ink-soft border-border'}`}>
+              {autoRenewEnabled ? <ToggleRight className="w-3 h-3" /> : <ToggleLeft className="w-3 h-3" />}
+              Renew
             </button>
           )}
-          <TrendingUp className="w-3 h-3" strokeWidth={2} />
-          <span>{fmtCash(campaignRevenue)}/tick</span>
         </div>
       </div>
 
