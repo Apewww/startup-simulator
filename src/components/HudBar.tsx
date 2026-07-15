@@ -77,7 +77,7 @@ export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps
         {/* Left — date */}
         <span className="flex items-center gap-1 font-semibold shrink-0 text-ink">
           <span className="w-1.5 h-1.5 rounded-sm bg-indigo" />
-          M{displayMonth}/{year} D{day}
+          {dayName} — D{day}, M{displayMonth}, Y{year}
         </span>
 
         {/* Supervision indicator */}

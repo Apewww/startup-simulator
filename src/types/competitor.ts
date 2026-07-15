@@ -15,4 +15,5 @@ export interface CompetitorProduct {
   createdAtMonth: number;
   userCount: number;
   monthlyRevenue: number;
+  hotSectorBadgeTicks: number;
 }

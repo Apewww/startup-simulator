@@ -88,6 +88,7 @@ interface GameState {
   isBankrupt: boolean;
   negativeCashMonths: number;
   screen: GameScreen;
+  companyName: string;
   setScreen: (screen: GameScreen) => void;
   panelOpen: PanelOpenState;
   panelMinimized: PanelOpenState;
@@ -153,7 +154,7 @@ interface GameState {
   negotiateSalary: (applicantId: string, offer: number) => void;
   selectedHrId: string | null;
   setSelectedHr: (id: string | null) => void;
-  initPlayer: (name: string) => void;
+  initPlayer: (name: string, company?: string) => void;
   setPlayerRole: (id: string, role: EmployeeRole) => void;
   startTraining: (employeeId: string) => void;
   cancelTraining: (employeeId: string) => void;
@@ -275,6 +276,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   isBankrupt: false,
   negativeCashMonths: 0,
   screen: 'menu',
+  companyName: '',
       panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, dev: false },
       panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, dev: false },
   maximizedPanel: null,
@@ -858,7 +860,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       if (checkSpawnNew(newMonth, activeCount)) {
         const usedNames = new Set(newCompetitors.map(c => c.name));
         const spawnSector = hotSector ?? (['social_media', 'ecommerce', 'search_engine'] as const)[Math.floor(Math.random() * 3)];
-        const newComp = generateCompetitor(spawnSector, newMonth, usedNames);
+        const hotBadge = hotSector === spawnSector ? 1 : 0;
+        const newComp = generateCompetitor(spawnSector, newMonth, usedNames, hotBadge);
         newCompetitors.push(newComp);
       }
 
@@ -1275,7 +1278,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     get().addNotification(`${emp.name} was fired.`, 'warning');
   },
 
-  initPlayer: (name: string) => {
+  initPlayer: (name: string, company?: string) => {
     const player: Employee = {
       id: 'player-1',
       name,
@@ -1297,7 +1300,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       vacationTicksLeft: 0,
       failStreak: 0,
     };
-    set({ employees: [player], totalSalary: 0, screen: 'playing' });
+    set({ employees: [player], totalSalary: 0, screen: 'playing', companyName: company ?? '' });
   },
 
   setSelectedHr: (id) => {
@@ -2336,7 +2339,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       totalSalary: 0, selectedProduct: null, activeMonetization: 'none', userMood: 80, internetSubscriptions: [], devMode: false,
       inventoryNodes: [], activeView: { type: 'office' }, visitedPlots: [], gameLog: [],
       cashFlowHistory: [], notifications: [],
-      isBankrupt: false, negativeCashMonths: 0, screen: 'menu',
+      isBankrupt: false, negativeCashMonths: 0, screen: 'menu', companyName: '',
       competitors: [], marketingCampaigns: [], brandScore: 10, nextCompetitorCheck: 600, campaignCostThisMonth: 0, currentSlotId: null,
   panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, dev: false },
   panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, dev: false },

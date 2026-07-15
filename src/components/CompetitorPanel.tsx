@@ -1,6 +1,6 @@
 import { useGameStore } from '../store/gameStore';
 import type { CompetitorSector } from '../types';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Flame } from 'lucide-react';
 
 const SECTOR_COLORS: Record<CompetitorSector, string> = {
   social_media: '#4F5EFF',
@@ -31,24 +31,25 @@ export function CompetitorPanel() {
   const currentUsers = useGameStore((s) => s.currentUsers);
   const selectedProduct = useGameStore((s) => s.selectedProduct);
   const features = useGameStore((s) => s.features);
+  const companyName = useGameStore((s) => s.companyName);
 
   const activeCompetitors = competitors.filter(c => !c.delisted);
   const playerValuation = currentUsers * 100;
   const hasFeatures = features.some(f => f.level > 0);
 
-  // Build a merged ranked list: player + competitors
-  const allEntries: { id: string; name: string; sector: CompetitorSector; valuation: number; userCount: number; growthRate: number; personality: string; isPlayer: boolean }[] = [];
+  const allEntries: { id: string; name: string; sector: CompetitorSector; valuation: number; userCount: number; growthRate: number; personality: string; isPlayer: boolean; hotSectorBadgeTicks: number }[] = [];
 
   if (hasFeatures) {
     allEntries.push({
       id: 'player',
-      name: 'You',
+      name: companyName || 'You',
       sector: (selectedProduct as CompetitorSector) ?? 'social_media',
       valuation: playerValuation,
       userCount: currentUsers,
       growthRate: 0,
       personality: 'balanced',
       isPlayer: true,
+      hotSectorBadgeTicks: 0,
     });
   }
 
@@ -62,12 +63,16 @@ export function CompetitorPanel() {
       growthRate: c.growthRate,
       personality: c.personality,
       isPlayer: false,
+      hotSectorBadgeTicks: c.hotSectorBadgeTicks,
     });
   }
 
   allEntries.sort((a, b) => b.valuation - a.valuation);
 
   const top50 = allEntries.slice(0, 50);
+  const playerEntry = hasFeatures ? allEntries.find(e => e.isPlayer) : null;
+  const playerRank = playerEntry ? allEntries.indexOf(playerEntry) + 1 : null;
+  const playerInTop50 = playerRank !== null && playerRank <= 50;
 
   return (
     <div className="space-y-1">
@@ -78,7 +83,9 @@ export function CompetitorPanel() {
       )}
 
       {top50.map((entry, idx) => {
+        const rank = idx + 1;
         const trend = entry.growthRate > 0.03 ? 'up' : entry.growthRate < -0.01 ? 'down' : 'flat';
+        const isHot = entry.hotSectorBadgeTicks > 0;
         return (
           <div
             key={entry.id}
@@ -86,25 +93,48 @@ export function CompetitorPanel() {
               entry.isPlayer ? 'bg-indigo-soft border border-indigo/20' : 'hover:bg-surface-2'
             } ${entry.personality === 'aggressive' ? 'border-l-2 border-l-red/50' : ''}`}
           >
-            <div className="flex items-center gap-2 min-w-0">
-              <span className={`w-5 text-center font-bold shrink-0 ${idx < 3 && !entry.isPlayer ? 'text-amber' : 'text-ink-soft'}`}>
-                {idx === 0 && !entry.isPlayer ? '🥇' : idx === 1 && !entry.isPlayer ? '🥈' : idx === 2 && !entry.isPlayer ? '🥉' : `#${idx + 1}`}
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <span className="w-6 text-center font-bold shrink-0 text-[13px]">
+                {rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : (
+                  <span className="text-[11px] text-ink-soft">#{rank}</span>
+                )}
               </span>
-              <div className="flex items-center gap-1.5 min-w-0">
+              <div className="flex items-center gap-1.5 min-w-0 flex-1">
                 <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: SECTOR_COLORS[entry.sector] }} />
-                <span className="font-semibold truncate max-w-[80px]">{entry.name}</span>
-                <span className="text-[9px] text-ink-soft shrink-0 hidden sm:inline">{SECTOR_LABELS[entry.sector]}</span>
+                <span className="font-semibold truncate">{entry.name}</span>
+                {isHot && <Flame className="w-3 h-3 text-orange-500 shrink-0" title="Hot sector spawn" />}
+                <span className="text-[9px] text-ink-soft shrink-0">{SECTOR_LABELS[entry.sector]}</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-[10px] text-ink-soft font-mono w-12 text-right">{fmtUsers(entry.userCount)}</span>
-              <span className="font-mono font-semibold w-16 text-right">{fmtValuation(entry.valuation)}</span>
+            <div className="flex items-center gap-2 shrink-0 ml-2">
+              <span className="text-[10px] text-ink-soft font-mono w-14 text-right">{fmtUsers(entry.userCount)}</span>
+              <span className="font-mono font-semibold w-20 text-right">{fmtValuation(entry.valuation)}</span>
               {entry.isPlayer ? null : trend === 'up' ? <TrendingUp className="w-3 h-3 text-green shrink-0" /> : trend === 'down' ? <TrendingDown className="w-3 h-3 text-red shrink-0" /> : <Minus className="w-3 h-3 text-ink-soft shrink-0" />}
             </div>
           </div>
         );
       })}
+
+      {/* Player outside top 50 — sticky bottom card */}
+      {hasFeatures && playerEntry && !playerInTop50 && playerRank && (
+        <div className="sticky bottom-0 mt-2 pt-2 border-t border-border bg-surface">
+          <div className="flex items-center justify-between px-2 py-2 rounded-lg bg-indigo-soft border border-indigo/20 text-[11px]">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <span className="w-6 text-center font-bold shrink-0 text-[11px] text-ink-soft">#{playerRank}</span>
+              <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: SECTOR_COLORS[playerEntry.sector] }} />
+                <span className="font-semibold truncate">{companyName || 'You'}</span>
+                <span className="text-[9px] text-indigo-soft font-semibold shrink-0">(You)</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 ml-2">
+              <span className="text-[10px] text-ink-soft font-mono w-14 text-right">{fmtUsers(playerEntry.userCount)}</span>
+              <span className="font-mono font-semibold w-20 text-right">{fmtValuation(playerEntry.valuation)}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delisted */}
       {competitors.some(c => c.delisted) && (

@@ -1,25 +1,26 @@
 import { useState } from 'react';
-import { User, ArrowRight } from 'lucide-react';
+import { User, ArrowRight, Building2 } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 
 export function PlayerSetup() {
-  const [name, setName] = useState('');
+  const [ceoName, setCeoName] = useState('');
+  const [companyName, setCompanyName] = useState('');
   const initPlayer = useGameStore((s) => s.initPlayer);
 
   const handleStart = () => {
-    const trimmed = name.trim();
-    if (!trimmed) return;
-    initPlayer(trimmed);
+    const trimmedCeo = ceoName.trim();
+    if (!trimmedCeo) return;
+    initPlayer(trimmedCeo, companyName.trim() || undefined);
   };
 
   return (
     <div className="min-h-screen bg-bg flex flex-col items-center justify-center p-8 text-ink">
-      <div className="text-center mb-10 space-y-3">
+      <div className="text-center mb-8 space-y-3">
         <div className="flex items-center justify-center gap-3 mb-2">
           <span className="w-3 h-3 rounded-sm bg-indigo" />
           <h1 className="text-4xl font-extrabold tracking-tight">Meet Your Startup</h1>
         </div>
-        <p className="text-base text-ink-soft font-light">What should we call you, CEO?</p>
+        <p className="text-base text-ink-soft font-light">Name your company and yourself</p>
       </div>
 
       <div className="w-full max-w-sm space-y-4">
@@ -30,18 +31,27 @@ export function PlayerSetup() {
 
           <input
             type="text"
-            value={name}
-            onChange={e => setName(e.target.value)}
+            value={companyName}
+            onChange={e => setCompanyName(e.target.value)}
+            placeholder="Company name..."
+            maxLength={30}
+            className="w-full bg-surface-2 border border-border rounded-lg px-4 py-3 text-sm text-ink text-center font-semibold placeholder:text-ink-soft outline-none focus:border-indigo transition-colors"
+          />
+
+          <input
+            type="text"
+            value={ceoName}
+            onChange={e => setCeoName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleStart()}
-            placeholder="Enter your name..."
+            placeholder="Your name (CEO)..."
             maxLength={20}
             className="w-full bg-surface-2 border border-border rounded-lg px-4 py-3 text-sm text-ink text-center font-semibold placeholder:text-ink-soft outline-none focus:border-indigo transition-colors"
             autoFocus
           />
 
-          <button onClick={handleStart} disabled={!name.trim()}
+          <button onClick={handleStart} disabled={!ceoName.trim()}
             className={`w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-sm font-bold transition-all duration-200 cursor-pointer ${
-              name.trim() ? 'bg-indigo text-white hover:bg-indigo/90' : 'bg-surface-2 text-ink-soft border border-border cursor-not-allowed'
+              ceoName.trim() ? 'bg-indigo text-white hover:bg-indigo/90' : 'bg-surface-2 text-ink-soft border border-border cursor-not-allowed'
             }`}>
             Start Your Journey <ArrowRight className="w-4 h-4" />
           </button>

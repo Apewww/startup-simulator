@@ -33,6 +33,7 @@ export function generateCompetitor(
   sector: CompetitorSector,
   currentMonth: number,
   usedNames: Set<string>,
+  hotSectorBadgeTicks: number = 0,
 ): CompetitorProduct {
   const personality = randomPersonality();
   const baseGrowth = personality === 'aggressive' ? 0.04
@@ -54,6 +55,7 @@ export function generateCompetitor(
     delisted: false,
     delistedAtMonth: 0,
     createdAtMonth: currentMonth,
+    hotSectorBadgeTicks,
     userCount: 1_000 + Math.floor(Math.random() * 5_000),
     monthlyRevenue: 100 + Math.floor(Math.random() * 400),
   };
@@ -93,6 +95,7 @@ export function updateCompetitorValuation(
     valuation: Math.max(100, newValuation),
     userCount: Math.max(10, newUsers),
     monthlyRevenue: Math.max(0, newRevenue),
+    hotSectorBadgeTicks: Math.max(0, comp.hotSectorBadgeTicks - 1),
   };
 }
 
