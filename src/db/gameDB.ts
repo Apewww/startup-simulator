@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Employee, ComponentResource, PlatformFeature, ServerRack, Plot, RentedServer, ServerNode, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetSubscription, AdLead, AdCampaign } from '../types';
+import type { Employee, ComponentResource, PlatformFeature, ServerRack, Plot, RentedServer, ServerNode, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetSubscription, AdLead, AdCampaign, CompetitorProduct, MarketingCampaign } from '../types';
 import type { GameSpeed, GameScreen, MonthlySnapshot, MonetizationStrategy } from '../store/gameStore';
 
 export interface GameSave {
@@ -49,6 +49,10 @@ export interface GameSave {
   creditScore?: number;
   missedPaymentTicks?: number;
   autoRenewEnabled?: boolean;
+  campaignCostThisMonth?: number;
+  competitors?: CompetitorProduct[];
+  marketingCampaigns?: MarketingCampaign[];
+  brandScore?: number;
 }
 
 export class GameDB extends Dexie {
@@ -70,6 +74,7 @@ export class GameDB extends Dexie {
     this.version(12).stores({ saves: '++id, timestamp' });
     this.version(13).stores({ saves: '++id, timestamp' });
     this.version(14).stores({ saves: '++id, timestamp' });
+    this.version(15).stores({ saves: '++id, timestamp' });
   }
 }
 

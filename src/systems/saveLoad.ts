@@ -1,62 +1,72 @@
-import { db } from '../db/gameDB';
+import { db, type GameSave } from '../db/gameDB';
 import { useGameStore } from '../store/gameStore';
 
 const GRID_COLS = 8;
 
-export async function saveGame(): Promise<void> {
-  const state = useGameStore.getState();
-  await db.saves.put({
-    id: 1,
-    timestamp: Date.now(),
-    tick: state.tick,
-    speed: state.speed,
-    cash: state.cash,
-    month: state.month,
-    employees: state.employees,
-    resources: state.resources,
-    features: state.features,
-    racks: state.racks,
-    plots: state.plots,
-    rentedServers: state.rentedServers,
-    inventoryNodes: state.inventoryNodes,
-    activeView: state.activeView,
-    visitedPlots: state.visitedPlots,
-    totalSalary: state.totalSalary,
-    selectedProduct: state.selectedProduct,
-    activeMonetization: state.activeMonetization,
-    userMood: state.userMood,
-    internetSubscriptions: state.internetSubscriptions,
-    isBankrupt: state.isBankrupt,
-    negativeCashMonths: state.negativeCashMonths,
-    screen: state.screen,
-    cashFlowHistory: state.cashFlowHistory,
-    fundingRounds: state.fundingRounds,
-    pendingFunding: state.pendingFunding,
-    sourcingCampaign: state.sourcingCampaign,
-    applicants: state.applicants,
-    selectedHrId: state.selectedHrId,
-    currentUsers: state.currentUsers,
-    events: state.events,
-    officeGridCols: state.officeGridCols,
-    officeGridRows: state.officeGridRows,
-    perkPoints: state.perkPoints,
-    earnedMilestones: state.earnedMilestones,
-    unlockedPerks: state.unlockedPerks,
-    furnitureInventory: state.furnitureInventory,
-    furniture: state.furniture,
-    adLeads: state.adLeads,
-    adCampaigns: state.adCampaigns,
-    adSalesUnlockNotified: state.adSalesUnlockNotified,
-    activePricingTier: state.activePricingTier,
-    loan: state.loan,
-    creditScore: state.creditScore,
-    missedPaymentTicks: state.missedPaymentTicks,
-    autoRenewEnabled: state.autoRenewEnabled,
-  });
+function serialize(): Omit<GameSave, 'id' | 'timestamp'> {
+  const s = useGameStore.getState();
+  return {
+    tick: s.tick,
+    speed: s.speed,
+    cash: s.cash,
+    month: s.month,
+    employees: s.employees,
+    resources: s.resources,
+    features: s.features,
+    racks: s.racks,
+    plots: s.plots,
+    rentedServers: s.rentedServers,
+    inventoryNodes: s.inventoryNodes,
+    activeView: s.activeView,
+    visitedPlots: s.visitedPlots,
+    totalSalary: s.totalSalary,
+    selectedProduct: s.selectedProduct,
+    activeMonetization: s.activeMonetization,
+    userMood: s.userMood,
+    internetSubscriptions: s.internetSubscriptions,
+    isBankrupt: s.isBankrupt,
+    negativeCashMonths: s.negativeCashMonths,
+    screen: s.screen,
+    cashFlowHistory: s.cashFlowHistory,
+    fundingRounds: s.fundingRounds,
+    pendingFunding: s.pendingFunding,
+    sourcingCampaign: s.sourcingCampaign,
+    applicants: s.applicants,
+    selectedHrId: s.selectedHrId,
+    currentUsers: s.currentUsers,
+    events: s.events,
+    officeGridCols: s.officeGridCols,
+    officeGridRows: s.officeGridRows,
+    perkPoints: s.perkPoints,
+    earnedMilestones: s.earnedMilestones,
+    unlockedPerks: s.unlockedPerks,
+    furnitureInventory: s.furnitureInventory,
+    furniture: s.furniture,
+    adLeads: s.adLeads,
+    adCampaigns: s.adCampaigns,
+    adSalesUnlockNotified: s.adSalesUnlockNotified,
+    activePricingTier: s.activePricingTier,
+    loan: s.loan,
+    creditScore: s.creditScore,
+    missedPaymentTicks: s.missedPaymentTicks,
+    autoRenewEnabled: s.autoRenewEnabled,
+    campaignCostThisMonth: s.campaignCostThisMonth,
+    competitors: s.competitors,
+    marketingCampaigns: s.marketingCampaigns,
+    brandScore: s.brandScore,
+  };
 }
 
-export async function loadGame(): Promise<boolean> {
-  const save = await db.saves.get(1);
+export async function saveGame(slotId?: number): Promise<void> {
+  const state = useGameStore.getState();
+  const id = slotId ?? state.currentSlotId ?? (await nextFreeSlot());
+  const data = serialize();
+  await db.saves.put({ id, timestamp: Date.now(), ...data });
+  useGameStore.setState({ currentSlotId: id });
+}
+
+export async function loadGame(slotId: number): Promise<boolean> {
+  const save = await db.saves.get(slotId);
   if (!save) return false;
 
   const employees = save.employees.map(emp => {
@@ -115,12 +125,54 @@ export async function loadGame(): Promise<boolean> {
     creditScore: save.creditScore ?? 50,
     missedPaymentTicks: save.missedPaymentTicks ?? 0,
     autoRenewEnabled: save.autoRenewEnabled ?? true,
+    campaignCostThisMonth: save.campaignCostThisMonth ?? 0,
+    competitors: save.competitors ?? [],
+    marketingCampaigns: save.marketingCampaigns ?? [],
+    brandScore: save.brandScore ?? 10,
+    currentSlotId: slotId,
   });
 
   return true;
 }
 
-export async function hasSavedGame(): Promise<boolean> {
-  const save = await db.saves.get(1);
-  return !!save;
+export interface SaveSlotInfo {
+  id: number;
+  timestamp: number;
+  month: number;
+  cash: number;
+  currentUsers: number;
+  selectedProduct: string | null;
+  tick: number;
+}
+
+export async function listSaves(): Promise<SaveSlotInfo[]> {
+  const saves = await db.saves.toArray();
+  return saves
+    .map(s => ({
+      id: s.id,
+      timestamp: s.timestamp,
+      month: s.month,
+      cash: s.cash,
+      currentUsers: s.currentUsers,
+      selectedProduct: s.selectedProduct,
+      tick: s.tick,
+    }))
+    .sort((a, b) => b.timestamp - a.timestamp);
+}
+
+export async function deleteSave(slotId: number): Promise<void> {
+  await db.saves.delete(slotId);
+  const current = useGameStore.getState().currentSlotId;
+  if (current === slotId) {
+    useGameStore.setState({ currentSlotId: null });
+  }
+}
+
+export async function nextFreeSlot(): Promise<number> {
+  const saves = await db.saves.toArray();
+  const used = new Set(saves.map(s => s.id));
+  for (let i = 1; i <= 10; i++) {
+    if (!used.has(i)) return i;
+  }
+  return Math.max(...used) + 1;
 }

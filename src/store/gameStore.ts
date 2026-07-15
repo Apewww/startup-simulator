@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetProviderId, InternetSubscription, AdCampaign, AdLead } from '../types';
+import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetProviderId, InternetSubscription, AdCampaign, AdLead, CompetitorProduct, MarketingCampaign, MarketingCampaignType } from '../types';
 import { calcFundingOffer, calcMaxSupervised } from '../types/employee';
 import { getComponentDef, COMPONENTS } from '../data/components';
 import { getProductDef } from '../data/products';
@@ -23,13 +23,16 @@ import {
   calcSearchDuration,
 } from '../systems/adSales';
 import { makeLoan, calcCompanyValuation, calcMaxLoan, updateCreditScore } from '../systems/banking';
+import { generateInitialCompetitors, updateCompetitorValuation, shouldDelist, checkSpawnNew, generateCompetitor, calcSectorGrowthBonus, computeRankings, resetCompetitorIdCounter } from '../systems/competitor';
+import { createCampaign, processCampaignTick, calcBrandDecay, calcBrandEffects } from '../systems/marketing';
+import { getHotSector, hasMarketCrash, hasMarketBoom } from '../systems/events';
 import { getPricingTier, getDefaultPricingTier, type BusinessLoan } from '../types/monetization';
 
-export type GameSpeed = 1 | 2 | 4;
-export const TICKS_PER_MONTH = 600;
-export const TICKS_PER_DAY = 20;
+import { TICKS_PER_MONTH, TICKS_PER_DAY } from '../constants';
 
-export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment' | 'perks' | 'adsales' | 'banking';
+export type GameSpeed = 1 | 2 | 4;
+
+export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment' | 'perks' | 'adsales' | 'banking' | 'competitor' | 'marketing' | 'dev';
 export type PanelOpenState = Record<PanelId, boolean>;
 export type GameScreen = 'menu' | 'select' | 'playerSetup' | 'playing';
 
@@ -75,6 +78,7 @@ interface GameState {
   activeMonetization: MonetizationStrategy;
   userMood: number;
   devMode: boolean;
+  currentSlotId: number | null;
   inventoryNodes: ServerNode[];
   activeView: { type: 'office' } | { type: 'server', plotId: string };
   visitedPlots: string[];
@@ -199,6 +203,17 @@ interface GameState {
   missedPaymentTicks: number;
   autoRenewEnabled: boolean;
   toggleAutoRenew: () => void;
+  campaignCostThisMonth: number;
+  competitors: CompetitorProduct[];
+  marketingCampaigns: MarketingCampaign[];
+  brandScore: number;
+  nextCompetitorCheck: number;
+  startCampaign: (type: MarketingCampaignType) => void;
+  cancelCampaign: (id: string) => void;
+  devSpawnCompetitor: () => void;
+  devSetMaxBrand: () => void;
+  devResetCompetitors: () => void;
+  devTriggerHotSector: () => void;
   cancelCampaign: (campaignId: string) => void;
   setPricingTier: (tierId: string) => void;
   takeLoan: (amount: number, tenor: number) => void;
@@ -246,7 +261,13 @@ export const useGameStore = create<GameState>((set, get) => ({
   adCampaigns: [],
   adSalesUnlockNotified: false,
   autoRenewEnabled: true,
+  campaignCostThisMonth: 0,
+  competitors: [],
+  marketingCampaigns: [],
+  brandScore: 10,
+  nextCompetitorCheck: 600,
   devMode: false,
+  currentSlotId: null,
   inventoryNodes: [],
   activeView: { type: 'office' },
   visitedPlots: [],
@@ -254,8 +275,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   isBankrupt: false,
   negativeCashMonths: 0,
   screen: 'menu',
-      panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false },
-      panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false },
+      panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, dev: false },
+      panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, dev: false },
   maximizedPanel: null,
   selectedEmployeeId: null,
   darkMode: (() => { try { return localStorage.getItem('ss-dark') === '1'; } catch { return false; } })(),
@@ -531,6 +552,18 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
     }
 
+    // Marketing campaign processing & brand score
+    const newMarketingCampaigns = state.marketingCampaigns
+      .map(c => processCampaignTick(c))
+      .filter(c => c.active || c.ticksElapsed > 0);
+    const hasActiveCampaign = newMarketingCampaigns.some(c => c.active);
+    const activeBrandGain = newMarketingCampaigns
+      .filter(c => c.active)
+      .reduce((sum, c) => sum + c.brandGain / (c.durationTicks / 20), 0);
+    let newBrandScore = state.brandScore + activeBrandGain - calcBrandDecay(state.brandScore, hasActiveCampaign);
+    newBrandScore = Math.max(0, Math.min(100, newBrandScore));
+    const brandEffects = calcBrandEffects(newBrandScore, newMarketingCampaigns);
+
     const placedRacks = racks.filter(r => r.plotId !== null);
     const unplacedRacks = racks.filter(r => r.plotId === null);
 
@@ -544,10 +577,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     const eventEffects = getAppliedEffects(events);
     const monetizationMods = getMonetizationMods(state.activeMonetization);
     const pricingGrowthMult = pricingTier?.growthMult ?? 1;
-    const userDelta = (targetUsers - currentUsers) * 0.005 * cohesionScore * monetizationMods.growthMult * pricingGrowthMult;
+    const userDelta = (targetUsers - currentUsers) * 0.005 * cohesionScore * monetizationMods.growthMult * pricingGrowthMult * brandEffects.growthMult;
     const hasCrash = placedRacks.some(r => r.slots.some(s => s.node?.status === 'crashed'));
     const crashPenalty = hasCrash ? currentUsers * 0.05 : 0;
-    const baseChurnRate = (1 - cohesionScore) * 0.0002 + monetizationMods.churnDelta;
+    const baseChurnRate = Math.max(0, (1 - cohesionScore) * 0.0002 + monetizationMods.churnDelta - brandEffects.churnReduction);
     let newCurrentUsers = currentUsers;
 
     // Server calculation with effectiveRPS — compliance load mult untuk compute/data shortage
@@ -558,7 +591,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     // User mood (satisfaction) — drifts toward strategy target × pricing target; feeds churn
     const strategyMoodTarget = getMoodTarget(state.activeMonetization, synergyActive, earlyDataRatio);
     const combinedMoodTarget = Math.min(strategyMoodTarget, pricingTier?.moodTarget ?? 100);
-    const moodTarget = Math.min(100, combinedMoodTarget + internetMoodSum * 100);
+    const moodTarget = Math.min(100, combinedMoodTarget + internetMoodSum * 100 + brandEffects.moodBonus);
     const newMood = Math.max(0, Math.min(100, state.userMood + (moodTarget - state.userMood) * MOOD_DRIFT_RATE));
     const moodPenalty = Math.max(0, (MOOD_BASELINE - newMood) * MOOD_PENALTY_K);
     const churn = Math.max(0, currentUsers * (baseChurnRate + moodPenalty));
@@ -603,9 +636,12 @@ export const useGameStore = create<GameState>((set, get) => ({
       set({ adSalesUnlockNotified: true });
     }
 
-    // Event trigger & processing
+    // Event trigger & processing — skip if platform has no active features
+    const hasActiveFeatures = features.some(f => f.level > 0);
     const securityLevel = calcSecurityLevel(updatedPlacedRacks);
-    const newEvent = checkEventTrigger(newCurrentUsers, securityLevel, events, cohesionScore);
+    const newEvent = hasActiveFeatures
+      ? checkEventTrigger(newCurrentUsers, securityLevel, events, cohesionScore, newMonth)
+      : null;
     const allEvents = newEvent ? [...events, newEvent] : events;
     const { events: processedEvents, crashedRackId } = processEvents(allEvents, updatedPlacedRacks);
 
@@ -700,7 +736,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       if (state.loan?.status === 'active') {
         loanPayment = state.loan.monthlyPayment;
       }
-      cashChange = revenue.total + adCampaignMonthly - (newTotalSalary + serverCost + loanPayment);
+      const campaignCost = state.campaignCostThisMonth;
+      cashChange = revenue.total + adCampaignMonthly - (newTotalSalary + serverCost + loanPayment + campaignCost);
 
       // Loan payment tracking
       if (state.loan?.status === 'active') {
@@ -730,12 +767,12 @@ export const useGameStore = create<GameState>((set, get) => ({
       const snapshot: MonthlySnapshot = {
         month: newMonth,
         revenue: revenue.total + adCampaignMonthly,
-        expenses: newTotalSalary + serverCost,
+        expenses: newTotalSalary + serverCost + campaignCost,
         net: cashChange,
         cash: state.cash + cashChange,
       };
       const history = [...state.cashFlowHistory, snapshot].slice(-12);
-      set({ cashFlowHistory: history });
+      set({ cashFlowHistory: history, campaignCostThisMonth: 0 });
     }
 
     const isBankrupt = newNegativeCashMonths >= 3;
@@ -783,6 +820,55 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
     }
 
+    // Competitor monthly update
+    const hotSector = getHotSector(finalEvents);
+    const marketCrashActive = hasMarketCrash(finalEvents);
+    const marketBoomActive = hasMarketBoom(finalEvents);
+    const marketEventMult = marketCrashActive ? 0.7 : marketBoomActive ? 1.3 : 1.0;
+    let newCompetitors = [...state.competitors];
+
+    // Seed competitors on first tick if empty (old save migration)
+    if (newCompetitors.length === 0 && newMonth >= 0) {
+      newCompetitors = generateInitialCompetitors(newMonth, 8);
+      newCompetitors = computeRankings(newCompetitors);
+      get().addNotification('Competitor market initialized!', 'info');
+    }
+
+    if (newMonth > oldMonth && newCompetitors.length > 0) {
+      newCompetitors = newCompetitors.map(comp => {
+        if (comp.delisted) return comp;
+        const sectorBonus = calcSectorGrowthBonus(newCompetitors, comp.sector);
+        const hotBonus = hotSector === comp.sector ? 0.05 : 0;
+        return updateCompetitorValuation(comp, sectorBonus + hotBonus, marketEventMult);
+      });
+
+      // Check delisting
+      let delistedCount = 0;
+      newCompetitors = newCompetitors.map(comp => {
+        if (comp.delisted) return comp;
+        if (shouldDelist(comp, newMonth)) {
+          delistedCount++;
+          return { ...comp, delisted: true, delistedAtMonth: newMonth };
+        }
+        return comp;
+      });
+
+      // Check spawn new
+      const activeCount = newCompetitors.filter(c => !c.delisted).length;
+      if (checkSpawnNew(newMonth, activeCount)) {
+        const usedNames = new Set(newCompetitors.map(c => c.name));
+        const spawnSector = hotSector ?? (['social_media', 'ecommerce', 'search_engine'] as const)[Math.floor(Math.random() * 3)];
+        const newComp = generateCompetitor(spawnSector, newMonth, usedNames);
+        newCompetitors.push(newComp);
+      }
+
+      if (delistedCount > 0) {
+        get().addNotification(`${delistedCount} competitor(s) delisted from leaderboard`, 'info');
+      }
+
+      newCompetitors = computeRankings(newCompetitors);
+    }
+
     const mergedAdLeads = leadGenEvents.length > 0 ? [...newAdLeads, ...leadGenEvents] : newAdLeads;
     const finalAdLeads = mergedAdLeads.map(l => {
       const r = resolvedLeads.find(x => x.id === l.id);
@@ -793,6 +879,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       month: newMonth,
       cash: state.cash + cashChange,
       totalSalary: newTotalSalary,
+      brandScore: Math.round(newBrandScore * 10) / 10,
+      marketingCampaigns: newMarketingCampaigns,
+      competitors: newCompetitors,
       employees: newEmployees,
       resources: newResources,
       racks: [...unplacedRacks, ...finalRacks],
@@ -947,7 +1036,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       group: f.group,
       requiredComponents: f.requiredComponents, trafficGenerated: 0, enabled: true,
     }));
-    set({ selectedProduct: productId, features, screen: 'playerSetup', currentUsers: 0, userMood: 80, internetSubscriptions: [], adLeads: [], adCampaigns: [], adSalesUnlockNotified: false, activePricingTier: getDefaultPricingTier(productId), loan: null, creditScore: 50, missedPaymentTicks: 0 });
+    resetCompetitorIdCounter();
+    const initialCompetitors = generateInitialCompetitors(0, 8);
+    const rankedCompetitors = computeRankings(initialCompetitors);
+    set({ selectedProduct: productId, features, screen: 'playerSetup', currentUsers: 0, userMood: 80, internetSubscriptions: [], adLeads: [], adCampaigns: [], adSalesUnlockNotified: false, activePricingTier: getDefaultPricingTier(productId), loan: null, creditScore: 50, missedPaymentTicks: 0, competitors: rankedCompetitors, brandScore: 10, marketingCampaigns: [] });
   },
 
   setMonetizationStrategy: (strategy) => {
@@ -1074,6 +1166,71 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   toggleAutoRenew: () => {
     set((state) => ({ autoRenewEnabled: !state.autoRenewEnabled }));
+  },
+
+  startCampaign: (type: MarketingCampaignType) => {
+    const state = get();
+    const campaign = createCampaign(type);
+    if (!campaign) return;
+    if (state.cash < campaign.cost) {
+      get().addNotification('Not enough cash for marketing campaign', 'warning');
+      return;
+    }
+    set({
+      cash: state.cash - campaign.cost,
+      campaignCostThisMonth: state.campaignCostThisMonth + campaign.cost,
+      marketingCampaigns: [...state.marketingCampaigns, campaign],
+    });
+    get().addNotification(`Started marketing campaign!`, 'success');
+  },
+
+  cancelCampaign: (id: string) => {
+    set((state) => ({
+      marketingCampaigns: state.marketingCampaigns.map(c =>
+        c.id === id ? { ...c, active: false } : c
+      ),
+    }));
+    get().addNotification('Marketing campaign cancelled.', 'info');
+  },
+
+  devSpawnCompetitor: () => {
+    const state = get();
+    const usedNames = new Set(state.competitors.map(c => c.name));
+    const comp = generateCompetitor(
+      (['social_media', 'ecommerce', 'search_engine'] as const)[Math.floor(Math.random() * 3)],
+      state.month,
+      usedNames,
+    );
+    set({ competitors: [...state.competitors, comp] });
+    get().addNotification(`DEV: Spawned competitor ${comp.name}`, 'info');
+  },
+
+  devSetMaxBrand: () => {
+    set({ brandScore: 100 });
+    get().addNotification('DEV: Brand score set to 100', 'info');
+  },
+
+  devResetCompetitors: () => {
+    set({ competitors: [] });
+    get().addNotification('DEV: All competitors removed', 'info');
+  },
+
+  devTriggerHotSector: () => {
+    const state = get();
+    const sectors = ['social_media', 'ecommerce', 'search_engine'] as const;
+    const hotSector = sectors[Math.floor(Math.random() * sectors.length)];
+    const evt: GameEvent = {
+      id: `evt-dev-${Date.now()}`,
+      type: 'sector_gold_rush',
+      name: 'Sector Gold Rush',
+      description: `DEV: ${hotSector} sector is hot!`,
+      duration: 90,
+      tickLeft: 90,
+      effects: { userGrowthMultiplier: 1.15 },
+      hotSector,
+    };
+    set({ events: [...state.events, evt] });
+    get().addNotification(`DEV: Hot sector "${hotSector}" triggered!`, 'info');
   },
 
   acceptLead: (leadId: string) => {
@@ -2172,6 +2329,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   restartGame: () => {
+    resetCompetitorIdCounter();
     set({
       tick: 0, isPaused: false, speed: 1, cash: 15000, month: 0,
       employees: [], resources: [], features: [], racks: [], plots: [], rentedServers: [],
@@ -2179,8 +2337,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       inventoryNodes: [], activeView: { type: 'office' }, visitedPlots: [], gameLog: [],
       cashFlowHistory: [], notifications: [],
       isBankrupt: false, negativeCashMonths: 0, screen: 'menu',
-  panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false },
-  panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false },
+      competitors: [], marketingCampaigns: [], brandScore: 10, nextCompetitorCheck: 600, campaignCostThisMonth: 0, currentSlotId: null,
+  panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, dev: false },
+  panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, dev: false },
       maximizedPanel: null,
       selectedEmployeeId: null,
   darkMode: (() => { try { return localStorage.getItem('ss-dark') === '1'; } catch { return false; } })(),
