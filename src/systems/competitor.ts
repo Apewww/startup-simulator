@@ -124,6 +124,23 @@ export function calcSectorGrowthBonus(
   return avgGrowth * 0.3;
 }
 
+export function deduplicateNames(competitors: CompetitorProduct[]): CompetitorProduct[] {
+  const seen = new Set<string>();
+  return competitors.map(c => {
+    if (c.delisted) return c;
+    if (!seen.has(c.name)) {
+      seen.add(c.name);
+      return c;
+    }
+    const base = c.name.replace(/\d+$/, '');
+    let suffix = 2;
+    while (seen.has(`${base}${suffix}`)) suffix++;
+    const newName = `${base}${suffix}`;
+    seen.add(newName);
+    return { ...c, name: newName };
+  });
+}
+
 export function computeRankings(competitors: CompetitorProduct[]): CompetitorProduct[] {
   const active = competitors
     .filter(c => !c.delisted)

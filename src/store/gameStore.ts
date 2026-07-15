@@ -23,7 +23,7 @@ import {
   calcSearchDuration,
 } from '../systems/adSales';
 import { makeLoan, calcCompanyValuation, calcMaxLoan, updateCreditScore } from '../systems/banking';
-import { generateInitialCompetitors, updateCompetitorValuation, shouldDelist, checkSpawnNew, generateCompetitor, calcSectorGrowthBonus, computeRankings, resetCompetitorIdCounter } from '../systems/competitor';
+import { generateInitialCompetitors, updateCompetitorValuation, shouldDelist, checkSpawnNew, generateCompetitor, calcSectorGrowthBonus, computeRankings, deduplicateNames, resetCompetitorIdCounter } from '../systems/competitor';
 import { createCampaign, processCampaignTick, calcBrandDecay, calcBrandEffects } from '../systems/marketing';
 import { getHotSector, hasMarketCrash, hasMarketBoom } from '../systems/events';
 import { getPricingTier, getDefaultPricingTier, type BusinessLoan } from '../types/monetization';
@@ -828,6 +828,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     const marketBoomActive = hasMarketBoom(finalEvents);
     const marketEventMult = marketCrashActive ? 0.7 : marketBoomActive ? 1.3 : 1.0;
     let newCompetitors = [...state.competitors];
+
+    // Deduplicate names to fix corrupted old saves
+    if (newCompetitors.length > 0) {
+      newCompetitors = deduplicateNames(newCompetitors);
+    }
 
     // Seed competitors on first tick if empty (old save migration)
     if (newCompetitors.length === 0 && newMonth >= 0) {
