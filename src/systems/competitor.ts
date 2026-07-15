@@ -1,0 +1,134 @@
+import type { CompetitorProduct, CompetitorSector, CompetitorPersonality } from '../types';
+import { COMPETITOR_NAMES } from '../data/competitorNames';
+
+const SECTORS: CompetitorSector[] = ['social_media', 'ecommerce', 'search_engine'];
+const PERSONALITIES: CompetitorPersonality[] = ['aggressive', 'conservative', 'opportunistic'];
+
+let competitorIdCounter = 0;
+
+function nextId(): string {
+  competitorIdCounter++;
+  return `comp-${competitorIdCounter}`;
+}
+
+function randomSector(exclude?: CompetitorSector): CompetitorSector {
+  const pool = exclude ? SECTORS.filter(s => s !== exclude) : SECTORS;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+function randomPersonality(): CompetitorPersonality {
+  return PERSONALITIES[Math.floor(Math.random() * PERSONALITIES.length)];
+}
+
+function pickName(usedNames: Set<string>): string {
+  const available = COMPETITOR_NAMES.filter(n => !usedNames.has(n));
+  if (available.length === 0) {
+    const base = COMPETITOR_NAMES[Math.floor(Math.random() * COMPETITOR_NAMES.length)];
+    return `${base}${Math.floor(Math.random() * 100)}`;
+  }
+  return available[Math.floor(Math.random() * available.length)];
+}
+
+export function generateCompetitor(
+  sector: CompetitorSector,
+  currentMonth: number,
+  usedNames: Set<string>,
+): CompetitorProduct {
+  const personality = randomPersonality();
+  const baseGrowth = personality === 'aggressive' ? 0.04
+    : personality === 'conservative' ? 0.02
+    : 0.03;
+  const baseVolatility = personality === 'aggressive' ? 0.12
+    : personality === 'conservative' ? 0.04
+    : 0.08;
+
+  return {
+    id: nextId(),
+    name: pickName(usedNames),
+    sector,
+    valuation: 10_000 + Math.floor(Math.random() * 40_000),
+    growthRate: baseGrowth + (Math.random() - 0.5) * 0.02,
+    volatility: baseVolatility + Math.random() * 0.03,
+    personality,
+    rank: 0,
+    delisted: false,
+    delistedAtMonth: 0,
+    createdAtMonth: currentMonth,
+    userCount: 1_000 + Math.floor(Math.random() * 5_000),
+    monthlyRevenue: 100 + Math.floor(Math.random() * 400),
+  };
+}
+
+export function generateInitialCompetitors(currentMonth: number, count: number = 8): CompetitorProduct[] {
+  const usedNames = new Set<string>();
+  const competitors: CompetitorProduct[] = [];
+  const sectorCounts: Record<CompetitorSector, number> = { social_media: 0, ecommerce: 0, search_engine: 0 };
+
+  for (let i = 0; i < count; i++) {
+    const sector = SECTORS[i % 3];
+    const comp = generateCompetitor(sector, currentMonth, usedNames);
+    usedNames.add(comp.name);
+    sectorCounts[sector]++;
+    competitors.push(comp);
+  }
+
+  return competitors;
+}
+
+export function updateCompetitorValuation(
+  comp: CompetitorProduct,
+  sectorGrowthBonus: number,
+  marketEventMult: number,
+): CompetitorProduct {
+  if (comp.delisted) return comp;
+
+  const noise = (Math.random() - 0.5) * 2 * comp.volatility;
+  const growthMult = 1 + comp.growthRate + noise + sectorGrowthBonus;
+  const newValuation = Math.round(comp.valuation * growthMult * marketEventMult);
+  const newUsers = Math.round(comp.userCount * growthMult);
+  const newRevenue = Math.round(comp.monthlyRevenue * growthMult);
+
+  return {
+    ...comp,
+    valuation: Math.max(100, newValuation),
+    userCount: Math.max(10, newUsers),
+    monthlyRevenue: Math.max(0, newRevenue),
+  };
+}
+
+export function shouldDelist(comp: CompetitorProduct, currentMonth: number): boolean {
+  if (comp.delisted) return false;
+  const valuationDrop = comp.valuation / (comp.valuation / (1 + comp.growthRate * 6));
+  return valuationDrop < 0.3;
+}
+
+export function checkSpawnNew(currentMonth: number, activeCount: number): boolean {
+  if (activeCount >= 100) return false;
+  const baseChance = 0.15;
+  const countBonus = Math.max(0, 1 - activeCount / 100) * 0.1;
+  return Math.random() < baseChance + countBonus;
+}
+
+export function calcSectorGrowthBonus(
+  competitors: CompetitorProduct[],
+  sector: CompetitorSector,
+): number {
+  const sectorCompetitors = competitors.filter(c => !c.delisted && c.sector === sector);
+  if (sectorCompetitors.length === 0) return 0;
+  const avgGrowth = sectorCompetitors.reduce((s, c) => s + c.growthRate, 0) / sectorCompetitors.length;
+  return avgGrowth * 0.3;
+}
+
+export function computeRankings(competitors: CompetitorProduct[]): CompetitorProduct[] {
+  const active = competitors
+    .filter(c => !c.delisted)
+    .sort((a, b) => b.valuation - a.valuation);
+
+  const ranked = active.map((c, i) => ({ ...c, rank: i + 1 }));
+  const delisted = competitors.filter(c => c.delisted);
+  return [...ranked, ...delisted];
+}
+
+export function resetCompetitorIdCounter(): void {
+  competitorIdCounter = 0;
+}

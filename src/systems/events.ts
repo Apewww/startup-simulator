@@ -1,4 +1,6 @@
-import type { GameEvent, EventType, ServerRack } from '../types';
+import type { GameEvent, EventType, ServerRack, HotSector } from '../types';
+
+const SECTORS: ('social_media' | 'ecommerce' | 'search_engine')[] = ['social_media', 'ecommerce', 'search_engine'];
 
 const EVENT_TEMPLATES: Record<EventType, Omit<GameEvent, 'id' | 'tickLeft'>> = {
   ddos: {
@@ -36,16 +38,40 @@ const EVENT_TEMPLATES: Record<EventType, Omit<GameEvent, 'id' | 'tickLeft'>> = {
     duration: 1,
     effects: { userGrowthMultiplier: 2 },
   },
+  market_boom: {
+    type: 'market_boom',
+    name: 'Market Boom',
+    description: 'Industri teknologi sedang booming! Semua startup tumbuh pesat.',
+    duration: 120,
+    effects: { userGrowthMultiplier: 1.3 },
+  },
+  market_crash: {
+    type: 'market_crash',
+    name: 'Market Crash',
+    description: 'Krisis ekonomi melanda startup. Pertumbuhan melambat drastis.',
+    duration: 180,
+    effects: { userGrowthMultiplier: 0.6, revenueMultiplier: 0.7 },
+  },
+  sector_gold_rush: {
+    type: 'sector_gold_rush',
+    name: 'Sector Gold Rush',
+    description: 'Investor berbondong-bondong ke satu sektor! Kompetitor baru bermunculan.',
+    duration: 90,
+    effects: { userGrowthMultiplier: 1.15 },
+  },
 };
 
 let eventCounter = 0;
 
 const EVENT_RATES: Record<EventType, number> = {
-  ddos: 0.35,
-  traffic_spike: 0.2,
-  server_outage: 0.15,
-  pr_crisis: 0.2,
-  viral_growth: 0.1,
+  ddos: 0.25,
+  traffic_spike: 0.15,
+  server_outage: 0.1,
+  pr_crisis: 0.15,
+  viral_growth: 0.08,
+  market_boom: 0.1,
+  market_crash: 0.07,
+  sector_gold_rush: 0.1,
 };
 
 export function checkEventTrigger(
@@ -53,6 +79,7 @@ export function checkEventTrigger(
   securityLevel: number,
   existingEvents: GameEvent[],
   cohesionScore: number,
+  month?: number,
 ): GameEvent | null {
   const activeTypes = new Set(existingEvents.map(e => e.type));
 
@@ -75,6 +102,35 @@ export function checkEventTrigger(
       ...EVENT_TEMPLATES.viral_growth,
       tickLeft: 1,
     };
+  }
+
+  // Market events — only possible after month 3, at reduced rate
+  if ((month ?? 0) >= 3 && !activeTypes.has('market_boom') && !activeTypes.has('market_crash') && !activeTypes.has('sector_gold_rush') && Math.random() < 0.00015) {
+    const marketRoll = Math.random();
+    if (marketRoll < 0.4) {
+      eventCounter++;
+      return {
+        id: `evt-${eventCounter}`,
+        ...EVENT_TEMPLATES.market_boom,
+        tickLeft: EVENT_TEMPLATES.market_boom.duration,
+      };
+    } else if (marketRoll < 0.7) {
+      eventCounter++;
+      return {
+        id: `evt-${eventCounter}`,
+        ...EVENT_TEMPLATES.market_crash,
+        tickLeft: EVENT_TEMPLATES.market_crash.duration,
+      };
+    } else {
+      const hotSector = SECTORS[Math.floor(Math.random() * SECTORS.length)];
+      eventCounter++;
+      return {
+        id: `evt-${eventCounter}`,
+        ...EVENT_TEMPLATES.sector_gold_rush,
+        tickLeft: EVENT_TEMPLATES.sector_gold_rush.duration,
+        hotSector,
+      };
+    }
   }
 
   const baseChance = 0.0008;
@@ -174,6 +230,23 @@ export function getDdosDurationReduction(racks: ServerRack[]): number {
     }
   }
   return 0;
+}
+
+export function getHotSector(events: GameEvent[]): HotSector {
+  for (const ev of events) {
+    if (ev.type === 'sector_gold_rush' && ev.hotSector) {
+      return ev.hotSector;
+    }
+  }
+  return null;
+}
+
+export function hasMarketCrash(events: GameEvent[]): boolean {
+  return events.some(ev => ev.type === 'market_crash');
+}
+
+export function hasMarketBoom(events: GameEvent[]): boolean {
+  return events.some(ev => ev.type === 'market_boom');
 }
 
 export function hasLoadBalancer(racks: ServerRack[]): boolean {
