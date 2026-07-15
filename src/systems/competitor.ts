@@ -1,5 +1,5 @@
 import type { CompetitorProduct, CompetitorSector, CompetitorPersonality } from '../types';
-import { COMPETITOR_NAMES } from '../data/competitorNames';
+import { generateUniqueName, resetNameGenerator } from '../data/competitorNames';
 
 const SECTORS: CompetitorSector[] = ['social_media', 'ecommerce', 'search_engine'];
 const PERSONALITIES: CompetitorPersonality[] = ['aggressive', 'conservative', 'opportunistic'];
@@ -21,12 +21,7 @@ function randomPersonality(): CompetitorPersonality {
 }
 
 function pickName(usedNames: Set<string>): string {
-  const available = COMPETITOR_NAMES.filter(n => !usedNames.has(n));
-  if (available.length === 0) {
-    const base = COMPETITOR_NAMES[Math.floor(Math.random() * COMPETITOR_NAMES.length)];
-    return `${base}${Math.floor(Math.random() * 100)}`;
-  }
-  return available[Math.floor(Math.random() * available.length)];
+  return generateUniqueName(usedNames);
 }
 
 export function generateCompetitor(

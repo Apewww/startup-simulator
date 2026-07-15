@@ -24,6 +24,7 @@ import {
 } from '../systems/adSales';
 import { makeLoan, calcCompanyValuation, calcMaxLoan, updateCreditScore } from '../systems/banking';
 import { generateInitialCompetitors, updateCompetitorValuation, shouldDelist, checkSpawnNew, generateCompetitor, calcSectorGrowthBonus, computeRankings, deduplicateNames, resetCompetitorIdCounter } from '../systems/competitor';
+import { resetNameGenerator } from '../data/competitorNames';
 import { createCampaign, processCampaignTick, calcBrandDecay, calcBrandEffects } from '../systems/marketing';
 import { getHotSector, hasMarketCrash, hasMarketBoom } from '../systems/events';
 import { getPricingTier, getDefaultPricingTier, type BusinessLoan } from '../types/monetization';
@@ -1045,6 +1046,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       requiredComponents: f.requiredComponents, trafficGenerated: 0, enabled: true,
     }));
     resetCompetitorIdCounter();
+    resetNameGenerator();
     const initialCompetitors = generateInitialCompetitors(0, 8);
     const rankedCompetitors = computeRankings(initialCompetitors);
     set({ selectedProduct: productId, features, screen: 'playerSetup', currentUsers: 0, userMood: 80, internetSubscriptions: [], adLeads: [], adCampaigns: [], adSalesUnlockNotified: false, activePricingTier: getDefaultPricingTier(productId), loan: null, creditScore: 50, missedPaymentTicks: 0, competitors: rankedCompetitors, brandScore: 10, marketingCampaigns: [] });
@@ -2338,6 +2340,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   restartGame: () => {
     resetCompetitorIdCounter();
+    resetNameGenerator();
     set({
       tick: 0, isPaused: false, speed: 1, cash: 15000, month: 0,
       employees: [], resources: [], features: [], racks: [], plots: [], rentedServers: [],
