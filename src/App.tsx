@@ -18,7 +18,9 @@ import { RecruitmentPanel, recruitmentPanelMeta } from './components/Recruitment
 import { PerksPanel } from './components/PerksPanel';
 import { AdSalesPanel, adSalesPanelMeta } from './components/AdSalesPanel';
 import { BankingPanel, bankingPanelMeta } from './components/BankingPanel';
-import { Server, Skull, CheckCircle, Info, AlertTriangle, XCircle, Gift } from 'lucide-react';
+import { CompetitorPanel } from './components/CompetitorPanel';
+import { MarketingPanel } from './components/MarketingPanel';
+import { Server, Skull, CheckCircle, Info, AlertTriangle, XCircle, Gift, BarChart3, Megaphone, Bug } from 'lucide-react';
 import { saveGame } from './systems/saveLoad';
 import { db } from './db/gameDB';
 
@@ -38,10 +40,10 @@ function GameOverScreen() {
   const employees = useGameStore((s) => s.employees);
   const racks = useGameStore((s) => s.racks);
   const currentUsers = useGameStore((s) => s.currentUsers);
+  const currentSlotId = useGameStore((s) => s.currentSlotId);
 
   const handleRestart = async () => {
-    await db.saves.delete(1);
-    localStorage.removeItem('hasSave');
+    if (currentSlotId) await db.saves.delete(currentSlotId);
     useGameStore.getState().restartGame();
   };
 
@@ -88,8 +90,8 @@ function useAutosave(selectedProduct: string | null) {
   useEffect(() => {
     if (!selectedProduct) return;
     const interval = setInterval(async () => {
-      await saveGame();
-      localStorage.setItem('hasSave', '1');
+      const slotId = useGameStore.getState().currentSlotId;
+      if (slotId) await saveGame(slotId);
     }, 60000);
     return () => clearInterval(interval);
   }, [selectedProduct]);
@@ -229,6 +231,18 @@ function App() {
           <FloatingPanel id="banking" index={7} title={bankingPanelMeta.title} icon={bankingPanelMeta.icon} accent={bankingPanelMeta.accent}>
             <BankingPanel />
           </FloatingPanel>
+
+          <FloatingPanel id="competitor" index={8} title="Market" icon={<BarChart3 className="w-4 h-4 text-amber" />} accent="#B7791F">
+            <CompetitorPanel />
+          </FloatingPanel>
+
+          <FloatingPanel id="marketing" index={9} title="Brand" icon={<Megaphone className="w-4 h-4 text-red" />} accent="#D1453B">
+            <MarketingPanel />
+          </FloatingPanel>
+
+          <FloatingPanel id="dev" index={10} title="Dev Panel" icon={<Bug className="w-4 h-4 text-amber" />} accent="#D1453B">
+            <DevPanel />
+          </FloatingPanel>
         </div>
 
       <PanelTaskbar />
@@ -243,7 +257,6 @@ function App() {
           {devMode ? 'DEV ON' : 'DEV'}
         </button>
       )}
-      <DevPanel />
       <EventBanner />
     </div>
   );

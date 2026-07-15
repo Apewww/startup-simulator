@@ -1,20 +1,62 @@
 import { useEffect, useState } from 'react';
-import { Power, Play, Loader } from 'lucide-react';
+import { Play, Trash2, Power, Clock, Users, DollarSign } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
-import { hasSavedGame, loadGame } from '../systems/saveLoad';
+import { listSaves, deleteSave, loadGame, nextFreeSlot, type SaveSlotInfo } from '../systems/saveLoad';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+
+function formatCash(n: number): string {
+  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
+  return `$${n.toLocaleString('en-US')}`;
+}
+
+function fmtTime(ts: number): string {
+  const d = new Date(ts);
+  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtDate(ts: number): string {
+  const d = new Date(ts);
+  const now = new Date();
+  const diff = now.getTime() - d.getTime();
+  if (diff < 60000) return 'Just now';
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+  return d.toLocaleDateString();
+}
+
+const PRODUCT_LABELS: Record<string, string> = {
+  social_media: 'Social Media',
+  ecommerce: 'E-Commerce',
+  search_engine: 'Search Engine',
+};
 
 export function MainMenu() {
   const setScreen = useGameStore((s) => s.setScreen);
-  const [canLoad, setCanLoad] = useState(false);
+  const restartGame = useGameStore((s) => s.restartGame);
+  const [saves, setSaves] = useState<SaveSlotInfo[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    hasSavedGame().then(setCanLoad);
-  }, []);
+  const refresh = () => {
+    setLoading(true);
+    listSaves().then(s => { setSaves(s); setLoading(false); });
+  };
 
-  const handleNewGame = () => setScreen('select');
+  useEffect(refresh, []);
 
-  const handleLoadGame = async () => { if (await loadGame()) {} };
+  const handleNewGame = async () => {
+    restartGame();
+    setScreen('select');
+  };
+
+  const handleLoad = (id: number) => {
+    loadGame(id).then(ok => { if (ok) setScreen('playing'); });
+  };
+
+  const handleDelete = async (id: number) => {
+    await deleteSave(id);
+    refresh();
+  };
 
   const handleQuit = () => {
     try { getCurrentWindow().close().catch(() => window.close()); } catch { window.close(); }
@@ -22,34 +64,83 @@ export function MainMenu() {
 
   return (
     <div className="min-h-screen bg-bg flex flex-col items-center justify-center p-8 text-ink">
-      <div className="text-center mb-16 space-y-4">
-        <div className="flex items-center justify-center gap-3 mb-2">
+      <div className="text-center mb-10 space-y-3">
+        <div className="flex items-center justify-center gap-3 mb-1">
           <span className="w-3 h-3 rounded-sm bg-indigo" />
           <h1 className="text-5xl font-extrabold tracking-tight">Startup Simulator</h1>
         </div>
-        <p className="text-lg text-ink-soft font-light">Build your tech empire from scratch</p>
+        <p className="text-base text-ink-soft font-light">Build your tech empire from scratch</p>
       </div>
 
-      <div className="flex flex-col gap-4 w-full max-w-sm">
+      <div className="w-full max-w-md space-y-4">
+        {/* New Game */}
         <button onClick={handleNewGame}
-          className="group flex items-center justify-between px-6 py-4 card-hover transition-all duration-200 cursor-pointer hover:translate-x-0.5">
-          <span className="text-base font-semibold text-ink">New Game</span>
-          <Play className="w-5 h-5 text-ink-soft group-hover:text-indigo transition-colors" />
+          className="w-full flex items-center justify-between px-5 py-4 card-hover border border-indigo/20 rounded-xl transition-all duration-200 cursor-pointer hover:translate-x-0.5 bg-indigo/5">
+          <span className="text-base font-bold text-indigo">+ New Game</span>
+          <Play className="w-5 h-5 text-indigo" />
         </button>
-        <button onClick={handleLoadGame} disabled={!canLoad}
-          className={`group flex items-center justify-between px-6 py-4 border rounded-[10px] transition-all duration-200 ${
-            canLoad ? 'card hover:border-indigo hover:translate-x-0.5 cursor-pointer' : 'bg-surface-2 border-border opacity-50 cursor-not-allowed'}`}>
-          <span className={`text-base font-semibold ${canLoad ? 'text-ink' : 'text-ink-soft'}`}>Load Game</span>
-          <Loader className={`w-5 h-5 ${canLoad ? 'text-ink-soft group-hover:text-indigo transition-colors' : 'text-ink-soft'}`} />
-        </button>
+
+        {/* Save Slots */}
+        <div className="space-y-2">
+          <div className="text-[11px] text-ink-soft font-semibold uppercase tracking-wider px-1">
+            Saved Games {!loading && `(${saves.length})`}
+          </div>
+
+          {loading ? (
+            <div className="text-center py-6 text-sm text-ink-soft">Loading...</div>
+          ) : saves.length === 0 ? (
+            <div className="text-center py-6 text-sm text-ink-soft border border-dashed border-border rounded-xl">
+              No saved games yet
+            </div>
+          ) : (
+            <div className="space-y-1.5 max-h-[320px] overflow-y-auto">
+              {saves.map(save => {
+                const product = save.selectedProduct ? PRODUCT_LABELS[save.selectedProduct] ?? save.selectedProduct : null;
+                return (
+                  <div key={save.id}
+                    className="group flex items-center gap-3 px-4 py-3 rounded-xl border border-border hover:border-indigo/30 hover:bg-indigo/5 transition-all cursor-pointer"
+                    onClick={() => handleLoad(save.id)}
+                  >
+                    {/* Slot number */}
+                    <div className="w-8 h-8 rounded-lg bg-surface-2 flex items-center justify-center text-xs font-bold text-ink-soft shrink-0">
+                      {save.id}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-semibold text-ink truncate">{product ?? 'Unknown'}</span>
+                        <span className="text-[11px] font-mono font-bold text-ink-soft">Month {save.month + 1}</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[11px] text-ink-soft mt-0.5">
+                        <span className="flex items-center gap-1"><DollarSign className="w-2.5 h-2.5" />{formatCash(save.cash)}</span>
+                        {save.currentUsers > 0 && <span className="flex items-center gap-1"><Users className="w-2.5 h-2.5" />{save.currentUsers.toLocaleString()}</span>}
+                        <span className="flex items-center gap-1"><Clock className="w-2.5 h-2.5" />{fmtDate(save.timestamp)}</span>
+                      </div>
+                    </div>
+
+                    {/* Delete */}
+                    <button onClick={e => { e.stopPropagation(); handleDelete(save.id); }}
+                      className="p-2 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-soft hover:text-red text-ink-soft transition-all cursor-pointer"
+                      title="Delete save">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Quit */}
         <button onClick={handleQuit}
-          className="group flex items-center justify-between px-6 py-4 card-hover transition-all duration-200 cursor-pointer mt-2 hover:translate-x-0.5">
-          <span className="text-base font-semibold text-ink">Keluar</span>
-          <Power className="w-5 h-5 text-ink-soft group-hover:text-red transition-colors" />
+          className="w-full flex items-center justify-between px-5 py-3.5 rounded-xl transition-all duration-200 cursor-pointer hover:translate-x-0.5 text-ink-soft hover:text-red hover:bg-red/5">
+          <span className="text-sm font-semibold">Keluar</span>
+          <Power className="w-4 h-4" />
         </button>
       </div>
 
-      <div className="absolute bottom-6 text-xs text-ink-soft font-mono">v1.5.4</div>
+      <div className="absolute bottom-6 text-xs text-ink-soft font-mono">v1.9</div>
     </div>
   );
 }
