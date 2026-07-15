@@ -36,7 +36,8 @@ export function CompetitorPanel() {
   const isMaximized = maximizedPanel === 'competitor';
 
   const activeCompetitors = competitors.filter(c => !c.delisted);
-  const playerValuation = currentUsers * 100;
+  const featureLevels = features.reduce((s, f) => s + f.level, 0);
+  const playerValuation = currentUsers * 80 + featureLevels * 5000;
   const hasFeatures = features.some(f => f.level > 0);
 
   const allEntries: { id: string; name: string; sector: CompetitorSector; valuation: number; userCount: number; growthRate: number; personality: string; isPlayer: boolean; hotSectorBadgeTicks: number; newBadgeTicks: number }[] = [];

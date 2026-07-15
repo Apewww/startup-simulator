@@ -1,5 +1,6 @@
 import { db, type GameSave } from '../db/gameDB';
 import { useGameStore } from '../store/gameStore';
+import { deduplicateNames, computeRankings } from './competitor';
 
 const GRID_COLS = 8;
 
@@ -133,6 +134,13 @@ export async function loadGame(slotId: number): Promise<boolean> {
     brandScore: save.brandScore ?? 10,
     currentSlotId: slotId,
   });
+
+  // Fix duplicate names & rankings from corrupted old saves
+  const competitors = useGameStore.getState().competitors;
+  if (competitors.length > 0) {
+    const fixed = computeRankings(deduplicateNames(competitors));
+    useGameStore.setState({ competitors: fixed });
+  }
 
   return true;
 }
