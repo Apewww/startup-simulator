@@ -133,8 +133,16 @@ function ToastContainer() {
 }
 
 function App() {
-  const { isPaused, speed, incrementTick, selectedProduct, devMode, toggleDevMode, isBankrupt, screen, darkMode, toggleDarkMode, maximizedPanel } = useGameStore();
+  const { isPaused, speed, incrementTick, selectedProduct, devMode, toggleDevMode, isBankrupt, screen, darkMode, toggleDarkMode, maximizedPanel, companyName } = useGameStore();
   const [saveMsg, setSaveMsg] = useState('');
+  const [showCompanyPrompt, setShowCompanyPrompt] = useState(false);
+  const [companyInput, setCompanyInput] = useState('');
+
+  useEffect(() => {
+    if (screen === 'playing' && !companyName && !showCompanyPrompt) {
+      setShowCompanyPrompt(true);
+    }
+  }, [screen, companyName]);
 
   useEffect(() => {
     if (isPaused || !selectedProduct || isBankrupt) return;
@@ -257,6 +265,36 @@ function App() {
           {devMode ? 'DEV ON' : 'DEV'}
         </button>
       )}
+      {showCompanyPrompt && (
+        <div className="fixed inset-0 z-[200] bg-black/40 flex items-center justify-center">
+          <div className="bg-surface border border-border rounded-xl p-6 w-80 shadow-xl">
+            <h3 className="text-sm font-bold text-ink mb-1">Name Your Company</h3>
+            <p className="text-[11px] text-ink-soft mb-4">This save doesn't have a company name yet. What should we call it?</p>
+            <input
+              type="text"
+              value={companyInput}
+              onChange={e => setCompanyInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && companyInput.trim()) { useGameStore.setState({ companyName: companyInput.trim() }); setShowCompanyPrompt(false); } }}
+              placeholder="Enter company name..."
+              maxLength={30}
+              autoFocus
+              className="w-full bg-surface-2 border border-border rounded-lg px-3 py-2 text-xs text-ink placeholder:text-ink-soft outline-none focus:border-indigo transition-colors mb-3"
+            />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowCompanyPrompt(false)}
+                className="px-3 py-1.5 text-[10px] font-semibold text-ink-soft hover:text-ink transition-colors cursor-pointer rounded-lg">
+                Skip
+              </button>
+              <button onClick={() => { if (companyInput.trim()) { useGameStore.setState({ companyName: companyInput.trim() }); setShowCompanyPrompt(false); } }}
+                className="px-4 py-1.5 text-[10px] font-semibold bg-indigo text-white rounded-lg hover:bg-indigo/90 transition-colors cursor-pointer disabled:opacity-50"
+                disabled={!companyInput.trim()}>
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <EventBanner />
     </div>
   );

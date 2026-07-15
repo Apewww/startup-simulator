@@ -109,8 +109,9 @@ export function CompetitorPanel() {
                   <span className="text-[11px] text-ink-soft">#{rank}</span>
                 )}
               </span>
-              <span className="w-1 h-1 rounded-full shrink-0" style={{ backgroundColor: SECTOR_COLORS[entry.sector] }} title={SECTOR_LABELS[entry.sector]} />
+              <span className="w-1 h-1 rounded-full shrink-0" style={{ backgroundColor: SECTOR_COLORS[entry.sector] }} />
               <span className={`font-semibold truncate ${rank === 1 ? 'font-bold' : ''}`}>{entry.name}</span>
+              <span className="text-[8px] px-1 py-[1px] rounded-sm font-semibold shrink-0 leading-none" style={{ backgroundColor: SECTOR_COLORS[entry.sector] + '20', color: SECTOR_COLORS[entry.sector] }}>{SECTOR_LABELS[entry.sector]}</span>
               {entry.isPlayer && <span className="text-[9px] text-indigo font-semibold shrink-0">(You)</span>}
               {isHot && <Flame className="w-3 h-3 text-orange-500 shrink-0" title="Hot sector spawn" />}
             </div>
