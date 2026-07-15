@@ -39,7 +39,7 @@ export function CompetitorPanel() {
   const playerValuation = currentUsers * 100;
   const hasFeatures = features.some(f => f.level > 0);
 
-  const allEntries: { id: string; name: string; sector: CompetitorSector; valuation: number; userCount: number; growthRate: number; personality: string; isPlayer: boolean; hotSectorBadgeTicks: number }[] = [];
+  const allEntries: { id: string; name: string; sector: CompetitorSector; valuation: number; userCount: number; growthRate: number; personality: string; isPlayer: boolean; hotSectorBadgeTicks: number; newBadgeTicks: number }[] = [];
 
   if (hasFeatures) {
     allEntries.push({
@@ -52,6 +52,7 @@ export function CompetitorPanel() {
       personality: 'balanced',
       isPlayer: true,
       hotSectorBadgeTicks: 0,
+      newBadgeTicks: 0,
     });
   }
 
@@ -66,6 +67,7 @@ export function CompetitorPanel() {
       personality: c.personality,
       isPlayer: false,
       hotSectorBadgeTicks: c.hotSectorBadgeTicks,
+      newBadgeTicks: c.newBadgeTicks,
     });
   }
 
@@ -88,6 +90,7 @@ export function CompetitorPanel() {
         const rank = idx + 1;
         const trend = entry.growthRate > 0.03 ? 'up' : entry.growthRate < -0.01 ? 'down' : 'flat';
         const isHot = entry.hotSectorBadgeTicks > 0;
+        const isNew = entry.newBadgeTicks > 0;
 
         const rankBg = rank === 1 ? 'bg-amber-soft/60 border-amber/20'
           : rank === 2 ? 'bg-surface-2 border-border'
@@ -115,6 +118,7 @@ export function CompetitorPanel() {
               <span className={`font-semibold truncate ${rank === 1 ? 'font-bold' : ''}`}>{entry.name}</span>
               {isMaximized && <span className="text-[8px] px-1 py-[1px] rounded-sm font-semibold shrink-0 leading-none" style={{ backgroundColor: SECTOR_COLORS[entry.sector] + '20', color: SECTOR_COLORS[entry.sector] }}>{SECTOR_LABELS[entry.sector]}</span>}
               {entry.isPlayer && <span className="text-[9px] text-indigo font-semibold shrink-0">(You)</span>}
+              {isNew && <span className="text-[8px] px-1 py-[1px] rounded-sm bg-green-soft text-green font-bold shrink-0 leading-none">NEW</span>}
               {isHot && <Flame className="w-3 h-3 text-orange-500 shrink-0" title="Hot sector spawn" />}
             </div>
 

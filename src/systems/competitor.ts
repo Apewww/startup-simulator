@@ -56,6 +56,7 @@ export function generateCompetitor(
     delistedAtMonth: 0,
     createdAtMonth: currentMonth,
     hotSectorBadgeTicks,
+    newBadgeTicks: 1,
     userCount: 1_000 + Math.floor(Math.random() * 5_000),
     monthlyRevenue: 100 + Math.floor(Math.random() * 400),
   };
@@ -96,6 +97,7 @@ export function updateCompetitorValuation(
     userCount: Math.max(10, newUsers),
     monthlyRevenue: Math.max(0, newRevenue),
     hotSectorBadgeTicks: Math.max(0, comp.hotSectorBadgeTicks - 1),
+    newBadgeTicks: Math.max(0, comp.newBadgeTicks - 1),
   };
 }
 
