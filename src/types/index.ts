@@ -11,3 +11,5 @@ export type { GameEvent, EventType, EventEffects } from './event';
 export type { Company } from './company';
 export type { AdLead, AdCampaign } from './adSales';
 export type { PricingTier, BusinessLoan } from './monetization';
+export type { CompetitorProduct, CompetitorSector, CompetitorPersonality } from './competitor';
+export type { MarketingCampaign, MarketingCampaignType, BrandMetrics } from './marketing';
