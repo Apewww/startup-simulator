@@ -56,7 +56,7 @@ export function generateCompetitor(
     delistedAtMonth: 0,
     createdAtMonth: currentMonth,
     hotSectorBadgeTicks,
-    newBadgeTicks: 1,
+    newBadgeTicks: 2,
     userCount: 1_000 + Math.floor(Math.random() * 5_000),
     monthlyRevenue: 100 + Math.floor(Math.random() * 400),
   };
@@ -72,7 +72,7 @@ export function generateInitialCompetitors(currentMonth: number, count: number =
     const comp = generateCompetitor(sector, currentMonth, usedNames);
     usedNames.add(comp.name);
     sectorCounts[sector]++;
-    competitors.push(comp);
+    competitors.push({ ...comp, newBadgeTicks: 0 });
   }
 
   return competitors;

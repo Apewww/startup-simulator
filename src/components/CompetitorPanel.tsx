@@ -90,23 +90,23 @@ export function CompetitorPanel() {
         const rank = idx + 1;
         const trend = entry.growthRate > 0.03 ? 'up' : entry.growthRate < -0.01 ? 'down' : 'flat';
         const isHot = entry.hotSectorBadgeTicks > 0;
-        const isNew = entry.newBadgeTicks > 0;
+        const isNew = entry.newBadgeTicks > 0 && !entry.isPlayer;
 
-        const rankBg = rank === 1 ? 'bg-amber-soft/60 border-amber/20'
+        const bgColor = rank === 1 ? 'bg-amber-soft/60 border-amber/20'
           : rank === 2 ? 'bg-surface-2 border-border'
           : rank === 3 ? 'bg-surface-2 border-border'
-          : '';
+          : isNew ? 'bg-blue-soft/40 border-blue/20'
+          : isHot && !isNew ? 'bg-orange-soft/40 border-orange/20'
+          : entry.isPlayer ? 'bg-indigo-soft border-indigo/20'
+          : 'border-transparent hover:bg-surface-2';
 
-        const rankStyle = rank === 1 ? 'py-2 text-xs'
-          : rank === 2 ? 'py-1.5 text-[11px]'
+        const rowStyle = rank === 1 ? 'py-2 text-xs'
           : 'py-1.5 text-[11px]';
 
         return (
           <div
             key={entry.id}
-            className={`flex items-center justify-between px-2 rounded-lg border ${rankStyle} ${
-              rankBg || (entry.isPlayer ? 'bg-indigo-soft border-indigo/20' : 'border-transparent hover:bg-surface-2')
-            } ${!rankBg && !entry.isPlayer ? 'border-transparent' : ''} ${entry.personality === 'aggressive' && !rankBg ? 'border-l-2 border-l-red/50' : ''}`}
+            className={`flex items-center justify-between px-2 rounded-lg border ${rowStyle} ${bgColor} ${entry.personality === 'aggressive' && rank > 3 && !isNew && !isHot ? 'border-l-2 border-l-red/50' : ''}`}
           >
             <div className="flex items-center gap-1.5 min-w-0 flex-1">
               <span className={`w-5 text-center font-bold shrink-0 ${rank === 1 ? 'text-base' : rank === 2 ? 'text-sm' : rank === 3 ? 'text-sm' : 'text-[11px]'}`}>
