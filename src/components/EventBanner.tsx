@@ -1,20 +1,26 @@
 import { useGameStore } from '../store/gameStore';
-import { Shield, Skull, TrendingUp, Activity, Zap } from 'lucide-react';
+import { Shield, Skull, TrendingUp, Activity, Zap, TrendingDown, BarChart3 } from 'lucide-react';
 
-const EVENT_ICONS = {
+const EVENT_ICONS: Record<string, typeof Shield> = {
   ddos: Shield,
   traffic_spike: TrendingUp,
   server_outage: Skull,
   pr_crisis: Activity,
   viral_growth: Zap,
+  market_boom: TrendingUp,
+  market_crash: TrendingDown,
+  sector_gold_rush: BarChart3,
 };
 
-const EVENT_COLORS = {
+const EVENT_COLORS: Record<string, string> = {
   ddos: 'border-red/30 bg-red-soft text-red',
   traffic_spike: 'border-green/30 bg-green-soft text-green',
   server_outage: 'border-red/40 bg-red-soft text-red',
   pr_crisis: 'border-amber/30 bg-amber-soft text-amber',
   viral_growth: 'border-green/40 bg-green-soft text-green',
+  market_boom: 'border-green/30 bg-green-soft text-green',
+  market_crash: 'border-red/30 bg-red-soft text-red',
+  sector_gold_rush: 'border-amber/30 bg-amber-soft text-amber',
 };
 
 export function EventBanner() {

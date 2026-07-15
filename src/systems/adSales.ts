@@ -1,5 +1,5 @@
 import type { AdLead, AdCampaign } from '../types';
-import { TICKS_PER_DAY } from '../store/gameStore';
+import { TICKS_PER_DAY } from '../constants';
 import { CLIENT_NAMES } from '../data/clientNames';
 
 let leadCounter = 0;

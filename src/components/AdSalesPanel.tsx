@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { useGameStore, TICKS_PER_DAY } from '../store/gameStore';
+import { useGameStore } from '../store/gameStore';
+import { TICKS_PER_DAY } from '../constants';
 import { Target, Search, X, RefreshCw, TrendingUp, Send, ToggleLeft, ToggleRight } from 'lucide-react';
 import { calcNegotiateChance, getSearchCap, calcSearchDuration } from '../systems/adSales';
 

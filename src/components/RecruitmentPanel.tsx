@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { UserCheck, Clock, X, User, Send, MessageSquare, CheckCircle, XCircle, Users as UsersIcon } from 'lucide-react';
-import { useGameStore, TICKS_PER_DAY } from '../store/gameStore';
+import { useGameStore } from '../store/gameStore';
+import { TICKS_PER_DAY } from '../constants';
 import { CAMPAIGN_COST, getCampaignTicks } from '../systems/recruitment';
 
 function formatCash(n: number): string {

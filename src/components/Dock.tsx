@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Users, LayoutGrid, Server, DollarSign, UserCheck, Gift, Target, Landmark } from 'lucide-react';
+import { Users, LayoutGrid, Server, DollarSign, UserCheck, Gift, Target, Landmark, BarChart3, Megaphone, Bug } from 'lucide-react';
 import { useGameStore, type PanelId } from '../store/gameStore';
 
 export const DOCK_ITEMS: { id: PanelId; label: string; shortcut: string; Icon: typeof Users; accent: string }[] = [
@@ -11,21 +11,28 @@ export const DOCK_ITEMS: { id: PanelId; label: string; shortcut: string; Icon: t
   { id: 'perks', label: 'Perks', shortcut: '6', Icon: Gift, accent: '#B7791F' },
   { id: 'adsales', label: 'Ad Sales', shortcut: '7', Icon: Target, accent: '#4F5EFF' },
   { id: 'banking', label: 'Bank', shortcut: '8', Icon: Landmark, accent: '#4F5EFF' },
+  { id: 'competitor', label: 'Market', shortcut: '9', Icon: BarChart3, accent: '#B7791F' },
+  { id: 'marketing', label: 'Brand', shortcut: '0', Icon: Megaphone, accent: '#D1453B' },
 ];
 
 export function Dock() {
   const panelOpen = useGameStore((s) => s.panelOpen);
   const togglePanel = useGameStore((s) => s.togglePanel);
+  const devMode = useGameStore((s) => s.devMode);
+
+  const items = devMode
+    ? [...DOCK_ITEMS, { id: 'dev' as PanelId, label: 'Dev', shortcut: '', Icon: Bug, accent: '#D1453B' }]
+    : DOCK_ITEMS;
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
-      const item = DOCK_ITEMS.find((d) => d.shortcut === e.key);
+      const item = items.find((d) => d.shortcut === e.key);
       if (item) togglePanel(item.id);
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [togglePanel]);
+  }, [togglePanel, items]);
 
   return (
     <nav
@@ -33,13 +40,13 @@ export function Dock() {
                  fixed bottom-0 left-0 right-0 z-30 md:static
                  bg-surface border-t md:border-t-0 md:border-r border-border"
     >
-      {DOCK_ITEMS.map(({ id, label, shortcut, Icon }) => {
+      {items.map(({ id, label, shortcut, Icon }) => {
         const active = panelOpen[id];
         return (
           <button
             key={id}
             onClick={() => togglePanel(id)}
-            title={`${label} (${shortcut})`}
+            title={`${label}${shortcut ? ` (${shortcut})` : ''}`}
             className={`flex items-center justify-center flex-1 md:flex-none w-auto md:w-11 h-11 rounded-[10px] transition-colors cursor-pointer ${
               active ? 'bg-indigo-soft text-indigo' : 'text-ink-soft hover:text-ink hover:bg-surface-2'
             }`}
