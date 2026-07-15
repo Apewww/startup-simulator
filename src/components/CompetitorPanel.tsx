@@ -36,13 +36,11 @@ export function CompetitorPanel() {
   const isMaximized = maximizedPanel === 'competitor';
 
   const activeCompetitors = competitors.filter(c => !c.delisted);
-  const featureLevels = features.reduce((s, f) => s + f.level, 0);
-  const playerValuation = currentUsers * 80 + featureLevels * 5000;
-  const hasFeatures = features.some(f => f.level > 0);
+  const playerValuation = currentUsers > 0 ? currentUsers * 80 : 0;
 
   const allEntries: { id: string; name: string; sector: CompetitorSector; valuation: number; userCount: number; growthRate: number; personality: string; isPlayer: boolean; hotSectorBadgeTicks: number; newBadgeTicks: number }[] = [];
 
-  if (hasFeatures) {
+  if (currentUsers > 0) {
     allEntries.push({
       id: 'player',
       name: companyName || 'You',
@@ -75,15 +73,15 @@ export function CompetitorPanel() {
   allEntries.sort((a, b) => b.valuation - a.valuation);
 
   const top50 = allEntries.slice(0, 50);
-  const playerEntry = hasFeatures ? allEntries.find(e => e.isPlayer) : null;
+  const playerEntry = currentUsers > 0 ? allEntries.find(e => e.isPlayer) : null;
   const playerRank = playerEntry ? allEntries.indexOf(playerEntry) + 1 : null;
   const playerInTop50 = playerRank !== null && playerRank <= 50;
 
   return (
     <div className="space-y-1">
-      {!hasFeatures && (
+      {currentUsers === 0 && (
         <div className="text-center py-6 text-ink-soft border border-dashed border-border rounded-lg text-xs">
-          Build features first to enter the market
+          Get users first to enter the market
         </div>
       )}
 
@@ -132,7 +130,7 @@ export function CompetitorPanel() {
       })}
 
       {/* Player outside top 50 — sticky bottom card */}
-      {hasFeatures && playerEntry && !playerInTop50 && playerRank && (
+      {currentUsers > 0 && playerEntry && !playerInTop50 && playerRank && (
         <div className="sticky bottom-0 mt-2 pt-2 border-t border-border bg-surface">
           <div className="flex items-center justify-between px-2 py-2 rounded-lg bg-indigo-soft border border-indigo/20 text-[11px]">
             <div className="flex items-center gap-1.5 min-w-0 flex-1">
