@@ -1,6 +1,8 @@
-# Upcoming Feature — "Market & Competition Era" (v1.9 - v2.3)
+# Upcoming Feature — "Market & Competition Era" (v1.9 - v2.3 + Wealth & Legacy)
 
-Dokumen roadmap & spec konsep untuk update besar berikutnya Startup Simulator, melanjutkan dari v1.8 (terakhir selesai). Fokus utama: mengubah "Kompetitor AI" (yang sebelumnya cuma 📝 Planned) menjadi ekosistem penuh: leaderboard 1000 produk, stock market, IPO, akuisisi, dan spawn kompetitor dinamis.
+Dokumen roadmap & spec konsep untuk update besar berikutnya Startup Simulator, melanjutkan dari v1.8 (terakhir selesai). Fokus utama: mengubah "Kompetitor AI" (yang sebelumnya cuma 📝 Planned) menjadi ekosistem penuh: leaderboard 1000 produk, stock market, IPO, akuisisi, spawn kompetitor dinamis, dan **sistem personal wealth & achievement** sebagai dual win condition.
+
+Rubah besar: game tidak lagi cuma "survive & grow". Ada **tujuan personal**: apakah kamu mau jadi #1 di leaderboard, atau mengakumulasi kekayaan pribadi sampai miliaran? Kepemilikan saham perusahaanmu sendiri menentukan seberapa banyak kamu bisa menarik uang — jadi funding/IPO bukan gratis, ada konsekuensi ownership.
 
 ---
 
@@ -21,9 +23,10 @@ Semua produk bisa **IPO**, diperjualbelikan sahamnya, saling akuisisi, dan salin
 |---|---|---|
 | v1.9 — Competition Era | Competitor AI dasar + Marketing & Branding System | ✅ Done (Fase A) |
 | v2.0 — Depth Update | R&D / Tech Tree + Investor Relations diperdalam | ✅ Done (Fase B) |
+| **v2.0.5 — Wealth & Legacy** | **Personal withdrawal, achievement/title system, dual win condition** | 📝 Planned |
 | **v2.1 — Market Update** | **Leaderboard 1000 produk + Stock Market + IPO + Akuisisi** (fokus dokumen ini) | 📝 Planned |
 | v2.2 — Scale Update | Multi-Product Portfolio + Global Expansion | 📝 Planned |
-| v2.3 — Endgame | IPO player sebagai win condition, prestige/new game+ | 📝 Planned |
+| v2.3 — Endgame | Win conditions finalization + prestige/new game+ | 📝 Planned |
 
 > Urutan ini dipilih karena Stock Market System butuh fondasi Competitor AI (v1.9) sudah berjalan lebih dulu — nggak ada gunanya bikin bursa saham kalau kompetitornya belum hidup.
 
@@ -139,6 +142,9 @@ Tiap kompetitor AI punya **personality** yang menentukan perilaku investasi:
 | `AcquisitionAlert.tsx` | Notifikasi saat distress trigger aktif / saat player mulai diakuisisi kompetitor |
 | `PortfolioPanel.tsx` | Daftar produk yang sudah diakuisisi/diinvestasi player, passive income summary |
 | `TakeoverCapitalBanner.tsx` | Notifikasi capital baru hasil takeover, CTA "Buat Produk Baru" |
+| `WealthPanel.tsx` | Personal withdrawal slider, current personal cash, ownership %, achievement progress |
+| `AchievementBadge.tsx` | Badge/title display di main menu & HUD |
+| `MainMenu.tsx` | (Update) Tambah section achievements — daftar title yang sudah di-unlock |
 
 ---
 
@@ -178,7 +184,99 @@ interface TakeoverEvent {
 
 ---
 
-## 10. Keputusan Desain yang Masih Perlu Diputuskan
+## 10. Personal Wealth & Achievement System (NEW — v2.0.5)
+
+Sistem yang memberi pemain tujuan personal di luar pertumbuhan perusahaan. Pemain bisa **menarik sebagian uang perusahaan** ke rekening pribadi, dan akumulasi uang pribadi ini membuka **achievement/title**.
+
+### 10.1 Personal Withdrawal Mechanic
+
+- UI baru: **Wealth Panel** — slider/tombol untuk menarik cash dari perusahaan ke `personalCash`
+- Penarikan **dibatasi oleh ownership %** pemain:
+  ```
+  maxWithdrawal = companyCash × (playerOwnership / 100)
+  ```
+  - Contoh: pemilik 80% → bisa tarik max 80% dari cash perusahaan
+  - Pemilik 40% → max 40% (sisa milik investor/kompetitor)
+- Tidak ada batasan frekuensi — pemain bisa tarik kapan saja selama ada cash
+- Penarikan **bukan pajak** — tidak ada penalti langsung, tapi company cash berkurang (risiko bankrupt)
+- Tujuan: memberi konsekuensi nyata pada equity — funding/IPO bukan cuma "dapat uang gratis"
+
+### 10.2 Achievement / Title System
+
+Title di-unlock saat `personalCash` mencapai milestone tertentu:
+
+| Title | Personal Cash Required | Label |
+|---|---|---|
+| Hustler | $100.000 | 💼 |
+| Founder | $500.000 | 🏗️ |
+| Tycoon | $1.000.000 | 💰 |
+| Mogul | $5.000.000 | 👑 |
+| Millionaire | $10.000.000 | 💎 |
+| Multi-Millionaire | $100.000.000 | 🔷 |
+| Billionaire | $1.000.000.000 | 🌟 |
+
+- Title terlihat di **Main Menu** (daftar achievement yang sudah di-unlock)
+- Title juga muncul di **HUD** saat bermain (sebagai label, misal "💼 Hustler")
+- Untuk saat ini: **tidak ada efek gameplay langsung** — murni prestise & replayability
+- Ke depannya: bisa dikaitkan dengan unlockable content (misal title tertentu buka starter perk)
+
+### 10.3 Dual Win Condition
+
+Game memiliki **2 cara "menang"** (tidak eksklusif — bisa kejar keduanya):
+
+1. **Leaderboard Champion** — produk player mencapai rank #1 dan bertahan ≥3 bulan
+2. **Self-Made Billionaire** — `personalCash` mencapai $1.000.000.000 (Billionaire title)
+
+Saat salah satu tercapai:
+- **Victory screen** muncul — statistik game (month bertahan, total funding, dll)
+- Opsi **New Game+** — restart dengan 1 title terpilih sebagai bonus starter
+- Tidak wajib berhenti — pemain bisa lanjut main (sandbox mode)
+
+### 10.4 Hubungan dengan Funding & IPO
+
+```
+[saham 100% milik player]
+    ↓ (accept funding → -equity%)
+[saham player turun, investor punya %]
+    ↓
+[player punya 60% → hanya bisa tarik 60% dari company cash]
+    ↓
+[IPO di masa depan → equity semakin terdilusi]
+    ↓
+[player cuma punya 20% (floor) → tarikan terbatas]
+```
+
+Ini menciptakan **trade-off alami**:
+
+| Keputusan | Dampak |
+|---|---|
+| Accept funding besar | Cash perusahaan naik ✅, ownership turun → withdrawal turun ❌ |
+| Tolak funding | Ownership tetap tinggi ✅, tapi growth lebih lambat ❌ |
+| Tarik uang sekarang | Personal cash naik ✅, company cash turun → risiko bankrupt ❌ |
+| Biarkan uang di perusahaan | Aman ✅, tapi personal wealth nggak naik ❌ |
+
+### 10.5 Data Model (Draft)
+
+```ts
+interface PlayerWealth {
+  personalCash: number;           // uang pribadi yang sudah ditarik
+  lifetimeWithdrawn: number;      // total sepanjang game (untuk achievement)
+  unlockedTitles: TitleId[];      // title yang sudah di-unlock
+}
+
+type TitleId = 'hustler' | 'founder' | 'tycoon' | 'mogul' | 'millionaire' | 'multi_millionaire' | 'billionaire';
+
+interface AchievementDef {
+  id: TitleId;
+  label: string;
+  icon: string;
+  requirement: number;            // personalCash threshold
+}
+```
+
+---
+
+## 11. Keputusan Desain yang Masih Perlu Diputuskan
 
 Sebelum masuk implementasi, beberapa hal berikut perlu difinalisasi:
 
@@ -187,10 +285,13 @@ Sebelum masuk implementasi, beberapa hal berikut perlu difinalisasi:
 3. **Skala leaderboard UI** — apakah perlu search/filter by sector, atau cukup top N + posisi player?
 4. **Frekuensi update valuasi AI** — per bulan (600 tick) cukup, atau perlu lebih granular untuk kesan "hidup"?
 5. **Game over condition** — kalau produk player (satu-satunya) diakuisisi penuh, apakah itu game over total, atau player lanjut dengan takeover capital ke venture baru?
+6. **Personal withdrawal tax/fee?** — apa perlu ada penalti % setiap tarik uang? Atau gratis?
+7. **Title effect?** — apakah title cuma prestise visual, atau perlu efek gameplay ringan (misal "Hustler" → starting cash +10%)?
+8. **New Game+ bonus?** — restart dengan title tertentu: apa bonusnya? Perlu didesain.
 
 ---
 
-## 11. Tahapan Pengerjaan (Build → Playtest → Balance)
+## 12. Tahapan Pengerjaan (Build → Playtest → Balance)
 
 Prinsip pengerjaan: **iteratif per fase**, bukan numpuk semua fitur baru balancing di akhir. Tiap fase harus melewati 3 tahap sebelum lanjut ke fase berikutnya.
 
@@ -219,7 +320,27 @@ Prinsip pengerjaan: **iteratif per fase**, bukan numpuk semua fitur baru balanci
    - Tuning baseTicks per tier, cost/waktu riset
    - Tuning threshold target investor & board satisfaction
 
-### Fase C — v2.1 "Market Update" (Fokus dokumen ini)
+### Fase B.5 — v2.0.5 "Wealth & Legacy"
+1. **Build**
+   - Types & data: `PlayerWealth`, `AchievementDef`, title definitions
+   - State: `personalCash`, `lifetimeWithdrawn`, `unlockedTitles` di gameStore
+   - System: `calcMaxWithdrawal(companyCash, playerOwnership)`, `checkAchievements(personalCash)`
+   - Action: `withdrawPersonal(amount)` — validasi ownership, kurangi company cash, tambah personal
+   - Action: `checkAchievements` — dipanggil tiap kali personalCash berubah
+   - UI: `WealthPanel.tsx` — slider withdrawal, personal cash display, achievement progress bar
+   - UI: `MainMenu.tsx` — (update) tambah section achievements, daftar title yang di-unlock
+   - UI: `HudBar.tsx` — (update) tampilkan current title & personal cash
+   - Save/Load: Dexie v17 — persist `personalCash`, `lifetimeWithdrawn`, `unlockedTitles`
+   - Victory screen: triggered saat rank #1 ≥3 bulan ATAU personalCash ≥ $1B
+2. **Playtest metric**
+   - Apakah trade-off funding vs withdrawal terasa bermakna?
+   - Apakah achievement threshold realistis (tidak terlalu mudah/sulit)?
+   - Apakah dual win condition jelas arahnya?
+3. **Balancing pass**
+   - Tuning achievement thresholds (§10.2)
+   - Tuning withdrawal vs company cash balance
+
+### Fase C — v2.1 "Market Update"
 1. **Build — urutan sub-tahap penting karena saling bergantung:**
    - a) Leaderboard 1000 produk (ranking read-only dulu, belum ada saham)
    - b) Formula valuasi + delisting/spawn logic
@@ -246,14 +367,17 @@ Prinsip pengerjaan: **iteratif per fase**, bukan numpuk semua fitur baru balanci
 3. **Balancing pass**
    - Tuning shared resource constraint, cost/benefit tiap region
 
-### Fase E — v2.3 "Endgame"
+### Fase E — v2.3 "Endgame" (Updated)
 1. **Build**
-   - IPO player sebagai win condition
-   - Victory screen / prestige / new game+ (opsional)
+   - Win condition finalization: mekanisme check rank #1 bertahan + personal wealth target
+   - Victory screen (statistik, title yang di-unlock, waktu tempuh)
+   - New Game+ implementation (restart dengan selected title → bonus starter)
+   - Prestige system (opsional — total lifetime wealth across all playthroughs)
 2. **Playtest metric**
-   - Apakah endgame terasa sebagai payoff yang memuaskan dari semua sistem sebelumnya?
+   - Apakah endgame terasa sebagai payoff yang memuaskan?
+   - Apakah New Game+ cukup menarik untuk replay?
 3. **Balancing pass**
-   - Tuning requirement IPO (valuasi minimum, dsb)
+   - Tuning requirement win condition (berapa bulan rank #1 bertahan? wealth threshold?)
    - **Di sinilah waktu yang tepat untuk investasi asset/visual premium** (lihat diskusi UI prototype vs final di bawah)
 
 ### Catatan Tambahan: Prototype vs Rebuild UI
@@ -263,7 +387,7 @@ Prinsip pengerjaan: **iteratif per fase**, bukan numpuk semua fitur baru balanci
 
 ---
 
-## 12. Dependency Check
+## 13. Dependency Check
 
 Fitur ini idealnya dibangun **setelah**:
 - ✅ Competitor AI dasar (v1.9) — supaya ada entity untuk diperdagangkan
