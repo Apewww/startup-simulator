@@ -1,126 +1,74 @@
 # Update V2.1 — Market Update
 
 **Induk:** `docs/upcoming_features v4.md` — Fase C (v2.1)
-**Tujuan:** Leaderboard 1000 produk + Stock Market + IPO + Akuisisi + Cross-Investment
+**Tujuan:** Leaderboard 1000 produk + Stock Market + Multi-AI Funding + Acquisition
 **Status:** ✅ Done
 
 ---
 
-## Sub-Tahap Build (urutan ketat karena saling bergantung)
+## Final Feature List
 
-### a) Leaderboard 1000 Produk (Ranking Read-Only, read-only dulu, belum ada saham)
-- [x] Perluas ranking dari 8+N → 1000 slot leaderboard (`MAX_RANK = 1000`)
-- [ ] Komposisi: produk player + kompetitor AI existing + kompetitor baru (spawn dinamis)
-- [ ] Ranking dihitung ulang tiap bulan in-game berdasarkan **Valuation Score**
-- [ ] Update UI `CompetitorPanel.tsx`: default show top 20 + posisi player + neighbor ranks (bukan full scroll 1000)
-- [ ] Slice data: hanya render rank terlihat + buffer (virtual scroll atau pagination)
+### Leaderboard & Market
+- Leaderboard 1000 slot — top 20 + player neighbor + Show All toggle
+- Search filter di MarketPanel (Leaderboard + Stocks)
+- Tab footer sticky: Leaderboard / Stocks
 
-### b) Formula Valuasi + Delisting/Spawn Logic
-- [x] Implementasi formula valuasi baru:
-  ```
-  Valuation = (MonthlyRevenue × 12 × RevenueMultiple)
-            + (currentUsers × UserValueFactor)
-            × cohesionScore
-            × growthMomentum
-  ```
-- [ ] `RevenueMultiple` & `UserValueFactor` per sector (social_media / ecommerce / search_engine)
-- [ ] `growthMomentum` = rasio pertumbuhan users 3 bulan terakhir
-- [ ] Update `updateCompetitorValuation()` — pakai formula baru, tidak hanya growth stokastik
-- [ ] Update valuasi player product pakai formula yang sama (konsisten)
-- [ ] Delisting: valuasi turun >70% dalam 6 bulan → delisted, slot leaderboard kosong
-- [ ] Spawn dinamis: tiap bulan chance spawn, dipengaruhi:
-  - Kategori "hot" (rata-rata growth tinggi) → spawn rate naik
-  - Slot kosong (hasil delisting) → prioritas diisi
-- [ ] Trait "Unicorn Candidate" — growth tinggi, volatility tinggi
+### Stock Market (Player → AI Competitors)
+- Buy/sell shares AI competitors via personalCash
+- Ownership progress bar + available shares %
+- Live cost/proceeds display, max buy indicator
+- No number spinners on input fields
 
-### c) Stock Market Panel (Player → Kompetitor, Satu Arah)
-- [ ] Data model: `MarketProduct` — perluas `CompetitorProduct` dengan:
-  - `sharePrice: number`
-  - `totalShares: number` (total 100% dipecah jadi unit saham)
-  - `ownership: OwnershipStake[]`
-- [ ] Type `OwnershipStake` — `ownerId` + `percentage`
-- [ ] Kalkulasi `sharePrice = valuation / totalShares`
-- [ ] UI `StockMarketPanel.tsx` — daftar produk AI di leaderboard:
-  - Harga saham, % kepemilikan tersedia
-  - Tombol Buy/Sell per produk
-  - Mini chart riwayat harga (opsional, data array harga per bulan)
-- [ ] Action `buyShares(productId, amount)` — kurangi cash player, tambah ownership
-- [ ] Action `sellShares(productId, amount)` — balikin ke cash player, kurangi ownership
+### Own Company Shares
+- Buyback own shares from AI via personalCash
+- Proportional aiStakes reduction
+- boardSatisfaction=100 + clear quarterlyTargets when fully owned
 
-### d) Ownership & Dividend System
-- [ ] Dividend payout periodik (tiap bulan):
-  - `dividend = monthlyRevenue × (ownershipPct / 100)`
-  - Player receives dividend dari produk yang diinvestasi
-- [ ] UI `PortfolioPanel.tsx`:
-  - Daftar produk yang sudah diinvestasi/diakuisisi player
-  - % kepemilikan, dividend tracker (total diterima)
-  - Passive income summary (total dividend/bulan)
-- [ ] Dividend masuk sebagai revenue line item di FinancePanel
+### Multi-AI Funding (replaces old single-investor)
+- Every 6 months, 3-5 AI competitors offer 2-10% each based on valuation
+- Company valuation must be ≥$100K to trigger
+- Max total external ownership: 80% hard cap
+- Offers shown in Board panel → Offers tab
 
-### e) Distress Trigger + AI Investment Logic (Kompetitor → Player, Dua Arah)
-- [ ] **Distress Trigger** — player kehilangan proteksi 20% floor saat:
-  - Cash negatif ≥3 bulan berturut-turut
-  - `cohesionScore` <30% selama ≥60 tick
-  - `currentUsers` churn tinggi ≥3 bulan
-- [ ] AI Personality behavior untuk investasi ke player:
-  - **Aggressive**: incar produk dengan distress trigger aktif, all-in buyback
-  - **Conservative**: hanya investasi ke produk stabil/growing
-  - **Opportunistic**: random weighted by undervaluation
-- [ ] Di luar distress: AI bisa beli saham player max 80% (20% locked)
-- [ ] Saat distress aktif: AI bisa beli melewati 20% floor menuju 100%
-- [ ] UI `AcquisitionAlert.tsx` — notifikasi saat distress trigger aktif / akuisisi dimulai
+### AI Stakeholder Demands
+- AI with ≥20% stake generates forced dilution demand every 6 months
+- 5-15% equity at 80% fair value price
+- Appears as red DEMAND card in Board panel Offers tab
 
-### f) Full Acquisition Logic + Takeover Capital Pool
-- [ ] 100% ownership oleh kompetitor → produk player **diakuisisi penuh**
-- [ ] Kontrol pindah ke entity pengakuisisi
-- [ ] Game over untuk produk itu, tapi player lanjut dengan **takeover capital**
-- [ ] Player bisa beli saham produk AI sampai 100% → produk masuk portfolio player
-- [ ] Produk yang diakuisisi penuh: passive income stream (revenue otomatis tiap bulan)
-- [ ] UI `TakeoverCapitalBanner.tsx` — notifikasi capital hasil takeover
-  - "Takeover Capital Available: $X — gunakan untuk luncurkan produk baru"
-  - CTA "Buat Produk Baru"
-- [ ] Capital di-earmark khusus untuk venture baru (pisah dari cash flow biasa)
+### Dividends
+- Monthly dividend = Σ competitor.monthlyRevenue × (ownership% / 100)
+- Goes to personalCash (not company cash)
+- Achievement check on dividend receipt
 
----
+### Wealth System
+- WealthPanel tabs: Withdraw / Deposit / History / Portfolio / Titles
+- Withdrawal: 1x per month, capped by ownership %
+- Deposit: personalCash → company cash
+- WealthLog: transaction history (withdraw, deposit, dividend, stock buy/sell)
+- Portfolio: investment list with dividend tracker
 
-## Data Model Baru
+### Board Panel (Investor Relations)
+- Sticky footer tabs: Offers / History
+- Offers tab: board satisfaction + quarterly targets + AI offers/demands
+- History tab: quarterly reports + funding round history
+- AI stakeholders summary
 
-### Types (`src/types/competitor.ts` — perluas)
-```ts
-interface MarketProduct {
-  id: string;
-  name: string;
-  sector: CompetitorSector;
-  isPlayerOwned: boolean;
-  valuation: number;
-  sharePrice: number;
-  totalShares: number;
-  ownership: OwnershipStake[];
-  growthRate: number;
-  volatility: number;
-  personality?: CompetitorPersonality;
-  distressActive: boolean;
-  rank: number;
-  delisted: boolean;
-}
+### Misc
+- 100 initial competitors with scaled ranking ($100M → $50K)
+- New spawns comparable to player valuation
+- TICKS_PER_DAY=24, TICKS_PER_MONTH=720 (1 tick = 1 hour)
+- Skip D/W/M/Y in Dev Panel → State tab
+- Bankrupt: only when cash truly depleted (3mo losses + cash negative)
+- try-catch incrementTick with console.error logging
+- Old save migration for new competitor fields
 
-interface OwnershipStake {
-  ownerId: string;       // 'player' atau id produk AI lain
-  percentage: number;    // 0-100
-}
-
-interface TakeoverEvent {
-  targetProductId: string;
-  buyerId: string;
-  sharesAcquired: number;
-  proceeds: number;
-  timestamp: number;     // tick
-}
-```
-
-### Store (`src/store/gameStore.ts`)
-- State: `marketProducts: MarketProduct[]`, `takeoverCapital: number`, `distressActive: boolean`
-- Actions: `buyShares`, `sellShares`, `payDividends`, `checkDistress`, `processTakeover`, `useTakeoverCapital`
+### Removed
+- Distress trigger & AI investment logic (aggressive/conservative/opportunistic)
+- AcquisitionAlert component
+- Old single-investor term sheet funding
+- FundingPanel from Finance panel
+- Portfolio as separate panel (merged into Wealth)
+- Speed buttons from HUD (replaced by 1x/2x/4x restored later)
 
 ---
 
@@ -128,10 +76,11 @@ interface TakeoverEvent {
 
 | File | Fungsi |
 |------|--------|
-| `src/components/StockMarketPanel.tsx` | Buy/sell saham, harga, mini chart, dividend tracker |
-| `src/components/PortfolioPanel.tsx` | Daftar investasi player, passive income summary |
-| `src/components/AcquisitionAlert.tsx` | Notifikasi distress / akuisisi berlangsung |
-| `src/components/TakeoverCapitalBanner.tsx` | Banner capital hasil takeover + CTA venture baru |
+| `src/components/StockMarketPanel.tsx` | Buy/sell saham AI + own company buyback |
+| `src/components/PortfolioPanel.tsx` | Investment list + dividend tracker (embedded in Wealth panel) |
+| `src/components/MarketPanel.tsx` | Tab container: Leaderboard + Stocks + search |
+| `src/components/TakeoverCapitalBanner.tsx` | Banner capital hasil takeover |
+| `src/components/AcquisitionAlert.tsx` | (removed) |
 
 ## Modified Files
 
@@ -139,81 +88,90 @@ interface TakeoverEvent {
 |------|----------|
 | `src/types/competitor.ts` | +OwnershipStake, PlayerMarketEntry; perluas CompetitorProduct (totalShares, sharePrice, ownership, userHistory, isUnicorn) |
 | `src/types/wealth.ts` | +WealthEntry, WealthEntryType |
+| `src/types/investorRelations.ts` | +AiFundingOffer (type, demandLabel, expiresAtMonth) |
 | `src/types/index.ts` | Barrel export baru |
-| `src/systems/competitor.ts` | Formula valuasi baru, growthMomentum via userHistory, generateInitialCompetitors(100), scaled ranking, targetValuation param |
-| `src/store/gameStore.ts` | +buyShares/sellShares (personalCash), +depositToCompany, +buybackShares, +wealthLog, +distressActive/Ticks, +takeoverCapital/acquiredBy, +lastWithdrawMonth; dividend→personalCash; AI investment; full acquisition check; try-catch tick |
-| `src/components/CompetitorPanel.tsx` | Perluas ke 1000, top20 + player neighbor + Show All toggle |
-| `src/components/StockMarketPanel.tsx` | **BARU** — buy/sell AI shares + buyback own company section |
-| `src/components/PortfolioPanel.tsx` | **BARU** — investasi player + dividend tracker |
-| `src/components/AcquisitionAlert.tsx` | **BARU** — distress indicator |
-| `src/components/TakeoverCapitalBanner.tsx` | **BARU** — takeover capital + CTA |
-| `src/components/WealthPanel.tsx` | Refactor ke tabs: Withdraw/Deposit/History/Titles |
-| `src/components/Dock.tsx` | +Stock Market, +Portfolio buttons |
 | `src/constants.ts` | +MAX_RANK=1000; TICKS_PER_DAY=20→24; TICKS_PER_MONTH=600→720 |
-| `src/db/gameDB.ts` | Dexie v18 + new fields (wealthLog, lastWithdrawMonth, etc.) |
-| `src/systems/saveLoad.ts` | Persist semua state baru; old-save migration (ownership, userHistory, dll) |
+| `src/systems/competitor.ts` | Formula valuasi baru, growthMomentum, generateInitialCompetitors(100), scaled ranking, targetValuation param, chooseSpawnSector, isUnicornSpawn |
+| `src/systems/wealth.ts` | calcMaxWithdrawal, calcPlayerOwnership, getCurrentTitle |
+| `src/systems/saveLoad.ts` | Persist semua state baru; old-save migration competitor fields |
+| `src/store/gameStore.ts` | buyShares/sellShares (personalCash), depositToCompany, buybackShares (aiStakes+board reset), wealthLog, distress dihapus, AI investment logic dihapus, multi-AI funding generation, forced demand generation, try-catch tick, skipTicks action, pendingFunding dihapus |
+| `src/db/gameDB.ts` | Dexie v18 + new fields |
+| `src/components/CompetitorPanel.tsx` | 1000 rank, top20+player neighbor+Show All, search filter |
+| `src/components/MarketPanel.tsx` | **BARU**: tab Leaderboard/Stocks + search + sticky footer |
+| `src/components/StockMarketPanel.tsx` | **BARU**: buy/sell UI + own company buyback + live cost/max shares |
+| `src/components/PortfolioPanel.tsx` | **BARU**: investment list + dividend tracker |
+| `src/components/WealthPanel.tsx` | Refactor ke 5 tabs: Withdraw/Deposit/History/Portfolio/Titles |
+| `src/components/InvestorRelationsPanel.tsx` | Refactor: sticky footer Offers/History tabs, AI stakeholders, AI offers + demands |
+| `src/components/Dock.tsx` | Portfolio dihapus |
+| `src/components/HudBar.tsx` | Speed 1x/2x/4x (skip dipindah ke DevPanel) |
+| `src/components/DevPanel.tsx` | Skip D/W/M/Y di tab State |
+| `src/components/FinancePanel.tsx` | Funding section dihapus |
+| `src/App.tsx` | Portfolio/AcquisitionAlert dihapus, MarketPanel added |
+| `src/components/FundingPanel.tsx` | (orphaned — no longer used) |
 
 ---
 
-## UI/UX Baru
+## Data Model (Final)
 
-| Komponen | Fungsi |
-|---|---|
-| `StockMarketPanel.tsx` | Daftar produk + harga saham + Buy/Sell |
-| `PortfolioPanel.tsx` | Investasi player + dividend summary |
-| `AcquisitionAlert.tsx` | Notifikasi distress/akuisisi |
-| `TakeoverCapitalBanner.tsx` | Banner capital + CTA venture baru |
+```ts
+interface CompetitorProduct {
+  id: string; name: string; sector: CompetitorSector;
+  valuation: number; growthRate: number; volatility: number;
+  personality: CompetitorPersonality;
+  rank: number; delisted: boolean; delistedAtMonth: number;
+  createdAtMonth: number; userCount: number; monthlyRevenue: number;
+  hotSectorBadgeTicks: number; newBadgeTicks: number;
+  userHistory: number[]; isUnicorn: boolean;
+  totalShares: number; sharePrice: number;
+  ownership: OwnershipStake[];
+}
+
+interface OwnershipStake {
+  ownerId: string; percentage: number;
+}
+
+interface AiFundingOffer {
+  id: string; aiId: string; aiName: string;
+  amount: number; equityGiven: number;
+  type: 'offer' | 'demand';
+  demandLabel?: string; expiresAtMonth: number;
+}
+
+interface WealthEntry {
+  type: 'withdraw' | 'deposit' | 'dividend' | 'stock_buy' | 'stock_sell';
+  amount: number; personalCash: number; month: number;
+}
+```
 
 ---
 
 ## Checklist
 
-- [x] Leaderboard 1000 slot (read-only) — top 20 + player neighbor + Show All toggle
-- [x] Formula valuasi baru (RevenueMultiple, UserValueFactor, growthMomentum via userHistory)
-- [x] Delisting (70% user drop over tracked period)
-- [x] Spawn dinamis (hot sector, slot kosong, Unicorn trait)
-- [x] StockMarketPanel — buy/sell saham ke AI competitors
-- [x] Ownership & dividend system — monthly dividend payout
-- [x] Distress trigger check (cash, cohesion, churn) — 60 tick threshold
-- [x] AI investment logic (3 personality: aggressive/conservative/opportunistic)
-- [x] Full acquisition (100% ownership → game over + takeover capital)
-- [x] Takeover capital pool + banner + venture CTA
-- [x] Portfolio panel — daftar investasi player + dividend tracker
-- [x] AcquisitionAlert — distress indicator in HUD
-- [x] Buy/sell pakai personalCash (bukan company cash)
-- [x] DepositToCompany — wealth → company cash transfer
-- [x] WealthLog — transaction history (withdraw/deposit/dividend/stock)
-- [x] WealthPanel tabs: Withdraw / Deposit / History / Titles
-- [x] Remaining shares info + progress bar di StockMarketPanel
-- [x] 100 initial competitors dengan scaled ranking (top $100M → bottom $50K)
-- [x] New spawn valuation comparable to player level
-- [x] Player buyback own shares from AI via personalCash
-- [x] Ticks per day: 20→24, ticks per month: 600→720 (1 tick = 1 jam)
-- [x] Fix: null guard ownership/userHistory (tick crash old saves)
-- [x] Fix: try-catch incrementTick + console.error logging
-- [x] Dexie v18 + save/load semua state baru
+- [x] Leaderboard 1000 slot (top20 + neighbor + Show All)
+- [x] Search filter MarketPanel
+- [x] Formula valuasi (RevenueMultiple, UserValueFactor, growthMomentum)
+- [x] 100 initial competitors scaled ($100M → $50K)
+- [x] Unicorn trait, delisting, hot sector spawn
+- [x] StockMarketPanel — buy/sell AI shares (personalCash)
+- [x] Own company buyback (aiStakes + board reset)
+- [x] Ownership tracking + progress bar + available % + max buy indicator
+- [x] No number spinners on input fields
+- [x] Multi-AI funding (3-5 AI, 2-10% each, ≥$100K valuation)
+- [x] Forced demands (AI ≥20%, every 6mo, dilution)
+- [x] Investor Relations footer tabs (Offers/History)
+- [x] WealthPanel 5 tabs (Withdraw/Deposit/History/Portfolio/Titles)
+- [x] WealthLog transaction history
+- [x] Deposit wealth → company
+- [x] Dividend → personalCash + achievement check
+- [x] Withdrawal 1x per month
+- [x] Distress trigger removed, AI investment logic removed
+- [x] Old FundingPanel removed, history moved to Board
+- [x] Portfolio merged into Wealth (not standalone panel)
+- [x] Skip D/W/M/Y in DevPanel State tab
+- [x] Speed 1x/2x/4x in HUD
+- [x] Bankrupt: 3mo losses + cash negative
+- [x] TICKS_PER_DAY=24, TICKS_PER_MONTH=720
+- [x] Old save migration + null guards
+- [x] try-catch incrementTick + console.error
+- [x] Dexie v18 save/load
 - [x] Build sukses (tsc -b + vite build)
-- [x] Funding history removed from Finance panel → moved to Board panel History tab
-- [x] Investor Relations panel: sticky footer tabs (Offers / History)
-- [x] AI stakeholder ≥20% → forced demand every 6 months (dilution)
-- [x] Funding offer types: offer (voluntary) vs demand (forced dilution)
-
----
-
-## Dependency Check
-
-Fitur ini dibangun di atas fondasi:
-- ✅ Competitor AI (v1.9) — entity untuk diperdagangkan
-- ✅ Marketing & Branding (v1.9) — brand memengaruhi valuasi
-- ✅ Market Events (v1.9) — boom/crash/gold rush pengaruh market
-- ✅ Funding/Investor Relations (v2.0) — equity distribution
-- ✅ Personal Wealth & Achievement (v2.0.5) — ownership % batasi withdrawal
-- ✅ Board satisfaction (v2.0.5) — distress trigger terkait board
-
-Sebelum:
-- v2.2 — Multi-Product Portfolio (butuh mekanisme saham yang matang)
-- v2.3 — Endgame (butuh stock market sebagai komponen win condition)
-
----
-
-*Dokumen ini adalah working spec, akan diperbarui seiring progress implementasi.*

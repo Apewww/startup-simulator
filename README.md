@@ -347,7 +347,7 @@ IndexedDB via Dexie.js. Autosave tiap 60 detik. Field: tick, cash, employees, re
 | DDoS crash bonus | +15% crash chance |
 | Bangkrut | 3 bulan cash negatif |
 | Sell refund | 50% harga |
-| DB version | 18 |
+| DB version | 19 |
 
 ---
 
@@ -372,7 +372,8 @@ IndexedDB via Dexie.js. Autosave tiap 60 detik. Field: tick, cash, employees, re
 | v1.9 — Competition Era (Competitor AI + Marketing) | ✅ |
 | v2.0 — Depth Update (R&D Tech Tree + Investor Relations) | ✅ |
 | v2.0.5 — Wealth & Legacy (Personal Wealth + Achievements) | ✅ |
-| v2.1 — Market Update (Leaderboard 1000 + Stock Market + IPO + Acquisition) | ✅ |
+| v2.1 — Market Update (Leaderboard 1000 + Stock Market + Multi-AI Funding) | ✅ |
+| v2.2 — Scale Update (Multi-Product + Global Expansion) | 📝 Planned |
 
 ---
 

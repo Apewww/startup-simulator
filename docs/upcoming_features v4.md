@@ -24,7 +24,7 @@ Semua produk bisa **IPO**, diperjualbelikan sahamnya, saling akuisisi, dan salin
 | v1.9 — Competition Era | Competitor AI dasar + Marketing & Branding System | ✅ Done (Fase A) |
 | v2.0 — Depth Update | R&D / Tech Tree + Investor Relations diperdalam | ✅ Done (Fase B) |
 | **v2.0.5 — Wealth & Legacy** | **Personal withdrawal, achievement/title system, dual win condition** | ✅ Done |
-| **v2.1 — Market Update** | **Leaderboard 1000 produk + Stock Market + IPO + Akuisisi** (fokus dokumen ini) | ✅ Done (Fase C) |
+| **v2.1 — Market Update** | **Leaderboard 1000 produk + Stock Market + Multi-AI Funding + Akuisisi** | ✅ Done (Fase C) |
 | v2.2 — Scale Update | Multi-Product Portfolio + Global Expansion | 📝 Planned |
 | v2.3 — Endgame | Win conditions finalization + prestige/new game+ | 📝 Planned |
 
@@ -343,19 +343,19 @@ Prinsip pengerjaan: **iteratif per fase**, bukan numpuk semua fitur baru balanci
 
 ### Fase C — v2.1 "Market Update" ✅ Done
 1. **Build — urutan sub-tahap penting karena saling bergantung:**
-   - ✅ a) Leaderboard 1000 produk (ranking + top20 + player neighbor + Show All toggle)
-   - ✅ b) Formula valuasi (RevenueMultiple, UserValueFactor, growthMomentum) + delisting/spawn unicorn
-   - ✅ c) Stock Market Panel — buy/sell saham AI competitors
-   - ✅ d) Ownership & dividend system — monthly dividend payout
-   - ✅ e) Distress trigger + AI investment logic (3 personality: aggressive/conservative/opportunistic)
-   - ✅ f) Full acquisition logic (100% ownership → game over + takeover capital pool)
+   - ✅ a) Leaderboard 1000 produk (ranking + top20 + player neighbor + Show All toggle + search filter)
+   - ✅ b) Formula valuasi (RevenueMultiple, UserValueFactor, growthMomentum) + 100 initial competitors scaled
+   - ✅ c) Stock Market Panel — buy/sell saham AI competitors via personalCash + own company buyback
+   - ✅ d) Ownership & dividend system — monthly dividend payout → personalCash
+   - ✅ e) Multi-AI funding (3-5 AI, 2-10% each, based on valuation) + forced demands (AI≥20%)
+   - ✅ f) Full acquisition → takeover capital pool
 2. **Playtest metric yang dicek**
    - Apakah ranking leaderboard terasa "hidup" (posisi berubah masuk akal, nggak random liar)?
-   - Apakah distress trigger ke-trigger di waktu yang wajar (nggak terlalu gampang/susah)?
-   - Apakah AI investment behavior masuk akal per personality (aggressive vs conservative kerasa beda)?
+   - Apakah funding AI offer pricing terasa wajar?
+   - Apakah forced demand dari AI stakeholder balanced?
    - Apakah takeover capital cukup buat mulai venture baru (nggak terlalu kecil/besar)?
 3. **Balancing pass**
-   - Tuning formula valuasi (§3.2), threshold distress (§4.2), spawn rate kompetitor (§7.1)
+   - Tuning formula valuasi (§3.2), spawn rate kompetitor (§7.1)
    - **Ini fase paling kompleks — sisihkan waktu balancing paling lama di sini**
 
 ### Fase D — v2.2 "Scale Update"
