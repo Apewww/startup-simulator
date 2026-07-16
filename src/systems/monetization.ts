@@ -17,6 +17,8 @@ export interface MonetizationOptions {
   dataRatio: number;
   synergyActive: boolean;
   pricingRevenueMult?: number;
+  researchAdRevMult?: number;
+  researchSubRevMult?: number;
 }
 
 export interface MonetizationMods {
@@ -166,6 +168,10 @@ export function calculateRevenue(
   freemium = Math.round(freemium * (1 + synergyRevenueBonus));
 
   const pricingMult = opts?.pricingRevenueMult ?? 1;
+  const adRevMult = opts?.researchAdRevMult ?? 1;
+  const subRevMult = opts?.researchSubRevMult ?? 1;
+  ads = Math.round(ads * adRevMult);
+  subscription = Math.round(subscription * subRevMult);
   const total = Math.round((ads + subscription + freemium + b2b) * pricingMult);
   const hasSubscription = subscription > 0;
   return { ads, subscription, b2b, freemium, total, hasSubscription, uptimePenalty: penalty };

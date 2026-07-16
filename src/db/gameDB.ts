@@ -1,6 +1,8 @@
 import Dexie, { type Table } from 'dexie';
 import type { Employee, ComponentResource, PlatformFeature, ServerRack, Plot, RentedServer, ServerNode, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetSubscription, AdLead, AdCampaign, CompetitorProduct, MarketingCampaign } from '../types';
 import type { GameSpeed, GameScreen, MonthlySnapshot, MonetizationStrategy } from '../store/gameStore';
+import type { ActiveResearch } from '../types/research';
+import type { BoardTarget, QuarterlyReport, TermSheet } from '../types/investorRelations';
 
 export interface GameSave {
   id: number;
@@ -26,6 +28,7 @@ export interface GameSave {
   isBankrupt: boolean;
   negativeCashMonths: number;
   screen: GameScreen;
+  companyName?: string;
   cashFlowHistory: MonthlySnapshot[];
   fundingRounds: FundingRound[];
   pendingFunding: FundingRound | null;
@@ -53,6 +56,18 @@ export interface GameSave {
   competitors?: CompetitorProduct[];
   marketingCampaigns?: MarketingCampaign[];
   brandScore?: number;
+  activeResearch?: ActiveResearch | null;
+  unlockedTechs?: string[];
+  boardSatisfaction?: number;
+  currentQuarter?: number;
+  quarterlyTargets?: BoardTarget[];
+  quarterlyHistory?: QuarterlyReport[];
+  termSheet?: TermSheet | null;
+  totalEquityGiven?: number;
+  personalCash?: number;
+  lifetimeWithdrawn?: number;
+  unlockedTitles?: string[];
+  victoryAchieved?: boolean;
 }
 
 export class GameDB extends Dexie {
@@ -75,6 +90,8 @@ export class GameDB extends Dexie {
     this.version(13).stores({ saves: '++id, timestamp' });
     this.version(14).stores({ saves: '++id, timestamp' });
     this.version(15).stores({ saves: '++id, timestamp' });
+    this.version(16).stores({ saves: '++id, timestamp' });
+    this.version(17).stores({ saves: '++id, timestamp' });
   }
 }
 

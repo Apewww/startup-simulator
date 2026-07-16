@@ -225,6 +225,50 @@ export function DevPanel() {
               <div className="text-ink-soft text-[10px] mt-1">{perkPoints} points · {unlockedPerks.length} perks</div>
             </DevSection>
 
+            <DevSection title="R&D / Tech Tree">
+              <div className="flex flex-wrap gap-1">
+                <button onClick={() => {
+                  const state = useGameStore.getState();
+                  const allIds = ['efficient_coding','ui_framework','ad_optimization','distributed_systems','user_analytics','programmatic_ads','edge_computing','recommendation_engine','subscription_plus','quantum_crawler','ai_personalization','market_intelligence'];
+                  state.unlockedTechs.forEach(id => { if (!allIds.includes(id)) allIds.push(id); });
+                  useGameStore.setState({ unlockedTechs: allIds });
+                }} className="px-2 py-1 bg-indigo hover:bg-indigo/90 text-white rounded-lg text-[10px]">Unlock All</button>
+                <button onClick={() => useGameStore.setState({ activeResearch: null, employees: useGameStore.getState().employees.map(e => e.currentTask?.startsWith('research:') ? { ...e, currentTask: null, taskProgress: 0 } : e) })}
+                  className="px-2 py-1 bg-amber hover:bg-amber/90 text-white rounded-lg text-[10px]">Cancel Research</button>
+              </div>
+              <div className="text-ink-soft text-[10px] mt-1">{useGameStore.getState().unlockedTechs.length} techs unlocked</div>
+            </DevSection>
+
+            <DevSection title="Investor Relations">
+              <div className="flex flex-wrap gap-1">
+                <button onClick={() => useGameStore.setState({ boardSatisfaction: Math.min(100, useGameStore.getState().boardSatisfaction + 20) })}
+                  className="px-2 py-1 bg-green hover:bg-green/90 text-white rounded-lg text-[10px]">+20 Satisfaction</button>
+                <button onClick={() => useGameStore.setState({ boardSatisfaction: Math.max(0, useGameStore.getState().boardSatisfaction - 20) })}
+                  className="px-2 py-1 bg-red hover:bg-red/90 text-white rounded-lg text-[10px]">-20 Satisfaction</button>
+                <button onClick={async () => {
+                  const state = useGameStore.getState();
+                  if (state.quarterlyTargets.length === 0 && state.month > 0) {
+                    const { generateQuarterlyTargets: gen } = await import('../systems/investorRelations');
+                    const targets = gen(state.currentQuarter, state.currentUsers || 10000, 5000, 50, 0.5, 100);
+                    useGameStore.setState({ quarterlyTargets: targets });
+                  }
+                }} className="px-2 py-1 bg-amber hover:bg-amber/90 text-white rounded-lg text-[10px]">Gen Targets</button>
+              </div>
+              <div className="text-ink-soft text-[10px] mt-1">{useGameStore.getState().boardSatisfaction}% satisfaction</div>
+            </DevSection>
+
+            <DevSection title="Wealth">
+              <div className="flex flex-wrap gap-1">
+                <button onClick={() => useGameStore.setState({ personalCash: useGameStore.getState().personalCash + 1000000 })}
+                  className="px-2 py-1 bg-green hover:bg-green/90 text-white rounded-lg text-[10px]">+$1M Personal</button>
+                <button onClick={() => {
+                  const ach = ['hustler','founder','tycoon','mogul','millionaire','multi_millionaire','billionaire'];
+                  useGameStore.setState({ unlockedTitles: ach, personalCash: 1_000_000_000 });
+                }} className="px-2 py-1 bg-indigo hover:bg-indigo/90 text-white rounded-lg text-[10px]">Unlock All Titles</button>
+              </div>
+              <div className="text-ink-soft text-[10px] mt-1">{useGameStore.getState().unlockedTitles.length} titles</div>
+            </DevSection>
+
             <DevSection title="Game State">
               <div className="text-[10px] text-ink-soft">Tick: {useGameStore.getState().tick} | Month: {useGameStore.getState().month}</div>
               <button onClick={() => { const s = useGameStore.getState(); for (let i = 0; i < 20; i++) s.incrementTick(); }}
