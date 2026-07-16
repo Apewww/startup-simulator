@@ -260,6 +260,7 @@ interface GameState {
   distressTicks: number;
   takeoverCapital: number;
   acquiredBy: string | null;
+  lastWithdrawMonth: number;
 }
 
 function calcTotalSalary(employees: Employee[]): number {
@@ -312,6 +313,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   distressTicks: 0,
   takeoverCapital: 0,
   acquiredBy: null,
+  lastWithdrawMonth: -1,
   nextCompetitorCheck: 600,
   devMode: false,
   currentSlotId: null,
@@ -837,7 +839,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
       const campaignCost = state.campaignCostThisMonth;
       const researchCost = getActiveResearchMonthlyCost(state.activeResearch);
-      // v2.1 — Dividend income from stock investments
+      // v2.1 — Dividend income → personal cash (investment return, not company revenue)
       const dividendIncome = state.competitors.reduce((sum, comp) => {
         if (comp.delisted) return sum;
         const playerStake = comp.ownership.find(o => o.ownerId === 'player');
@@ -845,10 +847,22 @@ export const useGameStore = create<GameState>((set, get) => ({
         return sum + Math.round(comp.monthlyRevenue * (playerStake.percentage / 100));
       }, 0);
       if (dividendIncome > 0) {
-        get().addNotification(`📊 Dividend income: $${dividendIncome.toLocaleString()} from ${state.competitors.filter(c => c.ownership.some(o => o.ownerId === 'player')).length} holdings`, 'info');
+        const newPersonal = state.personalCash + dividendIncome;
+        const newLifetime = state.lifetimeWithdrawn + dividendIncome;
+        set({ personalCash: newPersonal, lifetimeWithdrawn: newLifetime });
+        // Check achievements from dividend income
+        const newTitles = checkNewAchievements(newPersonal, state.unlockedTitles);
+        for (const t of newTitles) {
+          get().addNotification(`Achievement unlocked: ${t.icon} ${t.label}!`, 'success');
+          markAchievementObtained(t.id);
+        }
+        if (newTitles.length > 0) {
+          set({ unlockedTitles: [...state.unlockedTitles, ...newTitles.map(t => t.id)] });
+        }
+        get().addNotification(`📊 Dividend income: $${dividendIncome.toLocaleString()} → personal cash: $${newPersonal.toLocaleString()}`, 'info');
       }
       const newTotalDividends = state.totalDividendsReceived + dividendIncome;
-      cashChange = revenue.total + adCampaignMonthly + dividendIncome - (newTotalSalary + serverCost + loanPayment + campaignCost + researchCost);
+      cashChange = revenue.total + adCampaignMonthly - (newTotalSalary + serverCost + loanPayment + campaignCost + researchCost);
 
       // Loan payment tracking
       if (state.loan?.status === 'active') {
@@ -876,7 +890,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       const snapshot: MonthlySnapshot = {
         month: newMonth,
-        revenue: revenue.total + adCampaignMonthly + dividendIncome,
+        revenue: revenue.total + adCampaignMonthly,
         expenses: newTotalSalary + serverCost + campaignCost,
         net: cashChange,
         cash: state.cash + cashChange,
@@ -1358,7 +1372,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     resetNameGenerator();
     const initialCompetitors = generateInitialCompetitors(0, 8);
     const rankedCompetitors = computeRankings(initialCompetitors);
-    set({ selectedProduct: productId, features, screen: 'playerSetup', currentUsers: 0, userMood: 80, internetSubscriptions: [], adLeads: [], adCampaigns: [], adSalesUnlockNotified: false, activePricingTier: getDefaultPricingTier(productId), loan: null, creditScore: 50, missedPaymentTicks: 0, competitors: rankedCompetitors, brandScore: 10, marketingCampaigns: [], takeoverCapital: 0, acquiredBy: null });
+    set({ selectedProduct: productId, features, screen: 'playerSetup', currentUsers: 0, userMood: 80, internetSubscriptions: [], adLeads: [], adCampaigns: [], adSalesUnlockNotified: false, activePricingTier: getDefaultPricingTier(productId), loan: null, creditScore: 50, missedPaymentTicks: 0, competitors: rankedCompetitors, brandScore: 10, marketingCampaigns: [], takeoverCapital: 0, acquiredBy: null, lastWithdrawMonth: -1 });
   },
 
   setMonetizationStrategy: (strategy) => {
@@ -1586,6 +1600,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   withdrawPersonal: (amount: number) => {
     const state = get();
     if (amount <= 0) return;
+    if (state.month === state.lastWithdrawMonth) {
+      get().addNotification('Already withdrew this month — wait until next month', 'warning');
+      return;
+    }
     if (amount > state.cash) {
       get().addNotification('Not enough company cash', 'warning');
       return;
@@ -1602,6 +1620,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       cash: state.cash - amount,
       personalCash: newPersonal,
       lifetimeWithdrawn: newLifetime,
+      lastWithdrawMonth: state.month,
     });
 
     // Check achievements
@@ -2859,6 +2878,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       distressTicks: 0,
       takeoverCapital: 0,
       acquiredBy: null,
+      lastWithdrawMonth: -1,
     });
   },
 }));

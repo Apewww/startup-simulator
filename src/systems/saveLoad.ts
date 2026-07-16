@@ -73,6 +73,7 @@ function serialize(): Omit<GameSave, 'id' | 'timestamp'> {
     distressTicks: s.distressTicks,
     takeoverCapital: s.takeoverCapital,
     acquiredBy: s.acquiredBy,
+    lastWithdrawMonth: s.lastWithdrawMonth,
   };
 }
 
@@ -166,6 +167,7 @@ export async function loadGame(slotId: number): Promise<boolean> {
     distressTicks: (save as any).distressTicks ?? 0,
     takeoverCapital: (save as any).takeoverCapital ?? 0,
     acquiredBy: (save as any).acquiredBy ?? null,
+    lastWithdrawMonth: (save as any).lastWithdrawMonth ?? -1,
     currentSlotId: slotId,
   });
 

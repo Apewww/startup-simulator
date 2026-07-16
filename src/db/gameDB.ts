@@ -73,6 +73,7 @@ export interface GameSave {
   distressTicks?: number;
   takeoverCapital?: number;
   acquiredBy?: string | null;
+  lastWithdrawMonth?: number;
 }
 
 export class GameDB extends Dexie {
