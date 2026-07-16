@@ -39,7 +39,7 @@ interface HudBarProps {
 }
 
 export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps) {
-  const { tick, isPaused, speed, cash, month, features, racks, rentedServers, totalSalary, togglePause, setSpeed, negativeCashMonths, pendingFunding, currentUsers, events, selectedProduct, employees, activeMonetization, userMood, internetSubscriptions, activePricingTier, adCampaigns, loan, brandScore } = useGameStore();
+  const { tick, isPaused, speed, cash, month, features, racks, rentedServers, totalSalary, togglePause, setSpeed, negativeCashMonths, pendingFunding, currentUsers, events, selectedProduct, employees, activeMonetization, userMood, internetSubscriptions, activePricingTier, adCampaigns, loan, brandScore, personalCash, unlockedTitles } = useGameStore();
   const platformStats = getPlatformStats(features, events, selectedProduct);
   const bankruptWarning = negativeCashMonths > 0;
 
@@ -157,6 +157,18 @@ export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps
           return (
             <span className={`text-[9px] shrink-0 ${brandColor}`} title={`Brand ${Math.round(brandScore)}/100`}>
               <Megaphone className="w-2.5 h-2.5 inline" />{Math.round(brandScore)}
+            </span>
+          );
+        })()}
+
+        {/* Personal wealth */}
+        {personalCash > 0 && (() => {
+          const currentTitle = unlockedTitles.length > 0 ? unlockedTitles[unlockedTitles.length - 1] : null;
+          const titleIcons: Record<string, string> = { hustler: '💼', founder: '🏗️', tycoon: '💰', mogul: '👑', millionaire: '💎', multi_millionaire: '🔷', billionaire: '🌟' };
+          const icon = currentTitle ? titleIcons[currentTitle] ?? '' : '';
+          return (
+            <span className="text-[9px] text-green shrink-0" title="Personal wealth">
+              {icon}{formatCash(personalCash)}
             </span>
           );
         })()}

@@ -64,6 +64,10 @@ function serialize(): Omit<GameSave, 'id' | 'timestamp'> {
     quarterlyHistory: s.quarterlyHistory,
     termSheet: s.termSheet,
     totalEquityGiven: s.totalEquityGiven,
+    personalCash: s.personalCash,
+    lifetimeWithdrawn: s.lifetimeWithdrawn,
+    unlockedTitles: s.unlockedTitles,
+    victoryAchieved: s.victoryAchieved,
   };
 }
 
@@ -148,6 +152,10 @@ export async function loadGame(slotId: number): Promise<boolean> {
     quarterlyHistory: (save as any).quarterlyHistory ?? [],
     termSheet: (save as any).termSheet ?? null,
     totalEquityGiven: (save as any).totalEquityGiven ?? 0,
+    personalCash: (save as any).personalCash ?? 0,
+    lifetimeWithdrawn: (save as any).lifetimeWithdrawn ?? 0,
+    unlockedTitles: (save as any).unlockedTitles ?? [],
+    victoryAchieved: (save as any).victoryAchieved ?? false,
     currentSlotId: slotId,
   });
 

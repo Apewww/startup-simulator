@@ -1,8 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Play, Trash2, Power, Clock, Users, DollarSign } from 'lucide-react';
+import { Play, Trash2, Power, Clock, Users, DollarSign, Trophy } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import { listSaves, deleteSave, loadGame, type SaveSlotInfo } from '../systems/saveLoad';
 import { getCurrentWindow } from '@tauri-apps/api/window';
+
+const ACHIEVEMENT_TITLES: Record<string, { icon: string; label: string }> = {
+  hustler: { icon: '💼', label: 'Hustler' },
+  founder: { icon: '🏗️', label: 'Founder' },
+  tycoon: { icon: '💰', label: 'Tycoon' },
+  mogul: { icon: '👑', label: 'Mogul' },
+  millionaire: { icon: '💎', label: 'Millionaire' },
+  multi_millionaire: { icon: '🔷', label: 'Multi-Millionaire' },
+  billionaire: { icon: '🌟', label: 'Billionaire' },
+};
 
 function formatCash(n: number): string {
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
@@ -135,7 +145,22 @@ export function MainMenu() {
         </button>
       </div>
 
-      <div className="absolute bottom-6 text-xs text-ink-soft font-mono">v1.9</div>
+      {/* Global achievements */}
+      <details className="w-full">
+        <summary className="flex items-center gap-1.5 px-1 py-1.5 text-xs text-ink-soft hover:text-ink cursor-pointer font-semibold">
+          <Trophy className="w-3 h-3" /> Achievements ({Object.keys(ACHIEVEMENT_TITLES).length} total)
+        </summary>
+        <div className="grid grid-cols-4 gap-1.5 px-1 pb-2 pt-1">
+          {Object.entries(ACHIEVEMENT_TITLES).map(([id, t]) => (
+            <div key={id} className="flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-lg bg-surface-2 border border-border">
+              <span className="text-base leading-none">{t.icon}</span>
+              <span className="text-[8px] text-ink-soft font-semibold leading-tight text-center">{t.label}</span>
+            </div>
+          ))}
+        </div>
+      </details>
+
+      <div className="text-xs text-ink-soft font-mono">v2.0</div>
     </div>
   );
 }

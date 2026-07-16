@@ -257,6 +257,18 @@ export function DevPanel() {
               <div className="text-ink-soft text-[10px] mt-1">{useGameStore.getState().boardSatisfaction}% satisfaction</div>
             </DevSection>
 
+            <DevSection title="Wealth">
+              <div className="flex flex-wrap gap-1">
+                <button onClick={() => useGameStore.setState({ personalCash: useGameStore.getState().personalCash + 1000000 })}
+                  className="px-2 py-1 bg-green hover:bg-green/90 text-white rounded-lg text-[10px]">+$1M Personal</button>
+                <button onClick={() => {
+                  const ach = ['hustler','founder','tycoon','mogul','millionaire','multi_millionaire','billionaire'];
+                  useGameStore.setState({ unlockedTitles: ach, personalCash: 1_000_000_000 });
+                }} className="px-2 py-1 bg-indigo hover:bg-indigo/90 text-white rounded-lg text-[10px]">Unlock All Titles</button>
+              </div>
+              <div className="text-ink-soft text-[10px] mt-1">{useGameStore.getState().unlockedTitles.length} titles</div>
+            </DevSection>
+
             <DevSection title="Game State">
               <div className="text-[10px] text-ink-soft">Tick: {useGameStore.getState().tick} | Month: {useGameStore.getState().month}</div>
               <button onClick={() => { const s = useGameStore.getState(); for (let i = 0; i < 20; i++) s.incrementTick(); }}

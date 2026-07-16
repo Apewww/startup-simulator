@@ -33,12 +33,14 @@ import { startResearch as startResearchSystem, processResearchTick, isResearchCo
 import { RESEARCH_TREE } from '../data/research';
 import type { BoardTarget, QuarterlyReport, TermSheet } from '../types/investorRelations';
 import { generateQuarterlyTargets, evaluateQuarterlyTargets, generateTermSheet, resetTermSheetCounter } from '../systems/investorRelations';
+import { checkNewAchievements } from '../data/achievements';
+import { calcMaxWithdrawal, calcPlayerOwnership } from '../systems/wealth';
 
 import { TICKS_PER_MONTH, TICKS_PER_DAY } from '../constants';
 
 export type GameSpeed = 1 | 2 | 4;
 
-export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment' | 'perks' | 'adsales' | 'banking' | 'competitor' | 'marketing' | 'research' | 'investor' | 'dev';
+export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment' | 'perks' | 'adsales' | 'banking' | 'competitor' | 'marketing' | 'research' | 'investor' | 'wealth' | 'dev';
 export type PanelOpenState = Record<PanelId, boolean>;
 export type GameScreen = 'menu' | 'select' | 'playerSetup' | 'playing';
 
@@ -241,6 +243,13 @@ interface GameState {
   totalEquityGiven: number;
   acceptTermSheet: () => void;
   declineTermSheet: () => void;
+
+  // v2.0 — Personal Wealth
+  personalCash: number;
+  lifetimeWithdrawn: number;
+  unlockedTitles: string[];
+  victoryAchieved: boolean;
+  withdrawPersonal: (amount: number) => void;
 }
 
 function calcTotalSalary(employees: Employee[]): number {
@@ -299,8 +308,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   negativeCashMonths: 0,
   screen: 'menu',
   companyName: '',
-      panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, dev: false },
-      panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, dev: false },
+      panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, dev: false },
+      panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, dev: false },
   maximizedPanel: null,
   selectedEmployeeId: null,
   darkMode: (() => { try { return localStorage.getItem('ss-dark') === '1'; } catch { return false; } })(),
@@ -334,6 +343,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       quarterlyHistory: [],
       termSheet: null,
       totalEquityGiven: 0,
+      personalCash: 0,
+      lifetimeWithdrawn: 0,
+      unlockedTitles: [],
+      victoryAchieved: false,
 
   setScreen: (screen) => set({ screen }),
   togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
@@ -902,11 +915,41 @@ export const useGameStore = create<GameState>((set, get) => ({
             set({ termSheet: ts });
             get().addNotification(`New term sheet from ${ts.investorName}: $${ts.amount} for ${ts.equityGiven}% equity`, 'info');
           }
+          // v2.0 — Board satisfaction consequences
+          if (get().boardSatisfaction < 40 && !state.termSheet) {
+            // Forced term sheet — board demands funding
+            const forcedTs = generateTermSheet(newMonth, newCurrentUsers, revenue.total, get().boardSatisfaction, get().totalEquityGiven);
+            if (forcedTs) {
+              set({ termSheet: forcedTs });
+              get().addNotification(`Board dissatisfaction! Forced term sheet from ${forcedTs.investorName}: $${forcedTs.amount} for ${forcedTs.equityGiven}% equity`, 'error');
+            }
+          }
+          if (get().boardSatisfaction < 20) {
+            get().addNotification('⚠️ Board satisfaction critical! Hostile takeover imminent — improve metrics or lose control', 'error');
+          }
+
+          // v2.0 — Equity consequences
+          const totalEq = get().totalEquityGiven;
+          if (totalEq > 50) {
+            get().addNotification(`⚠️ Investor control: ${totalEq}% equity held externally. Board is setting strategy.`, 'warning');
+          }
         }
       }
     }
 
     const isBankrupt = newNegativeCashMonths >= 3;
+
+    // v2.0 — Victory check (setiap tick, cek leaderboard rank & personal cash)
+    if (state.selectedProduct && !get().victoryAchieved) {
+      const allEntries = get().competitors.filter(c => !c.delisted);
+      if (allEntries.length > 0) {
+        const sorted = [...allEntries].sort((a, b) => b.valuation - a.valuation);
+        const playerEntry = sorted.findIndex(c => c.id === 'player');
+        if (playerEntry === 0 && get().currentUsers > 0) {
+          get().addNotification('🏆 Your product is #1 on the leaderboard!', 'success');
+        }
+      }
+    }
 
     let newPendingFunding = state.pendingFunding;
     if (newMonth > oldMonth && !newPendingFunding) {
@@ -1399,6 +1442,40 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (!state.termSheet) return;
     set({ termSheet: null });
     get().addNotification('Term sheet declined', 'info');
+  },
+
+  // v2.0 — Personal Wealth
+  withdrawPersonal: (amount: number) => {
+    const state = get();
+    if (amount <= 0) return;
+    if (amount > state.cash) {
+      get().addNotification('Not enough company cash', 'warning');
+      return;
+    }
+    const ownership = calcPlayerOwnership(state.totalEquityGiven);
+    const maxWithdraw = calcMaxWithdrawal(state.cash, ownership);
+    if (amount > maxWithdraw) {
+      get().addNotification(`Withdrawal limited by ownership (${ownership}%): max $${maxWithdraw.toLocaleString()}`, 'warning');
+      return;
+    }
+    const newPersonal = state.personalCash + amount;
+    const newLifetime = state.lifetimeWithdrawn + amount;
+    set({
+      cash: state.cash - amount,
+      personalCash: newPersonal,
+      lifetimeWithdrawn: newLifetime,
+    });
+
+    // Check achievements
+    const newTitles = checkNewAchievements(newPersonal, state.unlockedTitles);
+    for (const t of newTitles) {
+      get().addNotification(`Achievement unlocked: ${t.icon} ${t.label}!`, 'success');
+    }
+    if (newTitles.length > 0) {
+      set({ unlockedTitles: [...state.unlockedTitles, ...newTitles.map(t => t.id)] });
+    }
+
+    get().addNotification(`Withdrew $${amount.toLocaleString()} — personal cash: $${newPersonal.toLocaleString()}`, 'info');
   },
 
   devSpawnCompetitor: () => {
@@ -2549,8 +2626,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       cashFlowHistory: [], notifications: [],
       isBankrupt: false, negativeCashMonths: 0, screen: 'menu', companyName: '',
       competitors: [], marketingCampaigns: [], brandScore: 10, nextCompetitorCheck: 600, campaignCostThisMonth: 0, currentSlotId: null,
-  panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, dev: false },
-  panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, dev: false },
+  panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, dev: false },
+  panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, dev: false },
       maximizedPanel: null,
       selectedEmployeeId: null,
   darkMode: (() => { try { return localStorage.getItem('ss-dark') === '1'; } catch { return false; } })(),
@@ -2584,6 +2661,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       quarterlyHistory: [],
       termSheet: null,
       totalEquityGiven: 0,
+      personalCash: 0,
+      lifetimeWithdrawn: 0,
+      unlockedTitles: [],
+      victoryAchieved: false,
     });
   },
 }));

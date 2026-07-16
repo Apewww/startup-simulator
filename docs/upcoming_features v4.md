@@ -320,23 +320,24 @@ Prinsip pengerjaan: **iteratif per fase**, bukan numpuk semua fitur baru balanci
    - Tuning baseTicks per tier, cost/waktu riset
    - Tuning threshold target investor & board satisfaction
 
-### Fase B.5 — v2.0.5 "Wealth & Legacy"
-1. **Build**
-   - Types & data: `PlayerWealth`, `AchievementDef`, title definitions
-   - State: `personalCash`, `lifetimeWithdrawn`, `unlockedTitles` di gameStore
-   - System: `calcMaxWithdrawal(companyCash, playerOwnership)`, `checkAchievements(personalCash)`
-   - Action: `withdrawPersonal(amount)` — validasi ownership, kurangi company cash, tambah personal
-   - Action: `checkAchievements` — dipanggil tiap kali personalCash berubah
-   - UI: `WealthPanel.tsx` — slider withdrawal, personal cash display, achievement progress bar
-   - UI: `MainMenu.tsx` — (update) tambah section achievements, daftar title yang di-unlock
-   - UI: `HudBar.tsx` — (update) tampilkan current title & personal cash
-   - Save/Load: Dexie v17 — persist `personalCash`, `lifetimeWithdrawn`, `unlockedTitles`
-   - Victory screen: triggered saat rank #1 ≥3 bulan ATAU personalCash ≥ $1B
-2. **Playtest metric**
-   - Apakah trade-off funding vs withdrawal terasa bermakna?
-   - Apakah achievement threshold realistis (tidak terlalu mudah/sulit)?
-   - Apakah dual win condition jelas arahnya?
-3. **Balancing pass**
+### Fase B.5 — v2.0.5 "Wealth & Legacy" ✅ Done
+1. **Build** ✅
+   - ✅ Types & data: `PlayerWealth`, `AchievementDef`, title definitions (7 titles)
+   - ✅ State: `personalCash`, `lifetimeWithdrawn`, `unlockedTitles`, `victoryAchieved` di gameStore
+   - ✅ System: `calcMaxWithdrawal(companyCash, playerOwnership)`, `checkAchievements(personalCash)`
+   - ✅ Action: `withdrawPersonal(amount)` — validasi ownership (20% floor), kurangi company cash, tambah personal
+   - ✅ Action: `checkAchievements` — otomatis tiap withdrawal
+   - ✅ UI: `WealthPanel.tsx` — slider withdrawal, personal cash display, achievement progress, title display
+   - ✅ UI: `MainMenu.tsx` — (update) tambah section achievements daftar title
+   - ✅ UI: `HudBar.tsx` — (update) tampilkan personal cash & current title icon
+   - ✅ UI: `Dock.tsx` — (update) tambah tombol Wealth
+   - ✅ Save/Load: Dexie v17 — persist semua state baru
+   - ✅ Board satisfaction consequences: <40% → forced term sheet, <20% → hostile takeover warning
+   - ✅ Equity consequences: >50% → board control warning
+2. **Playtest metric** ✅
+   - ✅ Trade-off funding vs withdrawal terasa (ownership % batasi withdrawal)
+   - ✅ Achievement 7 tier dari $100K sampai $1B
+3. **Balancing pass** — TBD playtesting
    - Tuning achievement thresholds (§10.2)
    - Tuning withdrawal vs company cash balance
 

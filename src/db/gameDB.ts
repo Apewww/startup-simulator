@@ -64,6 +64,10 @@ export interface GameSave {
   quarterlyHistory?: QuarterlyReport[];
   termSheet?: TermSheet | null;
   totalEquityGiven?: number;
+  personalCash?: number;
+  lifetimeWithdrawn?: number;
+  unlockedTitles?: string[];
+  victoryAchieved?: boolean;
 }
 
 export class GameDB extends Dexie {
@@ -87,6 +91,7 @@ export class GameDB extends Dexie {
     this.version(14).stores({ saves: '++id, timestamp' });
     this.version(15).stores({ saves: '++id, timestamp' });
     this.version(16).stores({ saves: '++id, timestamp' });
+    this.version(17).stores({ saves: '++id, timestamp' });
   }
 }
 
