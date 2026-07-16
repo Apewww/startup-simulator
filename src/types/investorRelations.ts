@@ -38,4 +38,7 @@ export interface AiFundingOffer {
   aiName: string;
   amount: number;
   equityGiven: number;
+  type: 'offer' | 'demand';
+  demandLabel?: string;
+  expiresAtMonth: number;
 }

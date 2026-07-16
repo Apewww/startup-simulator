@@ -193,6 +193,10 @@ interface TakeoverEvent {
 - [x] Fix: try-catch incrementTick + console.error logging
 - [x] Dexie v18 + save/load semua state baru
 - [x] Build sukses (tsc -b + vite build)
+- [x] Funding history removed from Finance panel → moved to Board panel History tab
+- [x] Investor Relations panel: sticky footer tabs (Offers / History)
+- [x] AI stakeholder ≥20% → forced demand every 6 months (dilution)
+- [x] Funding offer types: offer (voluntary) vs demand (forced dilution)
 
 ---
 

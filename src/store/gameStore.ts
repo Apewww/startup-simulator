@@ -1024,12 +1024,37 @@ export const useGameStore = create<GameState>((set, get) => ({
           const totalExternal = state.aiStakes.reduce((s, x) => s + x.percentage, 0) + offers.reduce((s, o) => s + o.equityGiven, 0);
           if (totalExternal + pct > 80) break;
           const amount = Math.round(companyVal * (pct / 100));
-          offers.push({ id: `fund-ai-${ai.id}-${newMonth}`, aiId: ai.id, aiName: ai.name, amount, equityGiven: pct });
+          offers.push({ id: `fund-ai-${ai.id}-${newMonth}`, aiId: ai.id, aiName: ai.name, amount, equityGiven: pct, type: 'offer', expiresAtMonth: newMonth + 1 });
         }
         if (offers.length > 0) {
           set({ pendingFundingRounds: offers });
           get().addNotification(`💼 ${offers.length} AI investor(s) offer funding — check Board panel`, 'info');
         }
+        }
+
+        // v2.1 — Forced demands from AI stakeholders (≥20% ownership, every 6 months)
+        const majorStakes = state.aiStakes.filter(s => s.percentage >= 20);
+        for (const stake of majorStakes) {
+          const lastDemand = state.fundingRounds.find(r => r.id === `demand-${stake.aiId}-${newMonth}`);
+          if (lastDemand) continue;
+          const prevDemand = state.fundingRounds.filter(r => r.id.startsWith(`demand-${stake.aiId}`));
+          const monthsSinceLastDemand = prevDemand.length > 0 ? newMonth - (newMonth % 6) : newMonth;
+          if (prevDemand.length === 0 || monthsSinceLastDemand >= 6) {
+            const demandPct = 5 + Math.floor(Math.random() * 10); // 5-15% more equity
+            const demandAmount = Math.round(companyVal * (demandPct / 100) * 0.8); // 80% of fair value (dilute)
+            const demand: AiFundingOffer = {
+              id: `demand-${stake.aiId}-${newMonth}`,
+              aiId: stake.aiId,
+              aiName: stake.name,
+              amount: demandAmount,
+              equityGiven: demandPct,
+              type: 'demand',
+              demandLabel: `${stake.name} demands ${demandPct}% equity for $${demandAmount.toLocaleString()}`,
+              expiresAtMonth: newMonth + 1,
+            };
+            set({ pendingFundingRounds: [...get().pendingFundingRounds, demand] });
+            get().addNotification(`⚠️ ${stake.name} demands ${demandPct}% equity — they hold ${stake.percentage}%`, 'warning');
+          }
         }
       }
     }
