@@ -29,7 +29,7 @@ import { createCampaign, processCampaignTick, calcBrandDecay, calcBrandEffects }
 import { getHotSector, hasMarketCrash, hasMarketBoom } from '../systems/events';
 import { getPricingTier, getDefaultPricingTier, type BusinessLoan } from '../types/monetization';
 import type { ActiveResearch } from '../types/research';
-import { startResearch as startResearchSystem, processResearchTick, isLevelComplete, levelUp, isResearchFullyComplete, collectResearchEffects, calcResearchEffects, getActiveResearchMonthlyCost, resetResearchIdCounter } from '../systems/research';
+import { startResearch as startResearchSystem, processResearchTick, isResearchComplete, costForLevel, collectResearchEffects, calcResearchEffects, getActiveResearchMonthlyCost, resetResearchIdCounter } from '../systems/research';
 import { RESEARCH_TREE } from '../data/research';
 import type { BoardTarget, QuarterlyReport, TermSheet } from '../types/investorRelations';
 import { generateQuarterlyTargets, evaluateQuarterlyTargets, generateTermSheet, resetTermSheetCounter } from '../systems/investorRelations';
@@ -229,7 +229,7 @@ interface GameState {
   activeResearch: ActiveResearch | null;
   unlockedTechs: string[];
   unlockedLevels: Record<string, number>;
-  startResearch: (projectId: string, employeeId: string) => void;
+  startResearch: (projectId: string, employeeId: string, targetLevel?: number) => void;
   cancelResearch: () => void;
 
   // v2.0 — Investor Relations
@@ -484,28 +484,23 @@ export const useGameStore = create<GameState>((set, get) => ({
             const updated = processResearchTick(researchActive, emp, state.unlockedTechs, RESEARCH_TREE);
             if (updated) {
               newProgress = updated.progress;
-              const def = RESEARCH_TREE.find(r => r.id === researchActive.projectId);
-              if (isLevelComplete(updated) && def) {
-                if (isResearchFullyComplete(updated, def)) {
-                  newCurrentTask = null;
-                  newProgress = 0;
-                  set({
-                    activeResearch: null,
-                    unlockedTechs: [...get().unlockedTechs, researchActive.projectId],
-                    unlockedLevels: { ...get().unlockedLevels, [researchActive.projectId]: def.maxLevel },
-                    employees: get().employees.map(e =>
-                      e.id === emp.id ? { ...e, currentTask: null, taskProgress: 0 } : e
-                    ),
-                  });
-                  get().addNotification(`Research complete: ${def.name} Lv.${def.maxLevel}/${def.maxLevel}!`, 'success');
-                } else {
-                  const next = levelUp(updated, def);
-                  if (next) {
-                    set({ activeResearch: next });
-                    get().addNotification(`${def.name} reached Lv.${next.currentLevel}/${def.maxLevel}`, 'info');
-                  }
-                }
-              } else if (!isLevelComplete(updated)) {
+              if (isResearchComplete(updated)) {
+                newCurrentTask = null;
+                newProgress = 0;
+                const def = RESEARCH_TREE.find(r => r.id === researchActive.projectId);
+                const completedLevel = researchActive.targetLevel;
+                set({
+                  activeResearch: null,
+                  unlockedTechs: state.unlockedTechs.includes(researchActive.projectId)
+                    ? state.unlockedTechs
+                    : [...state.unlockedTechs, researchActive.projectId],
+                  unlockedLevels: { ...state.unlockedLevels, [researchActive.projectId]: completedLevel },
+                  employees: state.employees.map(e =>
+                    e.id === emp.id ? { ...e, currentTask: null, taskProgress: 0 } : e
+                  ),
+                });
+                get().addNotification(`${def?.name ?? researchActive.projectId} Lv.${completedLevel} complete!`, 'success');
+              } else {
                 set({ activeResearch: updated });
               }
             }
@@ -1334,7 +1329,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   // v2.0 — R&D / Tech Tree
-  startResearch: (projectId: string, employeeId: string) => {
+  startResearch: (projectId: string, employeeId: string, targetLevel: number = 1) => {
     const state = get();
     if (state.activeResearch) {
       get().addNotification('Research already in progress', 'warning');
@@ -1342,25 +1337,31 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
     const project = RESEARCH_TREE.find(r => r.id === projectId);
     if (!project) return;
+    const currentLevel = state.unlockedLevels[projectId] ?? 0;
+    if (targetLevel !== currentLevel + 1) {
+      get().addNotification('Must research levels in order', 'warning');
+      return;
+    }
     const emp = state.employees.find(e => e.id === employeeId);
     if (!emp || emp.currentTask) {
       get().addNotification('Developer must be idle to start research', 'warning');
       return;
     }
-    if (state.cash < project.cost) {
-      get().addNotification(`Not enough cash — research costs $${project.cost}`, 'warning');
+    const cost = costForLevel(project.cost, targetLevel);
+    if (state.cash < cost) {
+      get().addNotification(`Not enough cash — research costs $${cost}`, 'warning');
       return;
     }
-    const active = startResearchSystem(project, employeeId);
+    const active = startResearchSystem(project, employeeId, targetLevel);
     set({
-      cash: state.cash - project.cost,
+      cash: state.cash - cost,
       activeResearch: active,
-      campaignCostThisMonth: state.campaignCostThisMonth + project.cost,
+      campaignCostThisMonth: state.campaignCostThisMonth + cost,
       employees: state.employees.map(e =>
         e.id === employeeId ? { ...e, currentTask: `research:${projectId}`, taskProgress: 0 } : e
       ),
     });
-    get().addNotification(`Research started: ${project.name} (Lv.${active.currentLevel}/${project.maxLevel})`, 'info');
+    get().addNotification(`Research started: ${project.name} Lv.${targetLevel}`, 'info');
   },
 
   cancelResearch: () => {

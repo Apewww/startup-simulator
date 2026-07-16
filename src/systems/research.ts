@@ -12,23 +12,33 @@ function nextId(): string {
   return `rs-${researchIdCounter}`;
 }
 
+export function ticksForLevel(baseTicks: number, level: number): number {
+  return Math.round(baseTicks * (1 + (level - 1) * 0.5));
+}
+
+export function costForLevel(baseCost: number, level: number): number {
+  if (level === 1) return baseCost;
+  return Math.round(baseCost * 0.5 * level);
+}
+
+export function minDevLevelForLevel(baseMinLevel: number, level: number): number {
+  return baseMinLevel + level - 1;
+}
+
 export function startResearch(
   project: ResearchProjectDef,
   employeeId: string,
+  targetLevel: number,
 ): ActiveResearch {
   return {
     id: nextId(),
     projectId: project.id,
     assignedEmployeeId: employeeId,
     progress: 0,
-    maxProgress: ticksForLevel(project.baseTicks, 1),
-    monthlyCost: project.cost * 0.05,
-    currentLevel: 1,
+    maxProgress: ticksForLevel(project.baseTicks, targetLevel),
+    monthlyCost: Math.round(costForLevel(project.cost, targetLevel) * 0.05),
+    targetLevel,
   };
-}
-
-export function ticksForLevel(baseTicks: number, level: number): number {
-  return Math.round(baseTicks * (1 + (level - 1) * 0.5));
 }
 
 export function processResearchTick(
@@ -52,25 +62,35 @@ export function processResearchTick(
   return { ...active, progress: newProgress };
 }
 
-export function isLevelComplete(active: ActiveResearch): boolean {
+export function isResearchComplete(active: ActiveResearch): boolean {
   return active.progress >= active.maxProgress;
 }
 
-export function levelUp(active: ActiveResearch, def: ResearchProjectDef): ActiveResearch | null {
-  const nextLevel = active.currentLevel + 1;
-  if (nextLevel > def.maxLevel) {
-    return { ...active, currentLevel: def.maxLevel, progress: active.maxProgress };
-  }
-  return {
-    ...active,
-    currentLevel: nextLevel,
-    progress: 0,
-    maxProgress: ticksForLevel(def.baseTicks, nextLevel),
-  };
-}
+export function canStartLevel(
+  project: ResearchProjectDef,
+  targetLevel: number,
+  unlockedTechs: string[],
+  unlockedLevels: Record<string, number>,
+  employees: Employee[],
+): { ok: boolean; reason?: string } {
+  const currentLevel = unlockedLevels[project.id] ?? 0;
+  if (targetLevel <= currentLevel) return { ok: false, reason: 'Already unlocked' };
+  if (targetLevel > project.maxLevel) return { ok: false, reason: 'Max level reached' };
+  if (targetLevel > currentLevel + 1) return { ok: false, reason: `Must unlock Lv.${targetLevel - 1} first` };
 
-export function isResearchFullyComplete(active: ActiveResearch, def: ResearchProjectDef): boolean {
-  return active.currentLevel >= def.maxLevel && active.progress >= active.maxProgress;
+  if (!project.prerequisites.every(p => unlockedTechs.includes(p))) {
+    return { ok: false, reason: 'Prerequisites not met' };
+  }
+
+  const requiredDevLv = minDevLevelForLevel(project.minDeveloperLevel, targetLevel);
+  const hasDev = employees.some(e =>
+    e.role === 'Developer' && e.level >= requiredDevLv && !e.currentTask
+  );
+  if (!hasDev) {
+    return { ok: false, reason: `Need an idle Developer Lv.${requiredDevLv}+` };
+  }
+
+  return { ok: true };
 }
 
 export function calcPartialEffectValue(fullValue: number, level: number, maxLevel: number): number {
@@ -109,4 +129,8 @@ export function calcResearchEffects(
 export function getActiveResearchMonthlyCost(active: ActiveResearch | null): number {
   if (!active) return 0;
   return active.monthlyCost;
+}
+
+export function getResearchProgress(active: ActiveResearch): number {
+  return active.maxProgress > 0 ? Math.round((active.progress / active.maxProgress) * 100) : 0;
 }

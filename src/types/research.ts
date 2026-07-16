@@ -27,7 +27,7 @@ export interface ActiveResearch {
   progress: number;
   maxProgress: number;
   monthlyCost: number;
-  currentLevel: number;
+  targetLevel: number;
 }
 
 export interface UnlockedTech {
