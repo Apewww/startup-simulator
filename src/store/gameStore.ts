@@ -41,7 +41,7 @@ import { TICKS_PER_MONTH, TICKS_PER_DAY } from '../constants';
 
 export type GameSpeed = 1 | 2 | 4;
 
-export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment' | 'perks' | 'adsales' | 'banking' | 'competitor' | 'marketing' | 'research' | 'investor' | 'wealth' | 'dev' | 'stockmarket' | 'portfolio';
+export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment' | 'perks' | 'adsales' | 'banking' | 'competitor' | 'marketing' | 'research' | 'investor' | 'wealth' | 'dev' | 'portfolio';
 export type PanelOpenState = Record<PanelId, boolean>;
 export type GameScreen = 'menu' | 'select' | 'playerSetup' | 'playing';
 
@@ -1070,7 +1070,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     // Seed competitors on first tick if empty (old save migration)
     if (newCompetitors.length === 0 && newMonth >= 0) {
-      newCompetitors = generateInitialCompetitors(newMonth, 8);
+      newCompetitors = generateInitialCompetitors(newMonth, 100);
       newCompetitors = computeRankings(newCompetitors);
       get().addNotification('Competitor market initialized!', 'info');
     }
@@ -1381,7 +1381,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     }));
     resetCompetitorIdCounter();
     resetNameGenerator();
-    const initialCompetitors = generateInitialCompetitors(0, 8);
+    const initialCompetitors = generateInitialCompetitors(0, 100);
     const rankedCompetitors = computeRankings(initialCompetitors);
     set({ selectedProduct: productId, features, screen: 'playerSetup', currentUsers: 0, userMood: 80, internetSubscriptions: [], adLeads: [], adCampaigns: [], adSalesUnlockNotified: false, activePricingTier: getDefaultPricingTier(productId), loan: null, creditScore: 50, missedPaymentTicks: 0, competitors: rankedCompetitors, brandScore: 10, marketingCampaigns: [], takeoverCapital: 0, acquiredBy: null, lastWithdrawMonth: -1, wealthLog: [] });
   },

@@ -18,16 +18,15 @@ import { RecruitmentPanel, recruitmentPanelMeta } from './components/Recruitment
 import { PerksPanel } from './components/PerksPanel';
 import { AdSalesPanel, adSalesPanelMeta } from './components/AdSalesPanel';
 import { BankingPanel, bankingPanelMeta } from './components/BankingPanel';
-import { CompetitorPanel } from './components/CompetitorPanel';
+import { MarketPanel } from './components/MarketPanel';
 import { MarketingPanel } from './components/MarketingPanel';
 import { ResearchPanel } from './components/ResearchPanel';
 import { InvestorRelationsPanel } from './components/InvestorRelationsPanel';
 import { WealthPanel } from './components/WealthPanel';
-import { StockMarketPanel } from './components/StockMarketPanel';
 import { PortfolioPanel } from './components/PortfolioPanel';
 import { AcquisitionAlert } from './components/AcquisitionAlert';
 import { TakeoverCapitalBanner } from './components/TakeoverCapitalBanner';
-import { Server, Skull, CheckCircle, Info, AlertTriangle, XCircle, Gift, BarChart3, Megaphone, Microscope, Handshake, Wallet, TrendingUp, Briefcase, Bug } from 'lucide-react';
+import { Server, Skull, CheckCircle, Info, AlertTriangle, XCircle, Gift, BarChart3, Megaphone, Microscope, Handshake, Wallet, Briefcase, Bug } from 'lucide-react';
 import { saveGame } from './systems/saveLoad';
 import { db } from './db/gameDB';
 
@@ -248,7 +247,7 @@ function App() {
           </FloatingPanel>
 
           <FloatingPanel id="competitor" index={8} title="Market" icon={<BarChart3 className="w-4 h-4 text-amber" />} accent="#B7791F">
-            <CompetitorPanel />
+            <MarketPanel />
           </FloatingPanel>
 
           <FloatingPanel id="marketing" index={9} title="Brand" icon={<Megaphone className="w-4 h-4 text-red" />} accent="#D1453B">
@@ -267,11 +266,7 @@ function App() {
             <WealthPanel />
           </FloatingPanel>
 
-          <FloatingPanel id="stockmarket" index={13} title="Stock Market" icon={<TrendingUp className="w-4 h-4 text-green" />} accent="#17A366">
-            <StockMarketPanel />
-          </FloatingPanel>
-
-          <FloatingPanel id="portfolio" index={14} title="Portfolio" icon={<Briefcase className="w-4 h-4 text-indigo" />} accent="#4F5EFF">
+          <FloatingPanel id="portfolio" index={13} title="Portfolio" icon={<Briefcase className="w-4 h-4 text-indigo" />} accent="#4F5EFF">
             <PortfolioPanel />
           </FloatingPanel>
 
