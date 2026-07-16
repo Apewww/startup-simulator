@@ -2,14 +2,16 @@ import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { ACHIEVEMENTS } from '../data/achievements';
 import { calcMaxWithdrawal, calcPlayerOwnership, getCurrentTitle, getNextAchievement } from '../systems/wealth';
-import { ArrowUpFromLine, ArrowDownToLine, Trophy, History } from 'lucide-react';
+import { ArrowUpFromLine, ArrowDownToLine, Trophy, History, Briefcase } from 'lucide-react';
+import { PortfolioPanel } from './PortfolioPanel';
 
-type Tab = 'withdraw' | 'deposit' | 'history' | 'achievements';
+type Tab = 'withdraw' | 'deposit' | 'history' | 'portfolio' | 'achievements';
 
 const TABS: { id: Tab; label: string; icon: typeof Trophy }[] = [
   { id: 'withdraw', label: 'Withdraw', icon: ArrowUpFromLine },
   { id: 'deposit', label: 'Deposit', icon: ArrowDownToLine },
   { id: 'history', label: 'History', icon: History },
+  { id: 'portfolio', label: 'Portfolio', icon: Briefcase },
   { id: 'achievements', label: 'Titles', icon: Trophy },
 ];
 
@@ -100,13 +102,13 @@ export function WealthPanel() {
         </div>
       </div>
 
-      {/* Tabs — grid 3 kolom, ke-4 full-width */}
+      {/* Tabs — grid 3 kolom */}
       <div className="grid grid-cols-3 gap-1">
         {TABS.map(tab => {
-          const isLast = tab.id === 'achievements';
+          const isLastRow = tab.id === 'portfolio' || tab.id === 'achievements';
           return (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer ${isLast ? 'col-span-3' : ''} ${
+              className={`flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer ${isLastRow && tab.id === 'achievements' ? 'col-span-1' : ''} ${
                 activeTab === tab.id ? 'bg-indigo-soft text-indigo border border-indigo/20' : 'text-ink-soft hover:text-ink border border-transparent'
               }`}>
               <tab.icon className="w-3 h-3" />
@@ -182,6 +184,10 @@ export function WealthPanel() {
             ))
           )}
         </div>
+      )}
+
+      {activeTab === 'portfolio' && (
+        <PortfolioPanel />
       )}
 
       {activeTab === 'achievements' && (
