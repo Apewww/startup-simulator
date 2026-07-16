@@ -23,7 +23,11 @@ import { MarketingPanel } from './components/MarketingPanel';
 import { ResearchPanel } from './components/ResearchPanel';
 import { InvestorRelationsPanel } from './components/InvestorRelationsPanel';
 import { WealthPanel } from './components/WealthPanel';
-import { Server, Skull, CheckCircle, Info, AlertTriangle, XCircle, Gift, BarChart3, Megaphone, Microscope, Handshake, Wallet, Bug } from 'lucide-react';
+import { StockMarketPanel } from './components/StockMarketPanel';
+import { PortfolioPanel } from './components/PortfolioPanel';
+import { AcquisitionAlert } from './components/AcquisitionAlert';
+import { TakeoverCapitalBanner } from './components/TakeoverCapitalBanner';
+import { Server, Skull, CheckCircle, Info, AlertTriangle, XCircle, Gift, BarChart3, Megaphone, Microscope, Handshake, Wallet, TrendingUp, Briefcase, Bug } from 'lucide-react';
 import { saveGame } from './systems/saveLoad';
 import { db } from './db/gameDB';
 
@@ -263,7 +267,15 @@ function App() {
             <WealthPanel />
           </FloatingPanel>
 
-          <FloatingPanel id="dev" index={13} title="Dev Panel" icon={<Bug className="w-4 h-4 text-amber" />} accent="#D1453B">
+          <FloatingPanel id="stockmarket" index={13} title="Stock Market" icon={<TrendingUp className="w-4 h-4 text-green" />} accent="#17A366">
+            <StockMarketPanel />
+          </FloatingPanel>
+
+          <FloatingPanel id="portfolio" index={14} title="Portfolio" icon={<Briefcase className="w-4 h-4 text-indigo" />} accent="#4F5EFF">
+            <PortfolioPanel />
+          </FloatingPanel>
+
+          <FloatingPanel id="dev" index={15} title="Dev Panel" icon={<Bug className="w-4 h-4 text-amber" />} accent="#D1453B">
             <DevPanel />
           </FloatingPanel>
         </div>
@@ -311,6 +323,8 @@ function App() {
       )}
 
       <EventBanner />
+      <AcquisitionAlert />
+      <TakeoverCapitalBanner />
     </div>
   );
 }

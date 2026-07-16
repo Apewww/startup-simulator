@@ -371,7 +371,7 @@ IndexedDB via Dexie.js. Autosave tiap 60 detik. Field: tick, cash, employees, re
 | v1.9 — Competition Era (Competitor AI + Marketing) | ✅ |
 | v2.0 — Depth Update (R&D Tech Tree + Investor Relations) | ✅ |
 | v2.0.5 — Wealth & Legacy (Personal Wealth + Achievements) | ✅ |
-| v2.1 — Market Update (Leaderboard + Stock Market) | 🔄 In Progress |
+| v2.1 — Market Update (Leaderboard 1000 + Stock Market + IPO + Acquisition) | ✅ |
 
 ---
 

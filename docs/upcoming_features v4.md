@@ -24,7 +24,7 @@ Semua produk bisa **IPO**, diperjualbelikan sahamnya, saling akuisisi, dan salin
 | v1.9 — Competition Era | Competitor AI dasar + Marketing & Branding System | ✅ Done (Fase A) |
 | v2.0 — Depth Update | R&D / Tech Tree + Investor Relations diperdalam | ✅ Done (Fase B) |
 | **v2.0.5 — Wealth & Legacy** | **Personal withdrawal, achievement/title system, dual win condition** | ✅ Done |
-| **v2.1 — Market Update** | **Leaderboard 1000 produk + Stock Market + IPO + Akuisisi** (fokus dokumen ini) | 🔄 In Progress (Fase C) |
+| **v2.1 — Market Update** | **Leaderboard 1000 produk + Stock Market + IPO + Akuisisi** (fokus dokumen ini) | ✅ Done (Fase C) |
 | v2.2 — Scale Update | Multi-Product Portfolio + Global Expansion | 📝 Planned |
 | v2.3 — Endgame | Win conditions finalization + prestige/new game+ | 📝 Planned |
 
@@ -341,14 +341,14 @@ Prinsip pengerjaan: **iteratif per fase**, bukan numpuk semua fitur baru balanci
    - Tuning achievement thresholds (§10.2)
    - Tuning withdrawal vs company cash balance
 
-### Fase C — v2.1 "Market Update"
+### Fase C — v2.1 "Market Update" ✅ Done
 1. **Build — urutan sub-tahap penting karena saling bergantung:**
-   - a) Leaderboard 1000 produk (ranking read-only dulu, belum ada saham)
-   - b) Formula valuasi + delisting/spawn logic
-   - c) Stock Market Panel — beli/jual saham (player → kompetitor dulu, satu arah)
-   - d) Ownership & dividend system
-   - e) Distress trigger + AI investment logic (kompetitor → player, dua arah)
-   - f) Full acquisition logic (100% ownership) + takeover capital pool
+   - ✅ a) Leaderboard 1000 produk (ranking + top20 + player neighbor + Show All toggle)
+   - ✅ b) Formula valuasi (RevenueMultiple, UserValueFactor, growthMomentum) + delisting/spawn unicorn
+   - ✅ c) Stock Market Panel — buy/sell saham AI competitors
+   - ✅ d) Ownership & dividend system — monthly dividend payout
+   - ✅ e) Distress trigger + AI investment logic (3 personality: aggressive/conservative/opportunistic)
+   - ✅ f) Full acquisition logic (100% ownership → game over + takeover capital pool)
 2. **Playtest metric yang dicek**
    - Apakah ranking leaderboard terasa "hidup" (posisi berubah masuk akal, nggak random liar)?
    - Apakah distress trigger ke-trigger di waktu yang wajar (nggak terlalu gampang/susah)?

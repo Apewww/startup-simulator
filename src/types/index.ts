@@ -11,7 +11,7 @@ export type { GameEvent, EventType, EventEffects, HotSector } from './event';
 export type { Company } from './company';
 export type { AdLead, AdCampaign } from './adSales';
 export type { PricingTier, BusinessLoan } from './monetization';
-export type { CompetitorProduct, CompetitorSector, CompetitorPersonality } from './competitor';
+export type { CompetitorProduct, CompetitorSector, CompetitorPersonality, OwnershipStake } from './competitor';
 export type { MarketingCampaign, MarketingCampaignType, BrandMetrics } from './marketing';
 export type { ResearchProjectDef, ResearchCategory, ResearchEffect, ActiveResearch, UnlockedTech } from './research';
 export type { BoardTarget, BoardMetric, QuarterlyReport, TermSheet } from './investorRelations';

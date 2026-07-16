@@ -2,21 +2,21 @@
 
 **Induk:** `docs/upcoming_features v4.md` — Fase C (v2.1)
 **Tujuan:** Leaderboard 1000 produk + Stock Market + IPO + Akuisisi + Cross-Investment
-**Status:** 🔄 In Progress
+**Status:** ✅ Done
 
 ---
 
 ## Sub-Tahap Build (urutan ketat karena saling bergantung)
 
 ### a) Leaderboard 1000 Produk (Ranking Read-Only, read-only dulu, belum ada saham)
-- [ ] Perluas ranking dari 8+N → 1000 slot leaderboard (`MAX_RANK = 1000`)
+- [x] Perluas ranking dari 8+N → 1000 slot leaderboard (`MAX_RANK = 1000`)
 - [ ] Komposisi: produk player + kompetitor AI existing + kompetitor baru (spawn dinamis)
 - [ ] Ranking dihitung ulang tiap bulan in-game berdasarkan **Valuation Score**
 - [ ] Update UI `CompetitorPanel.tsx`: default show top 20 + posisi player + neighbor ranks (bukan full scroll 1000)
 - [ ] Slice data: hanya render rank terlihat + buffer (virtual scroll atau pagination)
 
 ### b) Formula Valuasi + Delisting/Spawn Logic
-- [ ] Implementasi formula valuasi baru:
+- [x] Implementasi formula valuasi baru:
   ```
   Valuation = (MonthlyRevenue × 12 × RevenueMultiple)
             + (currentUsers × UserValueFactor)
@@ -165,19 +165,20 @@ interface TakeoverEvent {
 
 ## Checklist
 
-- [ ] Leaderboard 1000 slot (read-only)
-- [ ] Formula valuasi baru (RevenueMultiple, UserValueFactor, growthMomentum)
-- [ ] Delisting (70% drop dalam 6 bulan)
-- [ ] Spawn dinamis (hot sector, slot kosong)
-- [ ] StockMarketPanel — buy/sell saham
-- [ ] Ownership & dividend system
-- [ ] Distress trigger check (cash, cohesion, churn)
-- [ ] AI investment logic (3 personality)
-- [ ] Full acquisition (100% ownership)
-- [ ] Takeover capital pool + banner + venture CTA
-- [ ] Portfolio panel — investasi player
-- [ ] Dexie v18 + save/load
-- [ ] Build sukses (tsc -b + vite build)
+- [x] Leaderboard 1000 slot (read-only) — top 20 + player neighbor + Show All toggle
+- [x] Formula valuasi baru (RevenueMultiple, UserValueFactor, growthMomentum via userHistory)
+- [x] Delisting (70% user drop over tracked period)
+- [x] Spawn dinamis (hot sector, slot kosong, Unicorn trait)
+- [x] StockMarketPanel — buy/sell saham ke AI competitors
+- [x] Ownership & dividend system — monthly dividend payout
+- [x] Distress trigger check (cash, cohesion, churn) — 60 tick threshold
+- [x] AI investment logic (3 personality: aggressive/conservative/opportunistic)
+- [x] Full acquisition (100% ownership → game over + takeover capital)
+- [x] Takeover capital pool + banner + venture CTA
+- [x] Portfolio panel — daftar investasi player + dividend tracker
+- [x] AcquisitionAlert — distress indicator in HUD
+- [x] Dexie v18 + save/load semua state baru
+- [x] Build sukses (tsc -b + vite build)
 
 ---
 

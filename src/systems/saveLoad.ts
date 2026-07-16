@@ -68,6 +68,11 @@ function serialize(): Omit<GameSave, 'id' | 'timestamp'> {
     lifetimeWithdrawn: s.lifetimeWithdrawn,
     unlockedTitles: s.unlockedTitles,
     victoryAchieved: s.victoryAchieved,
+    totalDividendsReceived: s.totalDividendsReceived,
+    distressActive: s.distressActive,
+    distressTicks: s.distressTicks,
+    takeoverCapital: s.takeoverCapital,
+    acquiredBy: s.acquiredBy,
   };
 }
 
@@ -156,6 +161,11 @@ export async function loadGame(slotId: number): Promise<boolean> {
     lifetimeWithdrawn: (save as any).lifetimeWithdrawn ?? 0,
     unlockedTitles: (save as any).unlockedTitles ?? [],
     victoryAchieved: (save as any).victoryAchieved ?? false,
+    totalDividendsReceived: (save as any).totalDividendsReceived ?? 0,
+    distressActive: (save as any).distressActive ?? false,
+    distressTicks: (save as any).distressTicks ?? 0,
+    takeoverCapital: (save as any).takeoverCapital ?? 0,
+    acquiredBy: (save as any).acquiredBy ?? null,
     currentSlotId: slotId,
   });
 
