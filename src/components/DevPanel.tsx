@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
+import { TICKS_PER_DAY, TICKS_PER_MONTH } from '../constants';
 import type { EmployeeRole, SourcingCampaign, AdLead } from '../types';
 import { COMPONENTS } from '../data/components';
 import { NODE_DEFS, RACK_TIERS } from '../data/servers';
@@ -21,7 +22,7 @@ const TABS: { id: DevTab; label: string }[] = [
 
 export function DevPanel() {
   const [tab, setTab] = useState<DevTab>('core');
-  const { cash, addCash, employees, hireEmployee, addResources, features, unlockAllFeatures, racks, fillRack, selectedProduct, perkPoints, unlockedPerks, unlockAllPerks, devSpawnFurniture, currentUsers, adLeads, adCampaigns, gameLog, devSpawnCompetitor, devSetMaxBrand, devResetCompetitors, devTriggerHotSector, competitors } = useGameStore();
+  const { cash, addCash, employees, hireEmployee, addResources, features, unlockAllFeatures, racks, fillRack, selectedProduct, perkPoints, unlockedPerks, unlockAllPerks, devSpawnFurniture, currentUsers, adLeads, adCampaigns, gameLog, devSpawnCompetitor, devSetMaxBrand, devResetCompetitors, devTriggerHotSector, competitors, skipTicks } = useGameStore();
   const [cashAmount, setCashAmount] = useState('100000');
   const [resAmount, setResAmount] = useState('10');
   const [spawnedLeads, setSpawnedLeads] = useState<AdLead[]>([]);
@@ -78,6 +79,15 @@ export function DevPanel() {
                 <button onClick={() => addCash(1_000_000_000)} className="px-2 py-1 bg-amber hover:bg-amber/90 text-white rounded-lg text-[10px]">∞</button>
               </div>
               <div className="text-ink-soft text-[10px] mt-1">Cash: ${cash.toLocaleString()}</div>
+            </DevSection>
+
+            <DevSection title="Skip Time">
+              <div className="flex gap-1">
+                <button onClick={() => skipTicks(TICKS_PER_DAY)} className="px-2 py-1 bg-surface-2 border border-border rounded-lg text-[10px] font-semibold hover:bg-surface transition-colors cursor-pointer">Day</button>
+                <button onClick={() => skipTicks(TICKS_PER_DAY * 7)} className="px-2 py-1 bg-surface-2 border border-border rounded-lg text-[10px] font-semibold hover:bg-surface transition-colors cursor-pointer">Week</button>
+                <button onClick={() => skipTicks(TICKS_PER_MONTH)} className="px-2 py-1 bg-surface-2 border border-border rounded-lg text-[10px] font-semibold hover:bg-surface transition-colors cursor-pointer">Month</button>
+                <button onClick={() => skipTicks(TICKS_PER_MONTH * 12)} className="px-2 py-1 bg-surface-2 border border-border rounded-lg text-[10px] font-semibold hover:bg-surface transition-colors cursor-pointer">Year</button>
+              </div>
             </DevSection>
 
             <DevSection title="Resources">

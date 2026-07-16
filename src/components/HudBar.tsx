@@ -207,11 +207,6 @@ export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps
               {s}x
             </button>
           ))}
-          <span className="w-px h-4 bg-border mx-1" />
-          <button onClick={() => skipTicks(TICKS_PER_DAY)} className="border-none px-[5px] py-[3px] text-[9px] font-semibold rounded cursor-pointer font-sans text-ink-soft hover:text-ink hover:bg-ink/[0.06] transition-colors" title="Skip 1 day">D</button>
-          <button onClick={() => skipTicks(TICKS_PER_DAY * 7)} className="border-none px-[5px] py-[3px] text-[9px] font-semibold rounded cursor-pointer font-sans text-ink-soft hover:text-ink hover:bg-ink/[0.06] transition-colors" title="Skip 7 days">W</button>
-          <button onClick={() => skipTicks(TICKS_PER_MONTH)} className="border-none px-[5px] py-[3px] text-[9px] font-semibold rounded cursor-pointer font-sans text-ink-soft hover:text-ink hover:bg-ink/[0.06] transition-colors" title="Skip 1 month">M</button>
-          <button onClick={() => skipTicks(TICKS_PER_MONTH * 12)} className="border-none px-[5px] py-[3px] text-[9px] font-semibold rounded cursor-pointer font-sans text-ink-soft hover:text-ink hover:bg-ink/[0.06] transition-colors" title="Skip 1 year">Y</button>
         </div>
 
         {/* Theme + Save */}
