@@ -1566,18 +1566,27 @@ export const useGameStore = create<GameState>((set, get) => ({
     const aiOwnership = 100 - currentOwnership;
     const buyPct = Math.min(percentage, aiOwnership);
     if (buyPct <= 0) { get().addNotification('No external shares to buy back', 'warning'); return; }
-    // Cost = valuation * % to buy * premium
     const companyVal = state.currentUsers * 80;
     const cost = Math.round(companyVal * (buyPct / 100) * 1.2);
     if (state.personalCash < cost) { get().addNotification(`Need $${cost.toLocaleString()} to buy back ${buyPct}% — not enough personal wealth`, 'warning'); return; }
     const newEquityGiven = Math.max(0, state.totalEquityGiven - buyPct);
+    // Reduce aiStakes proportionally
+    const totalAiPct = state.aiStakes.reduce((s, x) => s + x.percentage, 0);
+    const newAiStakes = totalAiPct > 0 ? state.aiStakes.map(s => ({
+      ...s,
+      percentage: Math.max(0, s.percentage - (s.percentage / totalAiPct) * buyPct),
+    })).filter(s => s.percentage > 0) : [];
+    const fullyOwned = newEquityGiven === 0;
     const entry: WealthEntry = { type: 'stock_buy', amount: -cost, personalCash: state.personalCash - cost, month: state.month };
     set({
       personalCash: state.personalCash - cost,
       totalEquityGiven: newEquityGiven,
+      aiStakes: newAiStakes,
+      boardSatisfaction: fullyOwned ? 100 : state.boardSatisfaction,
+      quarterlyTargets: fullyOwned ? [] : state.quarterlyTargets,
       wealthLog: [...state.wealthLog, entry].slice(-50),
     });
-    get().addNotification(`Bought back ${buyPct}% of company shares for $${cost.toLocaleString()}`, 'success');
+    get().addNotification(`Bought back ${buyPct}% of company shares for $${cost.toLocaleString()}${fullyOwned ? ' — you own 100% again!' : ''}`, 'success');
   },
 
   devSpawnCompetitor: () => {
