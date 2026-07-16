@@ -31,3 +31,11 @@ export interface TermSheet {
   expiresAtMonth: number;
   investorPersonality: 'hands_on' | 'passive' | 'strategic';
 }
+
+export interface AiFundingOffer {
+  id: string;
+  aiId: string;
+  aiName: string;
+  amount: number;
+  equityGiven: number;
+}

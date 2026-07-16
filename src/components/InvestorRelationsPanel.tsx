@@ -37,9 +37,9 @@ export function InvestorRelationsPanel() {
   const acceptTermSheet = useGameStore((s) => s.acceptTermSheet);
   const declineTermSheet = useGameStore((s) => s.declineTermSheet);
   const month = useGameStore((s) => s.month);
-  const pendingFunding = useGameStore((s) => s.pendingFunding);
-  const acceptFunding = useGameStore((s) => s.acceptFunding);
-  const declineFunding = useGameStore((s) => s.declineFunding);
+  const pendingFundingRounds = useGameStore((s) => s.pendingFundingRounds);
+  const acceptFundingRound = useGameStore((s) => s.acceptFundingRound);
+  const declineAllFundingRounds = useGameStore((s) => s.declineAllFundingRounds);
 
   return (
     <div className="space-y-2 text-[11px]">
@@ -129,27 +129,30 @@ export function InvestorRelationsPanel() {
         })}
       </div>
 
-      {/* Funding Round */}
-      {pendingFunding && (
+      {/* AI Funding Offers */}
+      {pendingFundingRounds.length > 0 && (
         <div className="bg-green-soft/40 border border-green/20 rounded-lg p-2.5 space-y-1.5">
           <div className="flex items-center gap-1.5">
             <BadgeDollarSign className="w-3.5 h-3.5 text-green" />
-            <span className="font-semibold text-xs text-green">Funding Round #{pendingFunding.round}</span>
+            <span className="font-semibold text-xs text-green">Funding Offers ({pendingFundingRounds.length} AI)</span>
           </div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
-            <span className="text-ink-soft">Amount:</span><span className="font-semibold text-right">{fmtCash(pendingFunding.amount)}</span>
-            <span className="text-ink-soft">Equity:</span><span className="font-semibold text-right">{pendingFunding.equityGiven}%</span>
-          </div>
-          <div className="flex gap-2 mt-1">
-            <button onClick={acceptFunding}
-              className="flex-1 px-2 py-1.5 bg-green text-white rounded-lg text-[10px] font-semibold hover:bg-green/90 transition-colors cursor-pointer">
-              Accept
-            </button>
-            <button onClick={declineFunding}
-              className="flex-1 px-2 py-1.5 bg-surface-2 border border-border rounded-lg text-[10px] font-semibold hover:bg-surface transition-colors cursor-pointer text-ink">
-              Decline
-            </button>
-          </div>
+          {pendingFundingRounds.map((offer, idx) => (
+            <div key={offer.id} className="bg-surface-2 border border-border rounded p-1.5 text-[10px] space-y-0.5">
+              <div className="font-semibold text-ink">{offer.aiName}</div>
+              <div className="flex justify-between">
+                <span className="text-ink-soft">Offers</span>
+                <span className="font-semibold">{fmtCash(offer.amount)} for {offer.equityGiven}%</span>
+              </div>
+              <button onClick={() => acceptFundingRound(idx)}
+                className="w-full mt-1 px-2 py-1 bg-green text-white rounded-lg text-[10px] font-semibold hover:bg-green/90 transition-colors cursor-pointer">
+                Accept
+              </button>
+            </div>
+          ))}
+          <button onClick={declineAllFundingRounds}
+            className="w-full px-2 py-1 bg-surface-2 border border-border rounded-lg text-[10px] font-semibold hover:bg-surface transition-colors cursor-pointer text-ink">
+            Decline All
+          </button>
         </div>
       )}
 

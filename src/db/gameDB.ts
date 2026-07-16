@@ -69,12 +69,11 @@ export interface GameSave {
   unlockedTitles?: string[];
   victoryAchieved?: boolean;
   totalDividendsReceived?: number;
-  distressActive?: boolean;
-  distressTicks?: number;
   takeoverCapital?: number;
   acquiredBy?: string | null;
-  lastWithdrawMonth?: number;
   wealthLog?: WealthEntry[];
+  aiStakes?: { aiId: string; name: string; percentage: number }[];
+  pendingFundingRounds?: AiFundingOffer[];
 }
 
 export class GameDB extends Dexie {

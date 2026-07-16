@@ -14,5 +14,5 @@ export type { PricingTier, BusinessLoan } from './monetization';
 export type { CompetitorProduct, CompetitorSector, CompetitorPersonality, OwnershipStake } from './competitor';
 export type { MarketingCampaign, MarketingCampaignType, BrandMetrics } from './marketing';
 export type { ResearchProjectDef, ResearchCategory, ResearchEffect, ActiveResearch, UnlockedTech } from './research';
-export type { BoardTarget, BoardMetric, QuarterlyReport, TermSheet } from './investorRelations';
+export type { BoardTarget, BoardMetric, QuarterlyReport, TermSheet, AiFundingOffer } from './investorRelations';
 export type { TitleId, AchievementDef, PlayerWealth, WealthEntry, WealthEntryType } from './wealth';
