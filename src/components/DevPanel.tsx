@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
+import { TICKS_PER_DAY, TICKS_PER_MONTH } from '../constants';
 import type { EmployeeRole, SourcingCampaign, AdLead } from '../types';
 import { COMPONENTS } from '../data/components';
 import { NODE_DEFS, RACK_TIERS } from '../data/servers';
@@ -21,7 +22,7 @@ const TABS: { id: DevTab; label: string }[] = [
 
 export function DevPanel() {
   const [tab, setTab] = useState<DevTab>('core');
-  const { cash, addCash, employees, hireEmployee, addResources, features, unlockAllFeatures, racks, fillRack, selectedProduct, perkPoints, unlockedPerks, unlockAllPerks, devSpawnFurniture, currentUsers, adLeads, adCampaigns, gameLog, devSpawnCompetitor, devSetMaxBrand, devResetCompetitors, devTriggerHotSector, competitors } = useGameStore();
+  const { cash, addCash, employees, hireEmployee, addResources, features, unlockAllFeatures, racks, fillRack, selectedProduct, perkPoints, unlockedPerks, unlockAllPerks, devSpawnFurniture, currentUsers, adLeads, adCampaigns, gameLog, devSpawnCompetitor, devSetMaxBrand, devResetCompetitors, devTriggerHotSector, competitors, skipTicks } = useGameStore();
   const [cashAmount, setCashAmount] = useState('100000');
   const [resAmount, setResAmount] = useState('10');
   const [spawnedLeads, setSpawnedLeads] = useState<AdLead[]>([]);
@@ -271,8 +272,12 @@ export function DevPanel() {
 
             <DevSection title="Game State">
               <div className="text-[10px] text-ink-soft">Tick: {useGameStore.getState().tick} | Month: {useGameStore.getState().month}</div>
-              <button onClick={() => { const s = useGameStore.getState(); for (let i = 0; i < 20; i++) s.incrementTick(); }}
-                className="px-2 py-1 bg-surface-2 hover:bg-surface border border-border rounded-lg text-[10px] mt-1">Fast-forward 1 day</button>
+              <div className="flex gap-1 mt-1">
+                <button onClick={() => skipTicks(TICKS_PER_DAY)} className="px-2 py-1 bg-surface-2 hover:bg-surface border border-border rounded-lg text-[10px] cursor-pointer">Day</button>
+                <button onClick={() => skipTicks(TICKS_PER_DAY * 7)} className="px-2 py-1 bg-surface-2 hover:bg-surface border border-border rounded-lg text-[10px] cursor-pointer">Week</button>
+                <button onClick={() => skipTicks(TICKS_PER_MONTH)} className="px-2 py-1 bg-surface-2 hover:bg-surface border border-border rounded-lg text-[10px] cursor-pointer">Month</button>
+                <button onClick={() => skipTicks(TICKS_PER_MONTH * 12)} className="px-2 py-1 bg-surface-2 hover:bg-surface border border-border rounded-lg text-[10px] cursor-pointer">Year</button>
+              </div>
               <div className="text-amber font-semibold text-[10px] uppercase tracking-wider mt-2">Log</div>
               <div className="space-y-0.5 mt-1 max-h-32 overflow-y-auto">
                 {gameLog.slice(-12).reverse().map((m, i) => (
