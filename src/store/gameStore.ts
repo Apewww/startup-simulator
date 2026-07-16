@@ -1004,6 +1004,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       if (monthsSinceLast >= 6) {
         const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore * (compliance?.revenueMult ?? 1), platformStats.synergyRevenueBonus, revOptsWithPricing);
         const companyVal = Math.max(1000, newCurrentUsers * 80);
+        if (companyVal >= 100_000) {
         const aiCandidates = (get().competitors ?? []).filter(c => !c.delisted).sort(() => Math.random() - 0.5).slice(0, 3 + Math.floor(Math.random() * 3));
         const offers: AiFundingOffer[] = [];
         for (const ai of aiCandidates) {
@@ -1016,6 +1017,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         if (offers.length > 0) {
           set({ pendingFundingRounds: offers });
           get().addNotification(`💼 ${offers.length} AI investor(s) offer funding — check Board panel`, 'info');
+        }
         }
       }
     }
