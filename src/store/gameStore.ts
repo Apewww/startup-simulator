@@ -833,6 +833,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const campaignRevenue = newAdCampaigns
       .filter(c => c.status === 'active')
       .reduce((sum, c) => sum + c.revenuePerTick, 0);
+    let newTotalDividends = state.totalDividendsReceived;
     if (newMonth > oldMonth) {
       newTotalSalary = calcTotalSalary(newEmployees);
       const serverCost = calcMonthlyServerCost(finalRacks, rentedServers, internetSubs);
@@ -867,7 +868,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
         get().addNotification(`📊 Dividend income: $${dividendIncome.toLocaleString()} → personal cash: $${newPersonal.toLocaleString()}`, 'info');
       }
-      const newTotalDividends = state.totalDividendsReceived + dividendIncome;
+      newTotalDividends = state.totalDividendsReceived + dividendIncome;
       cashChange = revenue.total + adCampaignMonthly - (newTotalSalary + serverCost + loanPayment + campaignCost + researchCost);
 
       // Loan payment tracking
