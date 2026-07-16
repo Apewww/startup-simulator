@@ -140,12 +140,16 @@ export function StockMarketPanel({ search = '' }: { search?: string }) {
                   </div>
                 </div>
                 <div className="space-y-1.5 pt-1 border-t border-border">
+                  <div className="flex items-center justify-between text-[9px] text-ink-soft mb-0.5">
+                    <span>Max buy: {Math.round((100 - playerPct) / (100 / comp.totalShares)).toLocaleString()} shares</span>
+                    <span>Cost: ${(Number(buyAmounts[comp.id] ?? 0) * comp.sharePrice).toLocaleString()}</span>
+                  </div>
                   <div className="flex gap-1.5">
                     <div className="flex-1 relative">
                       <input type="number" min={1} max={comp.totalShares} placeholder="Buy shares"
                         value={buyAmounts[comp.id] ?? ''}
                         onChange={e => setBuyAmounts(p => ({ ...p, [comp.id]: e.target.value }))}
-                        className="w-full bg-surface border border-border rounded px-2 py-1.5 text-[10px] font-mono text-ink outline-none focus:border-green" />
+                        className="w-full bg-surface border border-border rounded px-2 py-1.5 text-[10px] font-mono text-ink outline-none focus:border-green [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                       {buyAmounts[comp.id] && (
                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] text-ink-soft">
                           ${(Number(buyAmounts[comp.id]) * comp.sharePrice).toLocaleString()}
@@ -162,7 +166,7 @@ export function StockMarketPanel({ search = '' }: { search?: string }) {
                         <input type="number" min={1} max={comp.totalShares} placeholder="Sell shares"
                           value={sellAmounts[comp.id] ?? ''}
                           onChange={e => setSellAmounts(p => ({ ...p, [comp.id]: e.target.value }))}
-                          className="w-full bg-surface border border-border rounded px-2 py-1.5 text-[10px] font-mono text-ink outline-none focus:border-red" />
+                          className="w-full bg-surface border border-border rounded px-2 py-1.5 text-[10px] font-mono text-ink outline-none focus:border-red [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                         {sellAmounts[comp.id] && (
                           <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] text-ink-soft">
                             +${(Number(sellAmounts[comp.id]) * comp.sharePrice).toLocaleString()}
