@@ -60,6 +60,10 @@ src/
 │   ├── ServerShop.tsx        # Shop beli rack, node, rental
 │   ├── CharacterAvatar.tsx   # Sprite karakter
 │   ├── AdSalesPanel.tsx      # Panel Ad Sales (Accept/Negotiate/Campaigns)
+│   ├── StockMarketPanel.tsx  # Market saham — beli/jual, harga, dividend tracker
+│   ├── PortfolioPanel.tsx    # Daftar investasi & produk akuisisi player
+│   ├── AcquisitionAlert.tsx  # Notifikasi distress trigger & akuisisi berlangsung
+│   ├── TakeoverCapitalBanner.tsx # Banner capital hasil takeover + CTA venture
 │   └── DevPanel.tsx          # Dev mode cheat panel
 │
 ├── store/
@@ -73,6 +77,7 @@ src/
 │   ├── monetization.ts       # Revenue kalkulasi
 │   ├── recruitment.ts        # Applicant generation, negotiation
 │   ├── adSales.ts            # Lead generation, negotiation chance, campaign
+│   ├── market.ts             # Market valuation, dividend, distress, takeover logic
 │   └── saveLoad.ts           # Save/load IndexedDB
 │
 ├── data/                     # Data statis
@@ -341,7 +346,7 @@ IndexedDB via Dexie.js. Autosave tiap 60 detik. Field: tick, cash, employees, re
 | DDoS crash bonus | +15% crash chance |
 | Bangkrut | 3 bulan cash negatif |
 | Sell refund | 50% harga |
-| DB version | 17 |
+| DB version | 18 |
 
 ---
 
@@ -366,7 +371,7 @@ IndexedDB via Dexie.js. Autosave tiap 60 detik. Field: tick, cash, employees, re
 | v1.9 — Competition Era (Competitor AI + Marketing) | ✅ |
 | v2.0 — Depth Update (R&D Tech Tree + Investor Relations) | ✅ |
 | v2.0.5 — Wealth & Legacy (Personal Wealth + Achievements) | ✅ |
-| v2.1 — Market Update (Leaderboard + Stock Market) | 📝 Planned |
+| v2.1 — Market Update (Leaderboard + Stock Market) | 🔄 In Progress |
 
 ---
 
@@ -403,3 +408,4 @@ IndexedDB via Dexie.js. Autosave tiap 60 detik. Field: tick, cash, employees, re
 | v1.8 | [docs/update/update_v1.8.md](docs/update/update_v1.8.md) |
 | v1.9 | [docs/update/update_v1.9.md](docs/update/update_v1.9.md) |
 | v2.0 | [docs/update/update_v2.0.md](docs/update/update_v2.0.md) |
+| v2.1 | [docs/update/update_v2.1.md](docs/update/update_v2.1.md) |

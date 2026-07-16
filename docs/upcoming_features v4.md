@@ -24,7 +24,7 @@ Semua produk bisa **IPO**, diperjualbelikan sahamnya, saling akuisisi, dan salin
 | v1.9 — Competition Era | Competitor AI dasar + Marketing & Branding System | ✅ Done (Fase A) |
 | v2.0 — Depth Update | R&D / Tech Tree + Investor Relations diperdalam | ✅ Done (Fase B) |
 | **v2.0.5 — Wealth & Legacy** | **Personal withdrawal, achievement/title system, dual win condition** | ✅ Done |
-| **v2.1 — Market Update** | **Leaderboard 1000 produk + Stock Market + IPO + Akuisisi** (fokus dokumen ini) | 📝 Planned |
+| **v2.1 — Market Update** | **Leaderboard 1000 produk + Stock Market + IPO + Akuisisi** (fokus dokumen ini) | 🔄 In Progress (Fase C) |
 | v2.2 — Scale Update | Multi-Product Portfolio + Global Expansion | 📝 Planned |
 | v2.3 — Endgame | Win conditions finalization + prestige/new game+ | 📝 Planned |
 
