@@ -23,7 +23,7 @@ import {
   calcSearchDuration,
 } from '../systems/adSales';
 import { makeLoan, calcCompanyValuation, calcMaxLoan, updateCreditScore } from '../systems/banking';
-import { generateInitialCompetitors, updateCompetitorValuation, shouldDelist, checkSpawnNew, generateCompetitor, calcSectorGrowthBonus, computeRankings, deduplicateNames, resetCompetitorIdCounter } from '../systems/competitor';
+import { generateInitialCompetitors, updateCompetitorValuation, shouldDelist, checkSpawnNew, generateCompetitor, calcSectorGrowthBonus, computeRankings, deduplicateNames, resetCompetitorIdCounter, chooseSpawnSector, isUnicornSpawn } from '../systems/competitor';
 import { resetNameGenerator } from '../data/competitorNames';
 import { createCampaign, processCampaignTick, calcBrandDecay, calcBrandEffects } from '../systems/marketing';
 import { getHotSector, hasMarketCrash, hasMarketBoom } from '../systems/events';
