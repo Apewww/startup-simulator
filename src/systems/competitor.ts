@@ -4,6 +4,18 @@ import { generateUniqueName } from '../data/competitorNames';
 const SECTORS: CompetitorSector[] = ['social_media', 'ecommerce', 'search_engine'];
 const PERSONALITIES: CompetitorPersonality[] = ['aggressive', 'conservative', 'opportunistic'];
 
+// ponytail: sector multipliers, tune after playtesting
+const SECTOR_REVENUE_MULT: Record<CompetitorSector, number> = {
+  social_media: 8,
+  ecommerce: 6,
+  search_engine: 10,
+};
+const SECTOR_USER_VALUE: Record<CompetitorSector, number> = {
+  social_media: 40,
+  ecommerce: 60,
+  search_engine: 30,
+};
+
 let competitorIdCounter = 0;
 
 function nextId(): string {
@@ -19,25 +31,54 @@ function pickName(usedNames: Set<string>): string {
   return generateUniqueName(usedNames);
 }
 
+export function calcValuation(
+  monthlyRevenue: number,
+  userCount: number,
+  sector: CompetitorSector,
+  cohesionScore: number,
+  growthMomentum: number,
+): number {
+  const revenuePart = monthlyRevenue * 12 * SECTOR_REVENUE_MULT[sector];
+  const userPart = userCount * SECTOR_USER_VALUE[sector];
+  return Math.round((revenuePart + userPart) * cohesionScore * growthMomentum);
+}
+
+export function calcGrowthMomentum(userHistory: number[]): number {
+  if (userHistory.length < 2) return 1;
+  const oldest = userHistory[0];
+  const latest = userHistory[userHistory.length - 1];
+  if (oldest <= 0) return 1;
+  return Math.max(0.5, Math.min(2, latest / oldest));
+}
+
 export function generateCompetitor(
   sector: CompetitorSector,
   currentMonth: number,
   usedNames: Set<string>,
   hotSectorBadgeTicks: number = 0,
+  isUnicorn: boolean = false,
+  targetValuation?: number,
 ): CompetitorProduct {
   const personality = randomPersonality();
-  const baseGrowth = personality === 'aggressive' ? 0.04
+  const baseGrowth = isUnicorn ? 0.08
+    : personality === 'aggressive' ? 0.04
     : personality === 'conservative' ? 0.02
     : 0.03;
-  const baseVolatility = personality === 'aggressive' ? 0.12
+  const baseVolatility = isUnicorn ? 0.20
+    : personality === 'aggressive' ? 0.12
     : personality === 'conservative' ? 0.04
     : 0.08;
+  const startValuation = targetValuation ?? (10_000 + Math.floor(Math.random() * 40_000));
+  const startUsers = Math.round(startValuation / 80);
+  const startRevenue = Math.round(startValuation / 100);
+  const shareCount = 100_000 + Math.floor(Math.random() * 900_000); // 100K-1M shares
+  const compId = nextId();
 
   return {
-    id: nextId(),
+    id: compId,
     name: pickName(usedNames),
     sector,
-    valuation: 10_000 + Math.floor(Math.random() * 40_000),
+    valuation: startValuation,
     growthRate: baseGrowth + (Math.random() - 0.5) * 0.02,
     volatility: baseVolatility + Math.random() * 0.03,
     personality,
@@ -47,22 +88,67 @@ export function generateCompetitor(
     createdAtMonth: currentMonth,
     hotSectorBadgeTicks,
     newBadgeTicks: 2,
-    userCount: 1_000 + Math.floor(Math.random() * 5_000),
-    monthlyRevenue: 100 + Math.floor(Math.random() * 400),
+    userCount: startUsers,
+    monthlyRevenue: startRevenue,
+    userHistory: [startUsers],
+    isUnicorn,
+    totalShares: shareCount,
+    sharePrice: Math.round(startValuation / shareCount),
+    ownership: [{ ownerId: compId, percentage: 100 }],
   };
 }
 
-export function generateInitialCompetitors(currentMonth: number, count: number = 8): CompetitorProduct[] {
+export function generateInitialCompetitors(currentMonth: number, count: number = 100): CompetitorProduct[] {
   const usedNames = new Set<string>();
   const competitors: CompetitorProduct[] = [];
-  const sectorCounts: Record<CompetitorSector, number> = { social_media: 0, ecommerce: 0, search_engine: 0 };
 
   for (let i = 0; i < count; i++) {
     const sector = SECTORS[i % 3];
-    const comp = generateCompetitor(sector, currentMonth, usedNames);
-    usedNames.add(comp.name);
-    sectorCounts[sector]++;
-    competitors.push({ ...comp, newBadgeTicks: 0 });
+    // Scaled valuation: top ranks get much higher starting values
+    // Rank 1 ≈ $100M, Rank 100 ≈ $50K — exponential-like scaling
+    const rankPosition = i / count; // 0 = top, 1 = bottom
+    const valScale = 100_000_000 * Math.pow(0.001, rankPosition); // $100M → $50K
+    const userScale = 1_000_000 * Math.pow(0.01, rankPosition);
+    const revScale = 50_000 * Math.pow(0.01, rankPosition);
+
+    const personality = randomPersonality();
+    const baseGrowth = personality === 'aggressive' ? 0.04
+      : personality === 'conservative' ? 0.02
+      : 0.03;
+
+    const startUsers = Math.round(userScale * (0.5 + Math.random()));
+    const startRevenue = Math.round(revScale * (0.5 + Math.random()));
+    const startValuation = Math.round(valScale * (0.5 + Math.random()));
+    const shareCount = Math.max(1000, Math.round(startValuation / 10));
+
+    const compId = `init-${i}`;
+    competitors.push({
+      id: compId,
+      name: (() => {
+        let name: string;
+        do { name = generateUniqueName(usedNames); } while (usedNames.has(name));
+        usedNames.add(name);
+        return name;
+      })(),
+      sector,
+      valuation: Math.max(1000, startValuation),
+      growthRate: baseGrowth + (Math.random() - 0.5) * 0.02,
+      volatility: personality === 'aggressive' ? 0.12 : personality === 'conservative' ? 0.04 : 0.08,
+      personality,
+      rank: 0,
+      delisted: false,
+      delistedAtMonth: 0,
+      createdAtMonth: currentMonth,
+      hotSectorBadgeTicks: 0,
+      newBadgeTicks: 0,
+      userCount: Math.max(100, startUsers),
+      monthlyRevenue: Math.max(10, startRevenue),
+      userHistory: [Math.max(100, startUsers)],
+      isUnicorn: false,
+      totalShares: shareCount,
+      sharePrice: Math.round(startValuation / shareCount),
+      ownership: [{ ownerId: compId, percentage: 100 }],
+    });
   }
 
   return competitors;
@@ -77,31 +163,62 @@ export function updateCompetitorValuation(
 
   const noise = (Math.random() - 0.5) * 2 * comp.volatility;
   const growthMult = 1 + comp.growthRate + noise + sectorGrowthBonus;
-  const newValuation = Math.round(comp.valuation * growthMult * marketEventMult);
-  const newUsers = Math.round(comp.userCount * growthMult);
-  const newRevenue = Math.round(comp.monthlyRevenue * growthMult);
+  const newUsers = Math.round(comp.userCount * growthMult * marketEventMult);
+  const newRevenue = Math.round(comp.monthlyRevenue * growthMult * marketEventMult);
 
+  // Track user history for growth momentum (keep last 3 months)
+  const userHistory = [...comp.userHistory, newUsers].slice(-3);
+  const growthMomentum = calcGrowthMomentum(userHistory);
+  const newValuation = calcValuation(newRevenue, newUsers, comp.sector, 1, growthMomentum);
+
+  const finalValuation = Math.max(100, newValuation);
   return {
     ...comp,
-    valuation: Math.max(100, newValuation),
+    valuation: finalValuation,
     userCount: Math.max(10, newUsers),
     monthlyRevenue: Math.max(0, newRevenue),
+    userHistory,
+    sharePrice: comp.totalShares > 0 ? Math.round(finalValuation / comp.totalShares) : 0,
     hotSectorBadgeTicks: Math.max(0, comp.hotSectorBadgeTicks - 1),
     newBadgeTicks: Math.max(0, comp.newBadgeTicks - 1),
   };
 }
 
-export function shouldDelist(comp: CompetitorProduct, _currentMonth: number): boolean {
-  if (comp.delisted) return false;
-  const valuationDrop = comp.valuation / (comp.valuation / (1 + comp.growthRate * 6));
-  return valuationDrop < 0.3;
+// Player valuation using same formula for consistent ranking
+export function calcPlayerValuation(
+  currentUsers: number,
+  monthlyRevenue: number,
+  sector: CompetitorSector,
+  cohesionScore: number,
+): number {
+  return calcValuation(monthlyRevenue, currentUsers, sector, cohesionScore, 1);
 }
 
-export function checkSpawnNew(_currentMonth: number, activeCount: number): boolean {
-  if (activeCount >= 100) return false;
+export function shouldDelist(comp: CompetitorProduct, _currentMonth: number): boolean {
+  if (comp.delisted) return false;
+  if (comp.userHistory.length < 2) return false;
+  const oldest = comp.userHistory[0];
+  if (oldest <= 0) return false;
+  const drop = comp.userCount / oldest;
+  return drop < 0.3; // >70% user drop over tracked period
+}
+
+export function checkSpawnNew(currentMonth: number, activeCount: number, hotSector?: CompetitorSector | null): boolean {
+  if (activeCount >= 1000) return false;
   const baseChance = 0.15;
-  const countBonus = Math.max(0, 1 - activeCount / 100) * 0.1;
-  return Math.random() < baseChance + countBonus;
+  const countBonus = Math.max(0, 1 - activeCount / 1000) * 0.1;
+  const hotSectorBonus = hotSector ? 0.05 : 0;
+  const monthBonus = currentMonth > 12 ? 0.03 : 0; // lebih banyak spawn seiring waktu
+  return Math.random() < baseChance + countBonus + hotSectorBonus + monthBonus;
+}
+
+export function chooseSpawnSector(hotSector?: CompetitorSector | null): CompetitorSector {
+  if (hotSector) return hotSector;
+  return SECTORS[Math.floor(Math.random() * SECTORS.length)];
+}
+
+export function isUnicornSpawn(): boolean {
+  return Math.random() < 0.05; // 5% chance
 }
 
 export function calcSectorGrowthBonus(

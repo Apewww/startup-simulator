@@ -1,0 +1,44 @@
+import { useState } from 'react';
+import { CompetitorPanel } from './CompetitorPanel';
+import { StockMarketPanel } from './StockMarketPanel';
+import { BarChart3, TrendingUp, Search } from 'lucide-react';
+
+type Tab = 'leaderboard' | 'stocks';
+
+export function MarketPanel() {
+  const [tab, setTab] = useState<Tab>('leaderboard');
+  const [search, setSearch] = useState('');
+
+  return (
+    <div className="flex flex-col min-h-0" style={{ height: '100%' }}>
+      {/* Search input */}
+      <div className="relative mb-2 shrink-0">
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-ink-soft" />
+        <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+          placeholder={`Search ${tab === 'leaderboard' ? 'products' : 'stocks'}...`}
+          className="w-full bg-surface-2 border border-border rounded-lg pl-6 pr-2 py-1.5 text-[11px] text-ink placeholder:text-ink-soft outline-none focus:border-indigo transition-colors" />
+      </div>
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {tab === 'leaderboard' ? <CompetitorPanel search={search} /> : <StockMarketPanel search={search} />}
+      </div>
+      {/* Sticky footer tabs */}
+      <div className="flex gap-1 pt-2 border-t border-border sticky bottom-0 bg-surface shrink-0">
+        <button onClick={() => setTab('leaderboard')}
+          className={`flex items-center justify-center gap-1 flex-1 px-2 py-1.5 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer ${
+            tab === 'leaderboard' ? 'bg-indigo-soft text-indigo border border-indigo/20' : 'text-ink-soft hover:text-ink border border-transparent'
+          }`}>
+          <BarChart3 className="w-3 h-3" />
+          Leaderboard
+        </button>
+        <button onClick={() => setTab('stocks')}
+          className={`flex items-center justify-center gap-1 flex-1 px-2 py-1.5 rounded-lg text-[10px] font-semibold transition-colors cursor-pointer ${
+            tab === 'stocks' ? 'bg-indigo-soft text-indigo border border-indigo/20' : 'text-ink-soft hover:text-ink border border-transparent'
+          }`}>
+          <TrendingUp className="w-3 h-3" />
+          Stocks
+        </button>
+      </div>
+    </div>
+  );
+}

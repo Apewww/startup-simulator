@@ -3,6 +3,7 @@ import { Users, Lock, Unlock, Crown, GraduationCap, XCircle, AlertTriangle, Gift
 import { useGameStore, getAvailableComponents, getLockedComponents } from '../store/gameStore';
 import { getComponentDef } from '../data/components';
 import { calcMaxSupervised } from '../types/employee';
+import { TICKS_PER_DAY } from '../constants';
 import { getSupervisionBoost } from '../systems/leadDeveloper';
 import type { Employee, EmployeeRole } from '../types';
 
@@ -186,7 +187,7 @@ function EmployeeCard({ employee }: { employee: Employee }) {
         <div className="mt-1.5">
           <div className="flex justify-between text-[10px] text-ink-soft mb-0.5">
             <span className="flex items-center gap-1"><Plane className="w-3 h-3" /> Vacation</span>
-            <span>{Math.ceil(employee.vacationTicksLeft / 20)}d left</span>
+            <span>{Math.ceil(employee.vacationTicksLeft / TICKS_PER_DAY)}d left</span>
           </div>
           <div className="flex gap-1.5 items-center">
             <div className="flex-1 h-1.5 bg-surface-2 rounded-full overflow-hidden">

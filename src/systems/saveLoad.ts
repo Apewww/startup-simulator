@@ -68,6 +68,12 @@ function serialize(): Omit<GameSave, 'id' | 'timestamp'> {
     lifetimeWithdrawn: s.lifetimeWithdrawn,
     unlockedTitles: s.unlockedTitles,
     victoryAchieved: s.victoryAchieved,
+    totalDividendsReceived: s.totalDividendsReceived,
+    takeoverCapital: s.takeoverCapital,
+    acquiredBy: s.acquiredBy,
+    wealthLog: s.wealthLog,
+    aiStakes: s.aiStakes,
+    pendingFundingRounds: s.pendingFundingRounds,
   };
 }
 
@@ -156,13 +162,27 @@ export async function loadGame(slotId: number): Promise<boolean> {
     lifetimeWithdrawn: (save as any).lifetimeWithdrawn ?? 0,
     unlockedTitles: (save as any).unlockedTitles ?? [],
     victoryAchieved: (save as any).victoryAchieved ?? false,
+    totalDividendsReceived: (save as any).totalDividendsReceived ?? 0,
+    takeoverCapital: (save as any).takeoverCapital ?? 0,
+    acquiredBy: (save as any).acquiredBy ?? null,
+    wealthLog: (save as any).wealthLog ?? [],
+    aiStakes: (save as any).aiStakes ?? [],
+    pendingFundingRounds: (save as any).pendingFundingRounds ?? [],
     currentSlotId: slotId,
   });
 
-  // Fix duplicate names & rankings from corrupted old saves
+  // Fix old save competitors — ensure new v2.1 fields
   const competitors = useGameStore.getState().competitors;
   if (competitors.length > 0) {
-    const fixed = computeRankings(deduplicateNames(competitors));
+    const migrated = competitors.map(c => ({
+      ...c,
+      totalShares: c.totalShares ?? 100_000,
+      sharePrice: c.sharePrice ?? (c.valuation > 0 ? Math.round(c.valuation / 100_000) : 1),
+      ownership: c.ownership ?? [{ ownerId: c.id, percentage: 100 }],
+      userHistory: c.userHistory ?? [c.userCount ?? 1000],
+      isUnicorn: c.isUnicorn ?? false,
+    }));
+    const fixed = computeRankings(deduplicateNames(migrated));
     useGameStore.setState({ competitors: fixed });
   }
 

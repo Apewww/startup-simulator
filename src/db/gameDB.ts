@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Employee, ComponentResource, PlatformFeature, ServerRack, Plot, RentedServer, ServerNode, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetSubscription, AdLead, AdCampaign, CompetitorProduct, MarketingCampaign } from '../types';
+import type { Employee, ComponentResource, PlatformFeature, ServerRack, Plot, RentedServer, ServerNode, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetSubscription, AdLead, AdCampaign, CompetitorProduct, MarketingCampaign, OwnershipStake, WealthEntry } from '../types';
 import type { GameSpeed, GameScreen, MonthlySnapshot, MonetizationStrategy } from '../store/gameStore';
 import type { ActiveResearch } from '../types/research';
 import type { BoardTarget, QuarterlyReport, TermSheet } from '../types/investorRelations';
@@ -68,6 +68,12 @@ export interface GameSave {
   lifetimeWithdrawn?: number;
   unlockedTitles?: string[];
   victoryAchieved?: boolean;
+  totalDividendsReceived?: number;
+  takeoverCapital?: number;
+  acquiredBy?: string | null;
+  wealthLog?: WealthEntry[];
+  aiStakes?: { aiId: string; name: string; percentage: number }[];
+  pendingFundingRounds?: AiFundingOffer[];
 }
 
 export class GameDB extends Dexie {
@@ -92,6 +98,7 @@ export class GameDB extends Dexie {
     this.version(15).stores({ saves: '++id, timestamp' });
     this.version(16).stores({ saves: '++id, timestamp' });
     this.version(17).stores({ saves: '++id, timestamp' });
+    this.version(18).stores({ saves: '++id, timestamp' });
   }
 }
 

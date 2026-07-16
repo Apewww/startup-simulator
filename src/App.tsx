@@ -18,11 +18,12 @@ import { RecruitmentPanel, recruitmentPanelMeta } from './components/Recruitment
 import { PerksPanel } from './components/PerksPanel';
 import { AdSalesPanel, adSalesPanelMeta } from './components/AdSalesPanel';
 import { BankingPanel, bankingPanelMeta } from './components/BankingPanel';
-import { CompetitorPanel } from './components/CompetitorPanel';
+import { MarketPanel } from './components/MarketPanel';
 import { MarketingPanel } from './components/MarketingPanel';
 import { ResearchPanel } from './components/ResearchPanel';
 import { InvestorRelationsPanel } from './components/InvestorRelationsPanel';
 import { WealthPanel } from './components/WealthPanel';
+import { TakeoverCapitalBanner } from './components/TakeoverCapitalBanner';
 import { Server, Skull, CheckCircle, Info, AlertTriangle, XCircle, Gift, BarChart3, Megaphone, Microscope, Handshake, Wallet, Bug } from 'lucide-react';
 import { saveGame } from './systems/saveLoad';
 import { db } from './db/gameDB';
@@ -244,7 +245,7 @@ function App() {
           </FloatingPanel>
 
           <FloatingPanel id="competitor" index={8} title="Market" icon={<BarChart3 className="w-4 h-4 text-amber" />} accent="#B7791F">
-            <CompetitorPanel />
+            <MarketPanel />
           </FloatingPanel>
 
           <FloatingPanel id="marketing" index={9} title="Brand" icon={<Megaphone className="w-4 h-4 text-red" />} accent="#D1453B">
@@ -311,6 +312,7 @@ function App() {
       )}
 
       <EventBanner />
+      <TakeoverCapitalBanner />
     </div>
   );
 }
