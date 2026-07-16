@@ -137,18 +137,21 @@ interface TakeoverEvent {
 
 | File | Perubahan |
 |------|----------|
-| `src/types/competitor.ts` | +MarketProduct, OwnershipStake, TakeoverEvent; perluas CompetitorProduct |
+| `src/types/competitor.ts` | +OwnershipStake, PlayerMarketEntry; perluas CompetitorProduct (totalShares, sharePrice, ownership, userHistory, isUnicorn) |
+| `src/types/wealth.ts` | +WealthEntry, WealthEntryType |
 | `src/types/index.ts` | Barrel export baru |
-| `src/systems/competitor.ts` | Formula valuasi baru, delisting logic, spawn logic, AI investment logic |
-| `src/systems/market.ts` | **BARU** — dividend payout, distress check, takeover processing |
-| `src/store/gameStore.ts` | +marketProducts, +takeoverCapital, +distressActive; actions buy/sell/dividend/distress/takeover |
-| `src/components/CompetitorPanel.tsx` | Perluas ke 1000 rank, virtual scroll / pagination |
+| `src/systems/competitor.ts` | Formula valuasi baru, growthMomentum via userHistory, generateInitialCompetitors(100), scaled ranking, targetValuation param |
+| `src/store/gameStore.ts` | +buyShares/sellShares (personalCash), +depositToCompany, +buybackShares, +wealthLog, +distressActive/Ticks, +takeoverCapital/acquiredBy, +lastWithdrawMonth; dividend→personalCash; AI investment; full acquisition check; try-catch tick |
+| `src/components/CompetitorPanel.tsx` | Perluas ke 1000, top20 + player neighbor + Show All toggle |
+| `src/components/StockMarketPanel.tsx` | **BARU** — buy/sell AI shares + buyback own company section |
+| `src/components/PortfolioPanel.tsx` | **BARU** — investasi player + dividend tracker |
+| `src/components/AcquisitionAlert.tsx` | **BARU** — distress indicator |
+| `src/components/TakeoverCapitalBanner.tsx` | **BARU** — takeover capital + CTA |
+| `src/components/WealthPanel.tsx` | Refactor ke tabs: Withdraw/Deposit/History/Titles |
 | `src/components/Dock.tsx` | +Stock Market, +Portfolio buttons |
-| `src/components/FinancePanel.tsx` | +Dividend income line, +Takeover capital line |
-| `src/components/WealthPanel.tsx` | Update withdrawal calc pakai ownership dari saham |
-| `src/components/HudBar.tsx` | +Distress warning indicator |
-| `src/db/gameDB.ts` | Dexie v18 + new fields |
-| `src/systems/saveLoad.ts` | Persist marketProducts, takeoverCapital, distressActive |
+| `src/constants.ts` | +MAX_RANK=1000; TICKS_PER_DAY=20→24; TICKS_PER_MONTH=600→720 |
+| `src/db/gameDB.ts` | Dexie v18 + new fields (wealthLog, lastWithdrawMonth, etc.) |
+| `src/systems/saveLoad.ts` | Persist semua state baru; old-save migration (ownership, userHistory, dll) |
 
 ---
 
@@ -177,6 +180,17 @@ interface TakeoverEvent {
 - [x] Takeover capital pool + banner + venture CTA
 - [x] Portfolio panel — daftar investasi player + dividend tracker
 - [x] AcquisitionAlert — distress indicator in HUD
+- [x] Buy/sell pakai personalCash (bukan company cash)
+- [x] DepositToCompany — wealth → company cash transfer
+- [x] WealthLog — transaction history (withdraw/deposit/dividend/stock)
+- [x] WealthPanel tabs: Withdraw / Deposit / History / Titles
+- [x] Remaining shares info + progress bar di StockMarketPanel
+- [x] 100 initial competitors dengan scaled ranking (top $100M → bottom $50K)
+- [x] New spawn valuation comparable to player level
+- [x] Player buyback own shares from AI via personalCash
+- [x] Ticks per day: 20→24, ticks per month: 600→720 (1 tick = 1 jam)
+- [x] Fix: null guard ownership/userHistory (tick crash old saves)
+- [x] Fix: try-catch incrementTick + console.error logging
 - [x] Dexie v18 + save/load semua state baru
 - [x] Build sukses (tsc -b + vite build)
 

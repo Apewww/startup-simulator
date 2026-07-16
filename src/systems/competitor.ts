@@ -57,6 +57,7 @@ export function generateCompetitor(
   usedNames: Set<string>,
   hotSectorBadgeTicks: number = 0,
   isUnicorn: boolean = false,
+  targetValuation?: number,
 ): CompetitorProduct {
   const personality = randomPersonality();
   const baseGrowth = isUnicorn ? 0.08
@@ -67,9 +68,9 @@ export function generateCompetitor(
     : personality === 'aggressive' ? 0.12
     : personality === 'conservative' ? 0.04
     : 0.08;
-  const startUsers = 1_000 + Math.floor(Math.random() * 5_000);
-  const startRevenue = 100 + Math.floor(Math.random() * 400);
-  const startValuation = 10_000 + Math.floor(Math.random() * 40_000);
+  const startValuation = targetValuation ?? (10_000 + Math.floor(Math.random() * 40_000));
+  const startUsers = Math.round(startValuation / 80);
+  const startRevenue = Math.round(startValuation / 100);
   const shareCount = 100_000 + Math.floor(Math.random() * 900_000); // 100K-1M shares
   const compId = nextId();
 
@@ -97,17 +98,57 @@ export function generateCompetitor(
   };
 }
 
-export function generateInitialCompetitors(currentMonth: number, count: number = 8): CompetitorProduct[] {
+export function generateInitialCompetitors(currentMonth: number, count: number = 100): CompetitorProduct[] {
   const usedNames = new Set<string>();
   const competitors: CompetitorProduct[] = [];
-  const sectorCounts: Record<CompetitorSector, number> = { social_media: 0, ecommerce: 0, search_engine: 0 };
 
   for (let i = 0; i < count; i++) {
     const sector = SECTORS[i % 3];
-    const comp = generateCompetitor(sector, currentMonth, usedNames);
-    usedNames.add(comp.name);
-    sectorCounts[sector]++;
-    competitors.push({ ...comp, newBadgeTicks: 0 });
+    // Scaled valuation: top ranks get much higher starting values
+    // Rank 1 ≈ $100M, Rank 100 ≈ $50K — exponential-like scaling
+    const rankPosition = i / count; // 0 = top, 1 = bottom
+    const valScale = 100_000_000 * Math.pow(0.001, rankPosition); // $100M → $50K
+    const userScale = 1_000_000 * Math.pow(0.01, rankPosition);
+    const revScale = 50_000 * Math.pow(0.01, rankPosition);
+
+    const personality = randomPersonality();
+    const baseGrowth = personality === 'aggressive' ? 0.04
+      : personality === 'conservative' ? 0.02
+      : 0.03;
+
+    const startUsers = Math.round(userScale * (0.5 + Math.random()));
+    const startRevenue = Math.round(revScale * (0.5 + Math.random()));
+    const startValuation = Math.round(valScale * (0.5 + Math.random()));
+    const shareCount = Math.max(1000, Math.round(startValuation / 10));
+
+    const compId = `init-${i}`;
+    competitors.push({
+      id: compId,
+      name: (() => {
+        let name: string;
+        do { name = generateUniqueName(usedNames); } while (usedNames.has(name));
+        usedNames.add(name);
+        return name;
+      })(),
+      sector,
+      valuation: Math.max(1000, startValuation),
+      growthRate: baseGrowth + (Math.random() - 0.5) * 0.02,
+      volatility: personality === 'aggressive' ? 0.12 : personality === 'conservative' ? 0.04 : 0.08,
+      personality,
+      rank: 0,
+      delisted: false,
+      delistedAtMonth: 0,
+      createdAtMonth: currentMonth,
+      hotSectorBadgeTicks: 0,
+      newBadgeTicks: 0,
+      userCount: Math.max(100, startUsers),
+      monthlyRevenue: Math.max(10, startRevenue),
+      userHistory: [Math.max(100, startUsers)],
+      isUnicorn: false,
+      totalShares: shareCount,
+      sharePrice: Math.round(startValuation / shareCount),
+      ownership: [{ ownerId: compId, percentage: 100 }],
+    });
   }
 
   return competitors;

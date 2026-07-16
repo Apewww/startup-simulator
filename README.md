@@ -325,10 +325,11 @@ IndexedDB via Dexie.js. Autosave tiap 60 detik. Field: tick, cash, employees, re
 ## Data & Balancing
 
 | Parameter | Nilai |
-|---|---|
+|---|---|---|
 | Cash awal | $15,000 |
 | Gaji level 1 | $500/bulan |
-| Ticks/bulan | 600 (20/hari × 30 hari) |
+| Ticks/bulan | 720 (24/hari × 30 hari) |
+| 1 tick = 1 jam in-game | |
 | Base produksi komponen | 400-800 tick |
 | Happiness decay (kerja) | -0.05/tick |
 | Happiness decay (idle) | -0.005/tick |

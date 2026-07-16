@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { Employee, ComponentResource, PlatformFeature, ServerRack, Plot, RentedServer, ServerNode, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetSubscription, AdLead, AdCampaign, CompetitorProduct, MarketingCampaign, OwnershipStake } from '../types';
+import type { Employee, ComponentResource, PlatformFeature, ServerRack, Plot, RentedServer, ServerNode, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetSubscription, AdLead, AdCampaign, CompetitorProduct, MarketingCampaign, OwnershipStake, WealthEntry } from '../types';
 import type { GameSpeed, GameScreen, MonthlySnapshot, MonetizationStrategy } from '../store/gameStore';
 import type { ActiveResearch } from '../types/research';
 import type { BoardTarget, QuarterlyReport, TermSheet } from '../types/investorRelations';
@@ -74,6 +74,7 @@ export interface GameSave {
   takeoverCapital?: number;
   acquiredBy?: string | null;
   lastWithdrawMonth?: number;
+  wealthLog?: WealthEntry[];
 }
 
 export class GameDB extends Dexie {

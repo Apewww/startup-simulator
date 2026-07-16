@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetProviderId, InternetSubscription, AdCampaign, AdLead, CompetitorProduct, MarketingCampaign, MarketingCampaignType } from '../types';
+import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetProviderId, InternetSubscription, AdCampaign, AdLead, CompetitorProduct, MarketingCampaign, MarketingCampaignType, WealthEntry } from '../types';
 import { calcFundingOffer, calcMaxSupervised } from '../types/employee';
 import { getComponentDef, COMPONENTS } from '../data/components';
 import { getProductDef } from '../data/products';
@@ -261,6 +261,9 @@ interface GameState {
   takeoverCapital: number;
   acquiredBy: string | null;
   lastWithdrawMonth: number;
+  wealthLog: WealthEntry[];
+  depositToCompany: (amount: number) => void;
+  buybackShares: (percentage: number) => void;
 }
 
 function calcTotalSalary(employees: Employee[]): number {
@@ -314,6 +317,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   takeoverCapital: 0,
   acquiredBy: null,
   lastWithdrawMonth: -1,
+  wealthLog: [],
   nextCompetitorCheck: 600,
   devMode: false,
   currentSlotId: null,
@@ -426,6 +430,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   incrementTick: () => {
+    try {
     const state = get();
     const { tick, employees, resources, features, racks, events, currentUsers, selectedProduct, rentedServers } = state;
     const internetSubs = state.internetSubscriptions;
@@ -649,7 +654,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const hasActiveCampaign = newMarketingCampaigns.some(c => c.active);
     const activeBrandGain = newMarketingCampaigns
       .filter(c => c.active)
-      .reduce((sum, c) => sum + c.brandGain / (c.durationTicks / 20), 0);
+      .reduce((sum, c) => sum + c.brandGain / (c.durationTicks / TICKS_PER_DAY), 0);
     // v2.0 — Research effects (sebelum brandEffects karena dipakai di sana)
     const researchEffects = collectResearchEffects(state.unlockedTechs, RESEARCH_TREE, state.unlockedLevels);
     const researchTrafficMult = 1 + calcResearchEffects(researchEffects, 'traffic_mult');
@@ -842,14 +847,15 @@ export const useGameStore = create<GameState>((set, get) => ({
       // v2.1 — Dividend income → personal cash (investment return, not company revenue)
       const dividendIncome = state.competitors.reduce((sum, comp) => {
         if (comp.delisted) return sum;
-        const playerStake = comp.ownership.find(o => o.ownerId === 'player');
+        const playerStake = (comp.ownership ?? []).find(o => o.ownerId === 'player');
         if (!playerStake) return sum;
         return sum + Math.round(comp.monthlyRevenue * (playerStake.percentage / 100));
       }, 0);
       if (dividendIncome > 0) {
         const newPersonal = state.personalCash + dividendIncome;
         const newLifetime = state.lifetimeWithdrawn + dividendIncome;
-        set({ personalCash: newPersonal, lifetimeWithdrawn: newLifetime });
+        const entry: WealthEntry = { type: 'dividend', amount: dividendIncome, personalCash: newPersonal, month: newMonth };
+        set({ personalCash: newPersonal, lifetimeWithdrawn: newLifetime, wealthLog: [...state.wealthLog, entry].slice(-50) });
         // Check achievements from dividend income
         const newTitles = checkNewAchievements(newPersonal, state.unlockedTitles);
         for (const t of newTitles) {
@@ -1094,7 +1100,10 @@ export const useGameStore = create<GameState>((set, get) => ({
         const spawnSector = chooseSpawnSector(hotSector);
         const hotBadge = hotSector === spawnSector ? 1 : 0;
         const unicorn = isUnicornSpawn();
-        const newComp = generateCompetitor(spawnSector, newMonth, usedNames, hotBadge, unicorn);
+        // New spawns have valuation comparable to player (give chase target)
+        const playerVal = get().currentUsers > 0 ? get().currentUsers * 80 : 50_000;
+        const targetVal = Math.round(playerVal * (0.5 + Math.random() * 0.5));
+        const newComp = generateCompetitor(spawnSector, newMonth, usedNames, hotBadge, unicorn, targetVal);
         newCompetitors.push(newComp);
         if (unicorn) {
           get().addNotification(`🦄 Unicorn candidate "${newComp.name}" entered the market!`, 'info');
@@ -1109,10 +1118,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       const aiTargetDistressed = get().distressActive;
       for (const comp of newCompetitors) {
         if (comp.delisted || comp.personality === 'conservative' && aiTargetDistressed) continue;
-        if (comp.ownership.some(o => o.ownerId !== comp.id && o.percentage > 50)) continue; // already majority-owned
+        if ((comp.ownership ?? []).some(o => o.ownerId !== comp.id && o.percentage > 50)) continue; // already majority-owned
         // Conservative: invest in stable/growing products
         if (comp.personality === 'conservative' && comp.growthRate > 0.02 && Math.random() < 0.05) {
-          const target = newCompetitors.find(c => !c.delisted && c.id !== comp.id && c.growthRate > 0.02 && !c.ownership.some(o => o.ownerId === comp.id));
+          const target = newCompetitors.find(c => !c.delisted && c.id !== comp.id && c.growthRate > 0.02 && !(c.ownership ?? []).some(o => o.ownerId === comp.id));
           if (target) {
             const buyPct = 2 + Math.floor(Math.random() * 3);
             const existing = target.ownership.find(o => o.ownerId === comp.id);
@@ -1128,7 +1137,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         if (comp.personality === 'aggressive' && Math.random() < 0.08) {
           const target = aiTargetDistressed
             ? newCompetitors.find(c => c.id === 'player' || (!c.delisted && c.id !== comp.id && c.valuation < 50000))
-            : newCompetitors.find(c => !c.delisted && c.id !== comp.id && c.volatility > 0.1 && !c.ownership.some(o => o.ownerId === comp.id));
+            : newCompetitors.find(c => !c.delisted && c.id !== comp.id && c.volatility > 0.1 && !(c.ownership ?? []).some(o => o.ownerId === comp.id));
           if (target) {
             const buyPct = 5 + Math.floor(Math.random() * 5);
             const existing = target.ownership.find(o => o.ownerId === comp.id);
@@ -1144,7 +1153,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
         // Opportunistic: undervalued products
         if (comp.personality === 'opportunistic' && Math.random() < 0.06) {
-          const target = newCompetitors.find(c => !c.delisted && c.id !== comp.id && c.userCount > 1000 && c.valuation / c.userCount < 30 && !c.ownership.some(o => o.ownerId === comp.id));
+          const target = newCompetitors.find(c => !c.delisted && c.id !== comp.id && c.userCount > 1000 && c.valuation / c.userCount < 30 && !(c.ownership ?? []).some(o => o.ownerId === comp.id));
           if (target) {
             const buyPct = 3 + Math.floor(Math.random() * 3);
             const newOwnership = target.ownership.map(o =>
@@ -1159,14 +1168,14 @@ export const useGameStore = create<GameState>((set, get) => ({
       // v2.1 — Check full acquisition (player acquired by competitor)
       if (newMonth > oldMonth && !state.acquiredBy) {
         const playerOwnership = newCompetitors.reduce((total, comp) => {
-          const playerStake = comp.ownership.find(o => o.ownerId === 'player');
+          const playerStake = (comp.ownership ?? []).find(o => o.ownerId === 'player');
           return playerStake ? total + playerStake.percentage : total;
         }, 0);
         // Player's own company ownership from equity given
         const playerSelfOwnership = Math.max(20, 100 - get().totalEquityGiven);
         const aiOwnership = 100 - playerSelfOwnership;
         if (aiOwnership >= 100 || (get().distressActive && aiOwnership >= 80)) {
-          const acquirer = newCompetitors.find(c => c.ownership.some(o => o.ownerId !== 'player' && o.ownerId !== c.id && o.percentage > 30));
+          const acquirer = newCompetitors.find(c => (c.ownership ?? []).some(o => o.ownerId !== 'player' && o.ownerId !== c.id && o.percentage > 30));
           if (acquirer) {
             const proceeds = Math.round(state.cash * 0.5); // 50% of company cash as proceeds
             set({
@@ -1183,11 +1192,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       if (newMonth > oldMonth) {
         for (const comp of newCompetitors) {
           if (comp.delisted) continue;
-          const playerStake = comp.ownership.find(o => o.ownerId === 'player');
+          const playerStake = (comp.ownership ?? []).find(o => o.ownerId === 'player');
           if (playerStake && playerStake.percentage >= 100) {
             // Player fully owns this competitor — mark as passive income stream
             // ponytail: full multi-product management coming in v2.2
-            if (!comp.ownership.some(o => o.ownerId === 'player' && o.percentage < 100)) {
+            if (!(comp.ownership ?? []).some(o => o.ownerId === 'player' && o.percentage < 100)) {
               get().addNotification(`✅ You fully acquired ${comp.name}! It's now generating passive income.`, 'success');
               // Mark as acquired so it generates full revenue as passive income (handled by dividend calc)
             }
@@ -1233,6 +1242,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     pendingNotifications.forEach(n => get().addNotification(n.msg, n.type));
 
     get().checkMilestones();
+    } catch (e) { console.error('[tick]', e); }
   },
 
   addCash: (amount) => set((state) => ({ cash: state.cash + amount })),
@@ -1372,7 +1382,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     resetNameGenerator();
     const initialCompetitors = generateInitialCompetitors(0, 8);
     const rankedCompetitors = computeRankings(initialCompetitors);
-    set({ selectedProduct: productId, features, screen: 'playerSetup', currentUsers: 0, userMood: 80, internetSubscriptions: [], adLeads: [], adCampaigns: [], adSalesUnlockNotified: false, activePricingTier: getDefaultPricingTier(productId), loan: null, creditScore: 50, missedPaymentTicks: 0, competitors: rankedCompetitors, brandScore: 10, marketingCampaigns: [], takeoverCapital: 0, acquiredBy: null, lastWithdrawMonth: -1 });
+    set({ selectedProduct: productId, features, screen: 'playerSetup', currentUsers: 0, userMood: 80, internetSubscriptions: [], adLeads: [], adCampaigns: [], adSalesUnlockNotified: false, activePricingTier: getDefaultPricingTier(productId), loan: null, creditScore: 50, missedPaymentTicks: 0, competitors: rankedCompetitors, brandScore: 10, marketingCampaigns: [], takeoverCapital: 0, acquiredBy: null, lastWithdrawMonth: -1, wealthLog: [] });
   },
 
   setMonetizationStrategy: (strategy) => {
@@ -1616,11 +1626,13 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
     const newPersonal = state.personalCash + amount;
     const newLifetime = state.lifetimeWithdrawn + amount;
+    const entry: WealthEntry = { type: 'withdraw', amount, personalCash: newPersonal, month: state.month };
     set({
       cash: state.cash - amount,
       personalCash: newPersonal,
       lifetimeWithdrawn: newLifetime,
       lastWithdrawMonth: state.month,
+      wealthLog: [...state.wealthLog, entry].slice(-50),
     });
 
     // Check achievements
@@ -1633,7 +1645,41 @@ export const useGameStore = create<GameState>((set, get) => ({
       set({ unlockedTitles: [...state.unlockedTitles, ...newTitles.map(t => t.id)] });
     }
 
-    get().addNotification(`Withdrew $${amount.toLocaleString()} — personal cash: $${newPersonal.toLocaleString()}`, 'info');
+    get().addNotification(`Withdrew $${amount.toLocaleString()} → personal cash: $${newPersonal.toLocaleString()}`, 'info');
+  },
+
+  depositToCompany: (amount: number) => {
+    const state = get();
+    if (amount <= 0) return;
+    if (amount > state.personalCash) { get().addNotification('Not enough personal wealth', 'warning'); return; }
+    const entry: WealthEntry = { type: 'deposit', amount: -amount, personalCash: state.personalCash - amount, month: state.month };
+    set({
+      personalCash: state.personalCash - amount,
+      cash: state.cash + amount,
+      wealthLog: [...state.wealthLog, entry].slice(-50),
+    });
+    get().addNotification(`Deposited $${amount.toLocaleString()} from wealth into company`, 'success');
+  },
+
+  buybackShares: (percentage: number) => {
+    const state = get();
+    if (percentage <= 0) return;
+    const currentOwnership = Math.max(20, 100 - state.totalEquityGiven);
+    const aiOwnership = 100 - currentOwnership;
+    const buyPct = Math.min(percentage, aiOwnership);
+    if (buyPct <= 0) { get().addNotification('No external shares to buy back', 'warning'); return; }
+    // Cost = valuation * % to buy * premium
+    const companyVal = state.currentUsers * 80;
+    const cost = Math.round(companyVal * (buyPct / 100) * 1.2);
+    if (state.personalCash < cost) { get().addNotification(`Need $${cost.toLocaleString()} to buy back ${buyPct}% — not enough personal wealth`, 'warning'); return; }
+    const newEquityGiven = Math.max(0, state.totalEquityGiven - buyPct);
+    const entry: WealthEntry = { type: 'stock_buy', amount: -cost, personalCash: state.personalCash - cost, month: state.month };
+    set({
+      personalCash: state.personalCash - cost,
+      totalEquityGiven: newEquityGiven,
+      wealthLog: [...state.wealthLog, entry].slice(-50),
+    });
+    get().addNotification(`Bought back ${buyPct}% of company shares for $${cost.toLocaleString()}`, 'success');
   },
 
   devSpawnCompetitor: () => {
@@ -1676,26 +1722,28 @@ export const useGameStore = create<GameState>((set, get) => ({
     get().addNotification(`DEV: Hot sector "${hotSector}" triggered!`, 'info');
   },
 
-  // v2.1 — Stock Market
+  // v2.1 — Stock Market (uses personalCash, not company cash)
   buyShares: (productId: string, amount: number) => {
     const state = get();
     const comp = state.competitors.find(c => c.id === productId);
     if (!comp || comp.delisted) { get().addNotification('Product not found or delisted', 'warning'); return; }
     const totalCash = amount * comp.sharePrice;
-    if (state.cash < totalCash) { get().addNotification('Not enough cash', 'warning'); return; }
-    const existing = comp.ownership.find(o => o.ownerId === 'player');
+    if (state.personalCash < totalCash) { get().addNotification('Not enough personal wealth', 'warning'); return; }
+    const existing = (comp.ownership ?? []).find(o => o.ownerId === 'player');
     const currentPlayerPct = existing?.percentage ?? 0;
     const targetPct = currentPlayerPct + (amount / comp.totalShares) * 100;
-    if (targetPct > 100) { get().addNotification('Not enough shares available', 'warning'); return; }
-    const newOwnership = comp.ownership.map(o =>
+    if (targetPct > 100) { get().addNotification('Only ' + Math.round((100 - currentPlayerPct) / (100 / comp.totalShares)) + ' shares available', 'warning'); return; }
+    const newOwnership = (comp.ownership ?? []).map(o =>
       o.ownerId === 'player' ? { ...o, percentage: o.percentage + (amount / comp.totalShares) * 100 }
       : { ...o, percentage: Math.max(0, o.percentage - (amount / comp.totalShares) * 100) }
     );
     if (!existing) {
       newOwnership.push({ ownerId: 'player', percentage: (amount / comp.totalShares) * 100 });
     }
+    const buyEntry: WealthEntry = { type: 'stock_buy', amount: -totalCash, personalCash: state.personalCash - totalCash, month: state.month };
     set({
-      cash: state.cash - totalCash,
+      personalCash: state.personalCash - totalCash,
+      wealthLog: [...state.wealthLog, buyEntry].slice(-50),
       competitors: state.competitors.map(c =>
         c.id === productId ? { ...c, ownership: newOwnership } : c
       ),
@@ -1707,18 +1755,20 @@ export const useGameStore = create<GameState>((set, get) => ({
     const state = get();
     const comp = state.competitors.find(c => c.id === productId);
     if (!comp || comp.delisted) { get().addNotification('Product not found or delisted', 'warning'); return; }
-    const existing = comp.ownership.find(o => o.ownerId === 'player');
+    const existing = (comp.ownership ?? []).find(o => o.ownerId === 'player');
     if (!existing) { get().addNotification('You don\'t own shares in this product', 'warning'); return; }
     const currentPct = existing.percentage;
     const sellPct = (amount / comp.totalShares) * 100;
     if (sellPct > currentPct) { get().addNotification('Not enough shares to sell', 'warning'); return; }
     const totalCash = amount * comp.sharePrice;
-    const newOwnership = comp.ownership.map(o =>
+    const newOwnership = (comp.ownership ?? []).map(o =>
       o.ownerId === 'player' ? { ...o, percentage: Math.max(0, o.percentage - sellPct) }
       : o
     ).filter(o => o.percentage > 0);
+    const sellEntry: WealthEntry = { type: 'stock_sell', amount: totalCash, personalCash: state.personalCash + totalCash, month: state.month };
     set({
-      cash: state.cash + totalCash,
+      personalCash: state.personalCash + totalCash,
+      wealthLog: [...state.wealthLog, sellEntry].slice(-50),
       competitors: state.competitors.map(c =>
         c.id === productId ? { ...c, ownership: newOwnership } : c
       ),
@@ -2879,6 +2929,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       takeoverCapital: 0,
       acquiredBy: null,
       lastWithdrawMonth: -1,
+      wealthLog: [],
     });
   },
 }));

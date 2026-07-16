@@ -74,6 +74,7 @@ function serialize(): Omit<GameSave, 'id' | 'timestamp'> {
     takeoverCapital: s.takeoverCapital,
     acquiredBy: s.acquiredBy,
     lastWithdrawMonth: s.lastWithdrawMonth,
+    wealthLog: s.wealthLog,
   };
 }
 
@@ -168,13 +169,22 @@ export async function loadGame(slotId: number): Promise<boolean> {
     takeoverCapital: (save as any).takeoverCapital ?? 0,
     acquiredBy: (save as any).acquiredBy ?? null,
     lastWithdrawMonth: (save as any).lastWithdrawMonth ?? -1,
+    wealthLog: (save as any).wealthLog ?? [],
     currentSlotId: slotId,
   });
 
-  // Fix duplicate names & rankings from corrupted old saves
+  // Fix old save competitors — ensure new v2.1 fields
   const competitors = useGameStore.getState().competitors;
   if (competitors.length > 0) {
-    const fixed = computeRankings(deduplicateNames(competitors));
+    const migrated = competitors.map(c => ({
+      ...c,
+      totalShares: c.totalShares ?? 100_000,
+      sharePrice: c.sharePrice ?? (c.valuation > 0 ? Math.round(c.valuation / 100_000) : 1),
+      ownership: c.ownership ?? [{ ownerId: c.id, percentage: 100 }],
+      userHistory: c.userHistory ?? [c.userCount ?? 1000],
+      isUnicorn: c.isUnicorn ?? false,
+    }));
+    const fixed = computeRankings(deduplicateNames(migrated));
     useGameStore.setState({ competitors: fixed });
   }
 

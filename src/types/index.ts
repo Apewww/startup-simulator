@@ -15,4 +15,4 @@ export type { CompetitorProduct, CompetitorSector, CompetitorPersonality, Owners
 export type { MarketingCampaign, MarketingCampaignType, BrandMetrics } from './marketing';
 export type { ResearchProjectDef, ResearchCategory, ResearchEffect, ActiveResearch, UnlockedTech } from './research';
 export type { BoardTarget, BoardMetric, QuarterlyReport, TermSheet } from './investorRelations';
-export type { TitleId, AchievementDef, PlayerWealth } from './wealth';
+export type { TitleId, AchievementDef, PlayerWealth, WealthEntry, WealthEntryType } from './wealth';
