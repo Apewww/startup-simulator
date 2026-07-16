@@ -53,7 +53,7 @@
 
 ### New Files
 - `src/types/wealth.ts`, `src/data/achievements.ts`, `src/systems/wealth.ts`
-- `src/components/WealthPanel.tsx`
+- `src/components/WealthPanel.tsx`, `src/systems/globalAchievements.ts`
 
 ### Modified
 - `gameStore.ts` — personalCash, lifetimeWithdrawn, unlockedTitles, victoryAchieved; withdrawPersonal action; board satisfaction/equity consequences in tick
@@ -64,6 +64,13 @@
 - `DevPanel.tsx` — +Wealth cheats
 - `gameDB.ts` — v17, `saveLoad.ts` — persist new state
 - Research refactor: 1 level = 1 research session (no auto-chain), per-level Dev Lv./cost/ticks requirements
+
+### v2.0 Fixes (post-release)
+- **Bankrupt trigger**: changed from `cashAfter < 0` to `cashChange < 0` — bankrupt only if consistently losing money (revenue < expenses), not just when cash is low
+- **Research cost scaling**: `baseCost × (0.5 + (level-1) × 0.35)` per level
+- **Achievement popup**: button in Main Menu → popup list with icon, name, description, requirement
+- **Global achievement persistence**: localStorage cross-save tracker — achievements sync across all save slots
+- **Achievement descriptions**: added how-to info to each achievement
 
 ## All Changes (v2.0 + v2.0.5)
 - `src/types/research.ts` — level-based research types
