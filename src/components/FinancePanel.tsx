@@ -111,4 +111,13 @@ export function FinancePanel() {
   );
 }
 
+function Row({ label, value, color }: { label: string; value: string; color: string }) {
+  return (
+    <div className="flex justify-between items-center py-1">
+      <span className="text-ink font-semibold">{label}</span>
+      <span className={`font-mono ${color === 'green' ? 'text-green' : 'text-red'}`}>{value}</span>
+    </div>
+  );
+}
+
 export const financePanelMeta = { title: 'Keuangan', icon: <DollarSign className="w-4 h-4 text-green" />, accent: '#17A366' };
