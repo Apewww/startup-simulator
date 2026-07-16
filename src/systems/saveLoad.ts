@@ -56,6 +56,14 @@ function serialize(): Omit<GameSave, 'id' | 'timestamp'> {
     competitors: s.competitors,
     marketingCampaigns: s.marketingCampaigns,
     brandScore: s.brandScore,
+    activeResearch: s.activeResearch,
+    unlockedTechs: s.unlockedTechs,
+    boardSatisfaction: s.boardSatisfaction,
+    currentQuarter: s.currentQuarter,
+    quarterlyTargets: s.quarterlyTargets,
+    quarterlyHistory: s.quarterlyHistory,
+    termSheet: s.termSheet,
+    totalEquityGiven: s.totalEquityGiven,
   };
 }
 
@@ -132,6 +140,14 @@ export async function loadGame(slotId: number): Promise<boolean> {
     competitors: save.competitors ?? [],
     marketingCampaigns: save.marketingCampaigns ?? [],
     brandScore: save.brandScore ?? 10,
+    activeResearch: (save as any).activeResearch ?? null,
+    unlockedTechs: (save as any).unlockedTechs ?? [],
+    boardSatisfaction: (save as any).boardSatisfaction ?? 50,
+    currentQuarter: (save as any).currentQuarter ?? 1,
+    quarterlyTargets: (save as any).quarterlyTargets ?? [],
+    quarterlyHistory: (save as any).quarterlyHistory ?? [],
+    termSheet: (save as any).termSheet ?? null,
+    totalEquityGiven: (save as any).totalEquityGiven ?? 0,
     currentSlotId: slotId,
   });
 

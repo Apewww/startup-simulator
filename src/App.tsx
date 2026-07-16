@@ -20,7 +20,9 @@ import { AdSalesPanel, adSalesPanelMeta } from './components/AdSalesPanel';
 import { BankingPanel, bankingPanelMeta } from './components/BankingPanel';
 import { CompetitorPanel } from './components/CompetitorPanel';
 import { MarketingPanel } from './components/MarketingPanel';
-import { Server, Skull, CheckCircle, Info, AlertTriangle, XCircle, Gift, BarChart3, Megaphone, Bug } from 'lucide-react';
+import { ResearchPanel } from './components/ResearchPanel';
+import { InvestorRelationsPanel } from './components/InvestorRelationsPanel';
+import { Server, Skull, CheckCircle, Info, AlertTriangle, XCircle, Gift, BarChart3, Megaphone, Microscope, Handshake, Bug } from 'lucide-react';
 import { saveGame } from './systems/saveLoad';
 import { db } from './db/gameDB';
 
@@ -248,7 +250,15 @@ function App() {
             <MarketingPanel />
           </FloatingPanel>
 
-          <FloatingPanel id="dev" index={10} title="Dev Panel" icon={<Bug className="w-4 h-4 text-amber" />} accent="#D1453B">
+          <FloatingPanel id="research" index={10} title="R&D" icon={<Microscope className="w-4 h-4 text-indigo" />} accent="#4F5EFF">
+            <ResearchPanel />
+          </FloatingPanel>
+
+          <FloatingPanel id="investor" index={11} title="Investor Relations" icon={<Handshake className="w-4 h-4 text-indigo" />} accent="#4F5EFF">
+            <InvestorRelationsPanel />
+          </FloatingPanel>
+
+          <FloatingPanel id="dev" index={12} title="Dev Panel" icon={<Bug className="w-4 h-4 text-amber" />} accent="#D1453B">
             <DevPanel />
           </FloatingPanel>
         </div>

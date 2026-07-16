@@ -1,0 +1,186 @@
+import type { ResearchProjectDef } from '../types/research';
+
+export const RESEARCH_TREE: ResearchProjectDef[] = [
+  // Tier 1
+  {
+    id: 'efficient_coding',
+    name: 'Efficient Coding Practices',
+    description: 'Standardize code review & modular architecture. Developers work faster.',
+    category: 'infrastructure',
+    tier: 1,
+    baseTicks: 100,
+    minDeveloperLevel: 2,
+    prerequisites: [],
+    effects: [{ type: 'dev_speed_mult', value: 0.1 }],
+    cost: 1000,
+    maxLevel: 4,
+  },
+  {
+    id: 'ui_framework',
+    name: 'Next-Gen UI Framework',
+    description: 'Reactive component library that boosts all feature traffic.',
+    category: 'platform',
+    tier: 1,
+    baseTicks: 100,
+    minDeveloperLevel: 2,
+    prerequisites: [],
+    effects: [{ type: 'traffic_mult', value: 0.1 }],
+    cost: 1500,
+    maxLevel: 4,
+  },
+  {
+    id: 'ad_optimization',
+    name: 'Ad Optimization Engine',
+    description: 'Better ad targeting algorithms increase ad revenue.',
+    category: 'monetization',
+    tier: 1,
+    baseTicks: 100,
+    minDeveloperLevel: 2,
+    prerequisites: [],
+    effects: [{ type: 'revenue_mult', target: 'ad', value: 0.1 }],
+    cost: 2000,
+    maxLevel: 4,
+  },
+  // Tier 2
+  {
+    id: 'distributed_systems',
+    name: 'Distributed Systems',
+    description: 'Horizontal scaling framework. Servers handle more load per node.',
+    category: 'infrastructure',
+    tier: 2,
+    baseTicks: 300,
+    minDeveloperLevel: 4,
+    prerequisites: ['efficient_coding'],
+    effects: [{ type: 'server_efficiency', value: 0.2 }],
+    cost: 5000,
+    maxLevel: 4,
+  },
+  {
+    id: 'user_analytics',
+    name: 'User Analytics Pipeline',
+    description: 'Deep user behavior analytics improve product cohesion.',
+    category: 'platform',
+    tier: 2,
+    baseTicks: 300,
+    minDeveloperLevel: 4,
+    prerequisites: ['ui_framework'],
+    effects: [{ type: 'cohesion_bonus', value: 0.05 }],
+    cost: 5000,
+    maxLevel: 4,
+  },
+  {
+    id: 'programmatic_ads',
+    name: 'Programmatic Ad Platform',
+    description: 'Automated ad buying/selling boosts revenue further.',
+    category: 'monetization',
+    tier: 2,
+    baseTicks: 300,
+    minDeveloperLevel: 4,
+    prerequisites: ['ad_optimization'],
+    effects: [{ type: 'revenue_mult', target: 'ad', value: 0.2 }],
+    cost: 8000,
+    maxLevel: 4,
+  },
+  // Tier 3
+  {
+    id: 'edge_computing',
+    name: 'Edge Computing Network',
+    description: 'Global edge nodes reduce latency, attracting more users.',
+    category: 'infrastructure',
+    tier: 3,
+    baseTicks: 600,
+    minDeveloperLevel: 6,
+    prerequisites: ['distributed_systems'],
+    effects: [{ type: 'traffic_mult', value: 0.15 }],
+    cost: 15000,
+    maxLevel: 4,
+  },
+  {
+    id: 'recommendation_engine',
+    name: 'AI Recommendation Engine',
+    description: 'Machine learning recommendations boost engagement and cohesion.',
+    category: 'ai_data',
+    tier: 3,
+    baseTicks: 600,
+    minDeveloperLevel: 6,
+    prerequisites: ['user_analytics'],
+    effects: [
+      { type: 'cohesion_bonus', value: 0.1 },
+      { type: 'traffic_mult', value: 0.15 },
+    ],
+    cost: 20000,
+    maxLevel: 4,
+  },
+  {
+    id: 'subscription_plus',
+    name: 'Subscription Plus',
+    description: 'Premium subscription tiers with advanced features.',
+    category: 'monetization',
+    tier: 3,
+    baseTicks: 600,
+    minDeveloperLevel: 6,
+    prerequisites: ['programmatic_ads'],
+    effects: [{ type: 'revenue_mult', target: 'subscription', value: 0.25 }],
+    cost: 15000,
+    maxLevel: 4,
+  },
+  // Tier 4
+  {
+    id: 'quantum_crawler',
+    name: 'Quantum Indexing',
+    description: 'Next-gen indexing and crawling — massive traffic multiplier.',
+    category: 'platform',
+    tier: 4,
+    baseTicks: 1200,
+    minDeveloperLevel: 8,
+    prerequisites: ['edge_computing', 'recommendation_engine'],
+    effects: [{ type: 'traffic_mult', value: 0.3 }],
+    cost: 40000,
+    maxLevel: 4,
+  },
+  {
+    id: 'ai_personalization',
+    name: 'Deep Personalization AI',
+    description: 'Hyper-personalized experience reduces churn and improves cohesion.',
+    category: 'ai_data',
+    tier: 4,
+    baseTicks: 1200,
+    minDeveloperLevel: 8,
+    prerequisites: ['recommendation_engine'],
+    effects: [
+      { type: 'churn_reduction', value: 0.5 },
+      { type: 'cohesion_bonus', value: 0.15 },
+    ],
+    cost: 50000,
+    maxLevel: 4,
+  },
+  {
+    id: 'market_intelligence',
+    name: 'Market Intelligence Suite',
+    description: 'Competitor analysis & brand monitoring. Weaken competitors, strengthen brand.',
+    category: 'ai_data',
+    tier: 4,
+    baseTicks: 1200,
+    minDeveloperLevel: 8,
+    prerequisites: ['user_analytics', 'subscription_plus'],
+    effects: [
+      { type: 'brand_mult', value: 0.3 },
+      { type: 'churn_reduction', value: 0.2 },
+    ],
+    cost: 60000,
+    maxLevel: 4,
+  },
+];
+
+export function getResearchDef(id: string): ResearchProjectDef | undefined {
+  return RESEARCH_TREE.find(r => r.id === id);
+}
+
+export function getAvailableResearch(unlockedTechs: string[], employees: { level: number }[]): ResearchProjectDef[] {
+  const maxDevLevel = Math.max(0, ...employees.filter(e => e.level).map(e => e.level));
+  return RESEARCH_TREE.filter(r => {
+    if (unlockedTechs.includes(r.id)) return false;
+    if (r.minDeveloperLevel > maxDevLevel) return false;
+    return r.prerequisites.every(p => unlockedTechs.includes(p));
+  });
+}

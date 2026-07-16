@@ -1,6 +1,6 @@
 import { useGameStore } from '../store/gameStore';
 import type { CompetitorSector } from '../types';
-import { TrendingUp, TrendingDown, Flame } from 'lucide-react';
+import { Flame } from 'lucide-react';
 
 const SECTOR_COLORS: Record<CompetitorSector, string> = {
   social_media: '#4F5EFF',
@@ -30,7 +30,6 @@ export function CompetitorPanel() {
   const competitors = useGameStore((s) => s.competitors);
   const currentUsers = useGameStore((s) => s.currentUsers);
   const selectedProduct = useGameStore((s) => s.selectedProduct);
-  const features = useGameStore((s) => s.features);
   const companyName = useGameStore((s) => s.companyName);
   const maximizedPanel = useGameStore((s) => s.maximizedPanel);
   const isMaximized = maximizedPanel === 'competitor';
@@ -118,7 +117,7 @@ export function CompetitorPanel() {
               {isMaximized && <span className="text-[8px] px-1 py-[1px] rounded-sm font-semibold shrink-0 leading-none" style={{ backgroundColor: SECTOR_COLORS[entry.sector] + '20', color: SECTOR_COLORS[entry.sector] }}>{SECTOR_LABELS[entry.sector]}</span>}
               {entry.isPlayer && <span className="text-[9px] text-indigo font-semibold shrink-0">(You)</span>}
               {isNew && <span className="text-[8px] px-1 py-[1px] rounded-sm bg-green-soft text-green font-bold shrink-0 leading-none">NEW</span>}
-              {isHot && <Flame className="w-3 h-3 text-orange-500 shrink-0" title="Hot sector spawn" />}
+              {isHot && <Flame className="w-3 h-3 text-orange-500 shrink-0" />}
             </div>
 
             <div className="flex items-center gap-1.5 shrink-0 ml-2">

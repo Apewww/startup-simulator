@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { User, ArrowRight, Building2 } from 'lucide-react';
+import { User, ArrowRight } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 
 export function PlayerSetup() {

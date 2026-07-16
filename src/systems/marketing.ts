@@ -43,6 +43,7 @@ export function calcBrandDecay(brandScore: number, hasActiveCampaign: boolean): 
 export function calcBrandEffects(
   brandScore: number,
   campaigns: MarketingCampaign[],
+  researchBrandMult: number = 1,
 ): { growthMult: number; churnReduction: number; moodBonus: number } {
   let growthMult = 1;
   let churnReduction = 0;
@@ -52,9 +53,9 @@ export function calcBrandEffects(
     if (!c.active) continue;
     const def = getCampaignDef(c.type);
     if (!def) continue;
-    growthMult += def.growthBonus;
-    churnReduction += def.churnReduction;
-    moodBonus += def.moodBonus;
+    growthMult += def.growthBonus * researchBrandMult;
+    churnReduction += def.churnReduction * researchBrandMult;
+    moodBonus += def.moodBonus * researchBrandMult;
   }
 
   const brandGrowthBonus = (brandScore / 100) * 0.1;

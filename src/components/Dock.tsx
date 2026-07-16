@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Users, LayoutGrid, Server, DollarSign, UserCheck, Gift, Target, Landmark, BarChart3, Megaphone, Bug } from 'lucide-react';
+import { Users, LayoutGrid, Server, DollarSign, UserCheck, Gift, Target, Landmark, BarChart3, Megaphone, Microscope, Handshake, Bug } from 'lucide-react';
 import { useGameStore, type PanelId } from '../store/gameStore';
 
 export const DOCK_ITEMS: { id: PanelId; label: string; shortcut: string; Icon: typeof Users; accent: string }[] = [
@@ -13,6 +13,8 @@ export const DOCK_ITEMS: { id: PanelId; label: string; shortcut: string; Icon: t
   { id: 'banking', label: 'Bank', shortcut: '8', Icon: Landmark, accent: '#4F5EFF' },
   { id: 'competitor', label: 'Market', shortcut: '9', Icon: BarChart3, accent: '#B7791F' },
   { id: 'marketing', label: 'Brand', shortcut: '0', Icon: Megaphone, accent: '#D1453B' },
+  { id: 'research', label: 'R&D', shortcut: '-', Icon: Microscope, accent: '#4F5EFF' },
+  { id: 'investor', label: 'Board', shortcut: '=', Icon: Handshake, accent: '#4F5EFF' },
 ];
 
 export function Dock() {
@@ -36,7 +38,7 @@ export function Dock() {
 
   return (
     <nav
-      className="flex gap-1 p-2 justify-around md:flex-col md:justify-start md:gap-2 md:p-3 md:pt-4
+      className="flex gap-1 p-2 justify-around overflow-x-auto md:flex-col md:justify-start md:overflow-y-auto md:gap-2 md:p-3 md:pt-4
                  fixed bottom-0 left-0 right-0 z-30 md:static
                  bg-surface border-t md:border-t-0 md:border-r border-border"
     >

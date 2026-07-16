@@ -28,12 +28,17 @@ import { resetNameGenerator } from '../data/competitorNames';
 import { createCampaign, processCampaignTick, calcBrandDecay, calcBrandEffects } from '../systems/marketing';
 import { getHotSector, hasMarketCrash, hasMarketBoom } from '../systems/events';
 import { getPricingTier, getDefaultPricingTier, type BusinessLoan } from '../types/monetization';
+import type { ActiveResearch } from '../types/research';
+import { startResearch as startResearchSystem, processResearchTick, isLevelComplete, levelUp, isResearchFullyComplete, collectResearchEffects, calcResearchEffects, getActiveResearchMonthlyCost, resetResearchIdCounter } from '../systems/research';
+import { RESEARCH_TREE } from '../data/research';
+import type { BoardTarget, QuarterlyReport, TermSheet } from '../types/investorRelations';
+import { generateQuarterlyTargets, evaluateQuarterlyTargets, generateTermSheet, resetTermSheetCounter } from '../systems/investorRelations';
 
 import { TICKS_PER_MONTH, TICKS_PER_DAY } from '../constants';
 
 export type GameSpeed = 1 | 2 | 4;
 
-export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment' | 'perks' | 'adsales' | 'banking' | 'competitor' | 'marketing' | 'dev';
+export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment' | 'perks' | 'adsales' | 'banking' | 'competitor' | 'marketing' | 'research' | 'investor' | 'dev';
 export type PanelOpenState = Record<PanelId, boolean>;
 export type GameScreen = 'menu' | 'select' | 'playerSetup' | 'playing';
 
@@ -216,10 +221,26 @@ interface GameState {
   devSetMaxBrand: () => void;
   devResetCompetitors: () => void;
   devTriggerHotSector: () => void;
-  cancelCampaign: (campaignId: string) => void;
   setPricingTier: (tierId: string) => void;
   takeLoan: (amount: number, tenor: number) => void;
   payLoanEarly: () => void;
+
+  // v2.0 — R&D / Tech Tree
+  activeResearch: ActiveResearch | null;
+  unlockedTechs: string[];
+  unlockedLevels: Record<string, number>;
+  startResearch: (projectId: string, employeeId: string) => void;
+  cancelResearch: () => void;
+
+  // v2.0 — Investor Relations
+  boardSatisfaction: number;
+  currentQuarter: number;
+  quarterlyTargets: BoardTarget[];
+  quarterlyHistory: QuarterlyReport[];
+  termSheet: TermSheet | null;
+  totalEquityGiven: number;
+  acceptTermSheet: () => void;
+  declineTermSheet: () => void;
 }
 
 function calcTotalSalary(employees: Employee[]): number {
@@ -278,8 +299,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   negativeCashMonths: 0,
   screen: 'menu',
   companyName: '',
-      panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, dev: false },
-      panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, dev: false },
+      panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, dev: false },
+      panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, dev: false },
   maximizedPanel: null,
   selectedEmployeeId: null,
   darkMode: (() => { try { return localStorage.getItem('ss-dark') === '1'; } catch { return false; } })(),
@@ -304,6 +325,15 @@ export const useGameStore = create<GameState>((set, get) => ({
       loan: null,
       creditScore: 50,
       missedPaymentTicks: 0,
+      activeResearch: null,
+      unlockedTechs: [],
+      unlockedLevels: {},
+      boardSatisfaction: 50,
+      currentQuarter: 1,
+      quarterlyTargets: [],
+      quarterlyHistory: [],
+      termSheet: null,
+      totalEquityGiven: 0,
 
   setScreen: (screen) => set({ screen }),
   togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
@@ -448,6 +478,38 @@ export const useGameStore = create<GameState>((set, get) => ({
         } else if (emp.role === 'Ad_Monetization_Specialist' && emp.currentTask === 'negotiating') {
           newCurrentTask = null;
           newProgress = 0;
+        } else if (emp.currentTask?.startsWith('research:')) {
+          const researchActive = state.activeResearch;
+          if (researchActive && researchActive.assignedEmployeeId === emp.id) {
+            const updated = processResearchTick(researchActive, emp, state.unlockedTechs, RESEARCH_TREE);
+            if (updated) {
+              newProgress = updated.progress;
+              const def = RESEARCH_TREE.find(r => r.id === researchActive.projectId);
+              if (isLevelComplete(updated) && def) {
+                if (isResearchFullyComplete(updated, def)) {
+                  newCurrentTask = null;
+                  newProgress = 0;
+                  set({
+                    activeResearch: null,
+                    unlockedTechs: [...get().unlockedTechs, researchActive.projectId],
+                    unlockedLevels: { ...get().unlockedLevels, [researchActive.projectId]: def.maxLevel },
+                    employees: get().employees.map(e =>
+                      e.id === emp.id ? { ...e, currentTask: null, taskProgress: 0 } : e
+                    ),
+                  });
+                  get().addNotification(`Research complete: ${def.name} Lv.${def.maxLevel}/${def.maxLevel}!`, 'success');
+                } else {
+                  const next = levelUp(updated, def);
+                  if (next) {
+                    set({ activeResearch: next });
+                    get().addNotification(`${def.name} reached Lv.${next.currentLevel}/${def.maxLevel}`, 'info');
+                  }
+                }
+              } else if (!isLevelComplete(updated)) {
+                set({ activeResearch: updated });
+              }
+            }
+          }
         } else if (emp.currentTask && def) {
           newProgress = emp.taskProgress + emp.speed;
           if (newProgress >= def.baseTicks) {
@@ -563,9 +625,19 @@ export const useGameStore = create<GameState>((set, get) => ({
     const activeBrandGain = newMarketingCampaigns
       .filter(c => c.active)
       .reduce((sum, c) => sum + c.brandGain / (c.durationTicks / 20), 0);
+    // v2.0 — Research effects (sebelum brandEffects karena dipakai di sana)
+    const researchEffects = collectResearchEffects(state.unlockedTechs, RESEARCH_TREE, state.unlockedLevels);
+    const researchTrafficMult = 1 + calcResearchEffects(researchEffects, 'traffic_mult');
+    const researchCohesionBonus = calcResearchEffects(researchEffects, 'cohesion_bonus');
+    const researchChurnReduction = calcResearchEffects(researchEffects, 'churn_reduction');
+    const researchBrandMult = 1 + calcResearchEffects(researchEffects, 'brand_mult');
+    const researchAdRevMult = 1 + calcResearchEffects(researchEffects, 'revenue_mult', 'ad');
+    const researchSubRevMult = 1 + calcResearchEffects(researchEffects, 'revenue_mult', 'subscription');
+    const researchServerEfficiency = 1 + calcResearchEffects(researchEffects, 'server_efficiency');
+
     let newBrandScore = state.brandScore + activeBrandGain - calcBrandDecay(state.brandScore, hasActiveCampaign);
     newBrandScore = Math.max(0, Math.min(100, newBrandScore));
-    const brandEffects = calcBrandEffects(newBrandScore, newMarketingCampaigns);
+    const brandEffects = calcBrandEffects(newBrandScore, newMarketingCampaigns, researchBrandMult);
 
     const placedRacks = racks.filter(r => r.plotId !== null);
     const unplacedRacks = racks.filter(r => r.plotId === null);
@@ -573,17 +645,17 @@ export const useGameStore = create<GameState>((set, get) => ({
     // Platform stats (cohesion, synergy, target users)
     const platformStats = getPlatformStats(features, events, selectedProduct);
     const targetUsers = platformStats.targetUsers;
-    const cohesionScore = platformStats.cohesionScore;
+    const cohesionScore = Math.min(1, platformStats.cohesionScore + researchCohesionBonus);
 
     // Dynamic users
     const pricingTier = getPricingTier(state.activePricingTier, state.selectedProduct);
     const eventEffects = getAppliedEffects(events);
     const monetizationMods = getMonetizationMods(state.activeMonetization);
     const pricingGrowthMult = pricingTier?.growthMult ?? 1;
-    const userDelta = (targetUsers - currentUsers) * 0.005 * cohesionScore * monetizationMods.growthMult * pricingGrowthMult * brandEffects.growthMult;
+    const userDelta = (targetUsers - currentUsers) * 0.005 * cohesionScore * monetizationMods.growthMult * pricingGrowthMult * brandEffects.growthMult * researchTrafficMult;
     const hasCrash = placedRacks.some(r => r.slots.some(s => s.node?.status === 'crashed'));
     const crashPenalty = hasCrash ? currentUsers * 0.05 : 0;
-    const baseChurnRate = Math.max(0, (1 - cohesionScore) * 0.0002 + monetizationMods.churnDelta - brandEffects.churnReduction);
+    const baseChurnRate = Math.max(0, ((1 - cohesionScore) * 0.0002 + monetizationMods.churnDelta - brandEffects.churnReduction) * (1 - researchChurnReduction));
     let newCurrentUsers = currentUsers;
 
     // Server calculation with effectiveRPS — compliance load mult untuk compute/data shortage
@@ -607,7 +679,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     const sysAdminLevel = employees
       .filter(e => e.role === 'SysAdmin' && e.happiness >= 15)
       .reduce((max, e) => Math.max(max, e.level), 0);
-    const { racks: updatedPlacedRacks, rentedServers: updatedRentedServers } = calculateNodeLoads(placedRacks, adjustedRps, rentedServers, sysAdminLevel, eventEffects.crashChanceBonus, internetRpsBonus);
+    const adjustedRpsWithEfficiency = Math.round(adjustedRps / researchServerEfficiency);
+    const { racks: updatedPlacedRacks, rentedServers: updatedRentedServers } = calculateNodeLoads(placedRacks, adjustedRpsWithEfficiency, rentedServers, sysAdminLevel, eventEffects.crashChanceBonus, internetRpsBonus);
 
     // If no web capacity at all, users drop fast
     const hasWebCapacity = updatedPlacedRacks.some(r =>
@@ -726,7 +799,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const dataRatio = compliance?.data.ratio ?? 1;
     const revOpts = { strategy: state.activeMonetization, productId: selectedProduct, dataRatio, synergyActive };
     const pricingRevMult = pricingTier?.revenueMult ?? 1;
-    const revOptsWithPricing = { ...revOpts, pricingRevenueMult: pricingRevMult };
+    const revOptsWithPricing = { ...revOpts, pricingRevenueMult: pricingRevMult, researchAdRevMult, researchSubRevMult };
     const campaignRevenue = newAdCampaigns
       .filter(c => c.status === 'active')
       .reduce((sum, c) => sum + c.revenuePerTick, 0);
@@ -740,7 +813,8 @@ export const useGameStore = create<GameState>((set, get) => ({
         loanPayment = state.loan.monthlyPayment;
       }
       const campaignCost = state.campaignCostThisMonth;
-      cashChange = revenue.total + adCampaignMonthly - (newTotalSalary + serverCost + loanPayment + campaignCost);
+      const researchCost = getActiveResearchMonthlyCost(state.activeResearch);
+      cashChange = revenue.total + adCampaignMonthly - (newTotalSalary + serverCost + loanPayment + campaignCost + researchCost);
 
       // Loan payment tracking
       if (state.loan?.status === 'active') {
@@ -776,6 +850,65 @@ export const useGameStore = create<GameState>((set, get) => ({
       };
       const history = [...state.cashFlowHistory, snapshot].slice(-12);
       set({ cashFlowHistory: history, campaignCostThisMonth: 0 });
+
+      // v2.0 — Quarterly board evaluation (every 3 months)
+      if (newMonth > 0 && newMonth % 3 === 0) {
+        const newQuarter = Math.floor(newMonth / 3);
+        const prevQuarter = Math.floor(oldMonth / 3);
+        if (newQuarter > prevQuarter) {
+          const prevUptime = finalRacks.length > 0
+            ? Math.round((1 - finalRacks.filter(r => r.slots.some(s => s.node?.status === 'crashed')).length / Math.max(finalRacks.length, 1)) * 100)
+            : 100;
+          const prevGrowthRate = state.cashFlowHistory.length >= 3
+            ? (newCurrentUsers - state.cashFlowHistory[state.cashFlowHistory.length - 3].revenue) / Math.max(state.cashFlowHistory[state.cashFlowHistory.length - 3].revenue, 1)
+            : 0.05;
+
+          if (state.quarterlyTargets.length > 0) {
+            const result = evaluateQuarterlyTargets(state.quarterlyTargets, {
+              currentUsers: newCurrentUsers,
+              monthlyRevenue: revenue.total,
+              growthRate: prevGrowthRate,
+              uptime: prevUptime,
+              brandScore: newBrandScore,
+              cohesionScore,
+            });
+            const newSat = Math.max(0, Math.min(100, state.boardSatisfaction + result.satisfactionDelta));
+            const report: QuarterlyReport = {
+              quarter: newQuarter,
+              month: newMonth,
+              targets: result.targets,
+              satisfactionDelta: result.satisfactionDelta,
+              bonusCash: result.totalReward,
+            };
+            const metCount = result.targets.filter(t => t.met).length;
+            get().addNotification(`Q${newQuarter} review: ${metCount}/${result.targets.length} targets met — ${result.satisfactionDelta >= 0 ? '+' : ''}${result.satisfactionDelta} satisfaction`, result.satisfactionDelta >= 0 ? 'success' : 'warning');
+            set({
+              boardSatisfaction: newSat,
+              quarterlyHistory: [...state.quarterlyHistory, report],
+              cash: state.cash + result.totalReward,
+              currentQuarter: newQuarter + 1,
+            });
+          }
+
+          // Generate next quarter targets
+          const newTargets = generateQuarterlyTargets(
+            newQuarter + 1,
+            newCurrentUsers,
+            revenue.total,
+            newBrandScore,
+            cohesionScore,
+            prevUptime,
+          );
+          set({ quarterlyTargets: newTargets });
+
+          // Check term sheet eligibility
+          const ts = generateTermSheet(newMonth, newCurrentUsers, revenue.total, get().boardSatisfaction, get().totalEquityGiven);
+          if (ts && !state.termSheet) {
+            set({ termSheet: ts });
+            get().addNotification(`New term sheet from ${ts.investorName}: $${ts.amount} for ${ts.equityGiven}% equity`, 'info');
+          }
+        }
+      }
     }
 
     const isBankrupt = newNegativeCashMonths >= 3;
@@ -1167,11 +1300,17 @@ export const useGameStore = create<GameState>((set, get) => ({
     }));
   },
 
-  cancelCampaign: (campaignId: string) => {
-    set((state) => ({
-      adCampaigns: state.adCampaigns.map(c => c.id === campaignId ? { ...c, status: 'cancelled' as const } : c),
-    }));
-    get().addNotification('Campaign cancelled.', 'info');
+  cancelCampaign: (id: string) => {
+    const state = get();
+    const isAdCampaign = state.adCampaigns.some(c => c.id === id);
+    const isMarketingCampaign = state.marketingCampaigns.some(c => c.id === id);
+    if (isAdCampaign) {
+      set({ adCampaigns: state.adCampaigns.map(c => c.id === id ? { ...c, status: 'cancelled' as const } : c) });
+      get().addNotification('Ad campaign cancelled.', 'info');
+    } else if (isMarketingCampaign) {
+      set({ marketingCampaigns: state.marketingCampaigns.map(c => c.id === id ? { ...c, active: false } : c) });
+      get().addNotification('Marketing campaign cancelled.', 'info');
+    }
   },
 
   toggleAutoRenew: () => {
@@ -1194,13 +1333,71 @@ export const useGameStore = create<GameState>((set, get) => ({
     get().addNotification(`Started marketing campaign!`, 'success');
   },
 
-  cancelCampaign: (id: string) => {
-    set((state) => ({
-      marketingCampaigns: state.marketingCampaigns.map(c =>
-        c.id === id ? { ...c, active: false } : c
+  // v2.0 — R&D / Tech Tree
+  startResearch: (projectId: string, employeeId: string) => {
+    const state = get();
+    if (state.activeResearch) {
+      get().addNotification('Research already in progress', 'warning');
+      return;
+    }
+    const project = RESEARCH_TREE.find(r => r.id === projectId);
+    if (!project) return;
+    const emp = state.employees.find(e => e.id === employeeId);
+    if (!emp || emp.currentTask) {
+      get().addNotification('Developer must be idle to start research', 'warning');
+      return;
+    }
+    if (state.cash < project.cost) {
+      get().addNotification(`Not enough cash — research costs $${project.cost}`, 'warning');
+      return;
+    }
+    const active = startResearchSystem(project, employeeId);
+    set({
+      cash: state.cash - project.cost,
+      activeResearch: active,
+      campaignCostThisMonth: state.campaignCostThisMonth + project.cost,
+      employees: state.employees.map(e =>
+        e.id === employeeId ? { ...e, currentTask: `research:${projectId}`, taskProgress: 0 } : e
       ),
-    }));
-    get().addNotification('Marketing campaign cancelled.', 'info');
+    });
+    get().addNotification(`Research started: ${project.name} (Lv.${active.currentLevel}/${project.maxLevel})`, 'info');
+  },
+
+  cancelResearch: () => {
+    const state = get();
+    if (!state.activeResearch) return;
+    const empId = state.activeResearch.assignedEmployeeId;
+    const refund = Math.floor(Math.max(
+      state.activeResearch.monthlyCost * 0.5,
+    ));
+    set({
+      cash: state.cash + refund,
+      activeResearch: null,
+      employees: state.employees.map(e =>
+        e.id === empId ? { ...e, currentTask: null, taskProgress: 0 } : e
+      ),
+    });
+    get().addNotification('Research cancelled — partial refund', 'warning');
+  },
+
+  // v2.0 — Investor Relations
+  acceptTermSheet: () => {
+    const state = get();
+    if (!state.termSheet) return;
+    const ts = state.termSheet;
+    set({
+      cash: state.cash + ts.amount,
+      totalEquityGiven: state.totalEquityGiven + ts.equityGiven,
+      termSheet: null,
+    });
+    get().addNotification(`Accepted ${ts.investorName} term sheet: $${ts.amount} for ${ts.equityGiven}% equity`, 'success');
+  },
+
+  declineTermSheet: () => {
+    const state = get();
+    if (!state.termSheet) return;
+    set({ termSheet: null });
+    get().addNotification('Term sheet declined', 'info');
   },
 
   devSpawnCompetitor: () => {
@@ -2341,6 +2538,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   restartGame: () => {
     resetCompetitorIdCounter();
     resetNameGenerator();
+    resetResearchIdCounter();
+    resetTermSheetCounter();
     set({
       tick: 0, isPaused: false, speed: 1, cash: 15000, month: 0,
       employees: [], resources: [], features: [], racks: [], plots: [], rentedServers: [],
@@ -2349,8 +2548,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       cashFlowHistory: [], notifications: [],
       isBankrupt: false, negativeCashMonths: 0, screen: 'menu', companyName: '',
       competitors: [], marketingCampaigns: [], brandScore: 10, nextCompetitorCheck: 600, campaignCostThisMonth: 0, currentSlotId: null,
-  panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, dev: false },
-  panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, dev: false },
+  panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, dev: false },
+  panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, dev: false },
       maximizedPanel: null,
       selectedEmployeeId: null,
   darkMode: (() => { try { return localStorage.getItem('ss-dark') === '1'; } catch { return false; } })(),
@@ -2375,6 +2574,15 @@ export const useGameStore = create<GameState>((set, get) => ({
       loan: null,
       creditScore: 50,
       missedPaymentTicks: 0,
+      activeResearch: null,
+      unlockedTechs: [],
+      unlockedLevels: {},
+      boardSatisfaction: 50,
+      currentQuarter: 1,
+      quarterlyTargets: [],
+      quarterlyHistory: [],
+      termSheet: null,
+      totalEquityGiven: 0,
     });
   },
 }));

@@ -1,18 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Play, Trash2, Power, Clock, Users, DollarSign } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
-import { listSaves, deleteSave, loadGame, nextFreeSlot, type SaveSlotInfo } from '../systems/saveLoad';
+import { listSaves, deleteSave, loadGame, type SaveSlotInfo } from '../systems/saveLoad';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
 function formatCash(n: number): string {
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`;
   return `$${n.toLocaleString('en-US')}`;
-}
-
-function fmtTime(ts: number): string {
-  const d = new Date(ts);
-  return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 function fmtDate(ts: number): string {

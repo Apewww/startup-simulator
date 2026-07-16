@@ -20,7 +20,7 @@ Semua produk bisa **IPO**, diperjualbelikan sahamnya, saling akuisisi, dan salin
 | Versi | Fokus | Status |
 |---|---|---|
 | v1.9 — Competition Era | Competitor AI dasar + Marketing & Branding System | ✅ Done (Fase A) |
-| v2.0 — Depth Update | R&D / Tech Tree + Investor Relations diperdalam | 📝 Planned |
+| v2.0 — Depth Update | R&D / Tech Tree + Investor Relations diperdalam | ✅ Done (Fase B) |
 | **v2.1 — Market Update** | **Leaderboard 1000 produk + Stock Market + IPO + Akuisisi** (fokus dokumen ini) | 📝 Planned |
 | v2.2 — Scale Update | Multi-Product Portfolio + Global Expansion | 📝 Planned |
 | v2.3 — Endgame | IPO player sebagai win condition, prestige/new game+ | 📝 Planned |
@@ -206,15 +206,18 @@ Prinsip pengerjaan: **iteratif per fase**, bukan numpuk semua fitur baru balanci
    - ✅ Tuning `growthRate` & `volatility` kompetitor
    - ✅ Tuning cost/effect campaign
 
-### Fase B — v2.0 "Depth Update"
-1. **Build**
-   - R&D / Tech Tree (unlock fitur generasi baru)
-   - Investor Relations diperdalam (board target quarterly, term sheet)
-2. **Playtest metric**
-   - Apakah tech tree worth investasi waktu Developer dibanding upgrade fitur biasa?
-   - Apakah target board realistis dicapai tanpa terlalu menekan?
-3. **Balancing pass**
-   - Tuning cost/waktu riset, tuning threshold target investor
+### Fase B — v2.0 "Depth Update" ✅ Done
+1. **Build** ✅
+   - ✅ R&D / Tech Tree (12 nodes, 4 tiers, 4 levels per node, partial effects per level)
+   - ✅ Investor Relations diperdalam (board target quarterly, term sheet)
+   - ✅ Funding pindah ke panel Investor Relations
+   - ✅ Research effects wiring ke traffic, revenue, churn, brand, server
+2. **Playtest metric** ✅
+   - ✅ Tech tree balance (level-based scaling: baseTicks × (1 + (level-1) × 0.5))
+   - ✅ Board targets & term sheet muncul periodik
+3. **Balancing pass** — TBD playtesting
+   - Tuning baseTicks per tier, cost/waktu riset
+   - Tuning threshold target investor & board satisfaction
 
 ### Fase C — v2.1 "Market Update" (Fokus dokumen ini)
 1. **Build — urutan sub-tahap penting karena saling bergantung:**

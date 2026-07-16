@@ -1,5 +1,5 @@
 import type { CompetitorProduct, CompetitorSector, CompetitorPersonality } from '../types';
-import { generateUniqueName, resetNameGenerator } from '../data/competitorNames';
+import { generateUniqueName } from '../data/competitorNames';
 
 const SECTORS: CompetitorSector[] = ['social_media', 'ecommerce', 'search_engine'];
 const PERSONALITIES: CompetitorPersonality[] = ['aggressive', 'conservative', 'opportunistic'];
@@ -9,11 +9,6 @@ let competitorIdCounter = 0;
 function nextId(): string {
   competitorIdCounter++;
   return `comp-${competitorIdCounter}`;
-}
-
-function randomSector(exclude?: CompetitorSector): CompetitorSector {
-  const pool = exclude ? SECTORS.filter(s => s !== exclude) : SECTORS;
-  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 function randomPersonality(): CompetitorPersonality {
@@ -96,13 +91,13 @@ export function updateCompetitorValuation(
   };
 }
 
-export function shouldDelist(comp: CompetitorProduct, currentMonth: number): boolean {
+export function shouldDelist(comp: CompetitorProduct, _currentMonth: number): boolean {
   if (comp.delisted) return false;
   const valuationDrop = comp.valuation / (comp.valuation / (1 + comp.growthRate * 6));
   return valuationDrop < 0.3;
 }
 
-export function checkSpawnNew(currentMonth: number, activeCount: number): boolean {
+export function checkSpawnNew(_currentMonth: number, activeCount: number): boolean {
   if (activeCount >= 100) return false;
   const baseChance = 0.15;
   const countBonus = Math.max(0, 1 - activeCount / 100) * 0.1;
