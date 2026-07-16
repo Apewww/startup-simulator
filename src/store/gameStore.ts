@@ -842,8 +842,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         get().addNotification('Loan defaulted! Credit score -30', 'error');
       }
 
-      const cashAfter = state.cash + cashChange;
-      if (cashAfter < 0) {
+      if (cashChange < 0) {
         newNegativeCashMonths += 1;
       } else {
         newNegativeCashMonths = 0;

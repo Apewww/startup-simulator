@@ -5,6 +5,7 @@ export interface AchievementDef {
   label: string;
   icon: string;
   requirement: number;
+  description: string;
 }
 
 export interface PlayerWealth {

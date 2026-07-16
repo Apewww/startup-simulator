@@ -4,15 +4,8 @@ import { useGameStore } from '../store/gameStore';
 import { listSaves, deleteSave, loadGame, type SaveSlotInfo } from '../systems/saveLoad';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
-const ACHIEVEMENT_TITLES: Record<string, { icon: string; label: string }> = {
-  hustler: { icon: '💼', label: 'Hustler' },
-  founder: { icon: '🏗️', label: 'Founder' },
-  tycoon: { icon: '💰', label: 'Tycoon' },
-  mogul: { icon: '👑', label: 'Mogul' },
-  millionaire: { icon: '💎', label: 'Millionaire' },
-  multi_millionaire: { icon: '🔷', label: 'Multi-Millionaire' },
-  billionaire: { icon: '🌟', label: 'Billionaire' },
-};
+import { ACHIEVEMENTS } from '../data/achievements';
+import type { AchievementDef } from '../types/wealth';
 
 function formatCash(n: number): string {
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
@@ -41,6 +34,7 @@ export function MainMenu() {
   const restartGame = useGameStore((s) => s.restartGame);
   const [saves, setSaves] = useState<SaveSlotInfo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedAchievement, setSelectedAchievement] = useState<AchievementDef | null>(null);
 
   const refresh = () => {
     setLoading(true);
@@ -145,20 +139,55 @@ export function MainMenu() {
         </button>
       </div>
 
-      {/* Global achievements */}
-      <details className="w-full">
-        <summary className="flex items-center gap-1.5 px-1 py-1.5 text-xs text-ink-soft hover:text-ink cursor-pointer font-semibold">
-          <Trophy className="w-3 h-3" /> Achievements ({Object.keys(ACHIEVEMENT_TITLES).length} total)
-        </summary>
-        <div className="grid grid-cols-4 gap-1.5 px-1 pb-2 pt-1">
-          {Object.entries(ACHIEVEMENT_TITLES).map(([id, t]) => (
-            <div key={id} className="flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-lg bg-surface-2 border border-border">
-              <span className="text-base leading-none">{t.icon}</span>
-              <span className="text-[8px] text-ink-soft font-semibold leading-tight text-center">{t.label}</span>
-            </div>
+      {/* Achievements */}
+      <div className="w-full">
+        <div className="flex items-center gap-1.5 px-1 py-1.5 text-xs text-ink-soft font-semibold">
+          <Trophy className="w-3 h-3" /> Achievements ({ACHIEVEMENTS.length})
+        </div>
+        <div className="grid grid-cols-4 gap-1.5 px-1 pb-2">
+          {ACHIEVEMENTS.map(a => (
+            <button key={a.id}
+              onClick={() => setSelectedAchievement(a)}
+              className="flex flex-col items-center gap-0.5 px-1 py-1.5 rounded-lg bg-surface-2 border border-border hover:border-indigo/30 hover:bg-indigo/5 transition-all cursor-pointer">
+              <span className="text-base leading-none">{a.icon}</span>
+              <span className="text-[8px] text-ink-soft font-semibold leading-tight text-center">{a.label}</span>
+            </button>
           ))}
         </div>
-      </details>
+      </div>
+
+      {/* Achievement popup */}
+      {selectedAchievement && (() => {
+        const titleMap: Record<string, string> = {
+          hustler: '💼', founder: '🏗️', tycoon: '💰', mogul: '👑',
+          millionaire: '💎', multi_millionaire: '🔷', billionaire: '🌟',
+        };
+        return (
+          <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+            onClick={() => setSelectedAchievement(null)}>
+            <div className="bg-surface border border-border rounded-xl p-5 max-w-xs w-full shadow-xl"
+              onClick={e => e.stopPropagation()}>
+              <div className="text-center mb-3">
+                <span className="text-3xl block mb-1">{titleMap[selectedAchievement.id] ?? '🏆'}</span>
+                <h3 className="text-sm font-bold text-ink">{selectedAchievement.label}</h3>
+              </div>
+              <p className="text-[11px] text-ink-soft text-center mb-3">{selectedAchievement.description}</p>
+              <div className="bg-surface-2 rounded-lg p-2.5 text-center">
+                <div className="text-[10px] text-ink-soft mb-0.5">Requirement</div>
+                <div className="font-semibold text-xs text-ink">
+                  {selectedAchievement.requirement >= 1_000_000
+                    ? `$${(selectedAchievement.requirement / 1_000_000).toFixed(1)}M`
+                    : `$${(selectedAchievement.requirement / 1_000).toFixed(0)}K`} personal wealth
+                </div>
+              </div>
+              <button onClick={() => setSelectedAchievement(null)}
+                className="mt-3 w-full px-3 py-2 bg-indigo text-white rounded-lg text-[10px] font-semibold hover:bg-indigo/90 transition-colors cursor-pointer">
+                Close
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="text-xs text-ink-soft font-mono">v2.0</div>
     </div>

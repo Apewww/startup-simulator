@@ -17,8 +17,7 @@ export function ticksForLevel(baseTicks: number, level: number): number {
 }
 
 export function costForLevel(baseCost: number, level: number): number {
-  if (level === 1) return baseCost;
-  return Math.round(baseCost * 0.5 * level);
+  return Math.round(baseCost * (0.5 + (level - 1) * 0.35));
 }
 
 export function minDevLevelForLevel(baseMinLevel: number, level: number): number {
