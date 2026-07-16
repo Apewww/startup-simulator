@@ -1,5 +1,6 @@
 import { Play, Pause, Save, AlertTriangle, Handshake, Moon, Sun, TrendingUp, TrendingDown, Activity, Shield, Circle, Star, Wifi, Megaphone } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
+import { TICKS_PER_MONTH, TICKS_PER_DAY } from '../constants';
 import type { MonetizationStrategy } from '../store/gameStore';
 import { getPlatformStats } from '../systems/platform';
 import { calculateRevenue, MOOD_BASELINE } from '../systems/monetization';
