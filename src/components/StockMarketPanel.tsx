@@ -17,7 +17,7 @@ function fmtCash(n: number): string {
   return `$${Math.round(n)}`;
 }
 
-export function StockMarketPanel() {
+export function StockMarketPanel({ search = '' }: { search?: string }) {
   const competitors = useGameStore((s) => s.competitors);
   const personalCash = useGameStore((s) => s.personalCash);
   const totalEquityGiven = useGameStore((s) => s.totalEquityGiven);
@@ -30,7 +30,9 @@ export function StockMarketPanel() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [buybackPct, setBuybackPct] = useState('10');
 
-  const activeCompetitors = competitors.filter(c => !c.delisted && c.valuation > 0);
+  const activeCompetitors = competitors
+    .filter(c => !c.delisted && c.valuation > 0)
+    .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()));
   const playerOwnership = calcPlayerOwnership(totalEquityGiven);
   const aiOwnership = 100 - playerOwnership;
   const companyVal = Math.max(1, currentUsers * 80);

@@ -74,7 +74,7 @@ function EntryRow({ entry, rank, isMaximized }: { entry: any; rank: number; isMa
   );
 }
 
-export function CompetitorPanel() {
+export function CompetitorPanel({ search = '' }: { search?: string }) {
   const competitors = useGameStore((s) => s.competitors);
   const currentUsers = useGameStore((s) => s.currentUsers);
   const selectedProduct = useGameStore((s) => s.selectedProduct);
@@ -103,16 +103,23 @@ export function CompetitorPanel() {
   }
   allEntries.sort((a, b) => b.valuation - a.valuation);
 
+  // Apply search filter
+  const filteredEntries = search
+    ? allEntries.filter(e => e.name.toLowerCase().includes(search.toLowerCase()))
+    : allEntries;
+
   const playerEntry = currentUsers > 0 ? allEntries.find(e => e.isPlayer) : null;
   const playerRank = playerEntry ? allEntries.indexOf(playerEntry) + 1 : null;
   const totalActive = allEntries.length;
 
+  const displayEntries = search ? filteredEntries : allEntries;
+
   // Determine which entries to show
   let visibleEntries: { entry: any; rank: number }[];
-  if (showAll) {
-    visibleEntries = allEntries.map((e, i) => ({ entry: e, rank: i + 1 }));
+  if (showAll || search) {
+    visibleEntries = displayEntries.map((e, i) => ({ entry: e, rank: i + 1 }));
   } else {
-    const top = allEntries.slice(0, DEFAULT_TOP).map((e, i) => ({ entry: e, rank: i + 1 }));
+    const top = displayEntries.slice(0, DEFAULT_TOP).map((e, i) => ({ entry: e, rank: i + 1 }));
     visibleEntries = top;
     // If player outside top 20, add player + neighbors
     if (playerEntry && playerRank && playerRank > DEFAULT_TOP) {
@@ -121,7 +128,7 @@ export function CompetitorPanel() {
       // Add separator then player neighborhood
       visibleEntries.push({ entry: null, rank: -1 } as any); // separator
       for (let i = start; i < end; i++) {
-        visibleEntries.push({ entry: allEntries[i], rank: i + 1 });
+        visibleEntries.push({ entry: displayEntries[i], rank: i + 1 });
       }
     }
   }
