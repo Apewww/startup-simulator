@@ -111,6 +111,7 @@ interface GameState {
   focusEmployee: (id: string | null) => void;
   togglePause: () => void;
   setSpeed: (speed: GameSpeed) => void;
+  skipTicks: (amount: number) => void;
   incrementTick: () => void;
   addCash: (amount: number) => void;
   hireEmployee: (role: EmployeeRole) => void;
@@ -371,6 +372,17 @@ export const useGameStore = create<GameState>((set, get) => ({
   setScreen: (screen) => set({ screen }),
   togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
   setSpeed: (speed) => set({ speed }),
+  skipTicks: (amount) => {
+    const state = get();
+    if (state.isPaused || !state.selectedProduct || state.isBankrupt) return;
+    const target = state.tick + amount;
+    const maxIter = 5000; // safety cap
+    let iter = 0;
+    while (get().tick < target && iter < maxIter) {
+      get().incrementTick();
+      iter++;
+    }
+  },
   toggleDarkMode: () => set((state) => {
     const next = !state.darkMode;
     try { localStorage.setItem('ss-dark', next ? '1' : '0'); } catch {}
@@ -982,7 +994,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
     }
 
-    const isBankrupt = newNegativeCashMonths >= 3;
+    const isBankrupt = newNegativeCashMonths >= 3 && state.cash + cashChange < 0;
 
     // v2.0 — Victory check (setiap tick, cek leaderboard rank & personal cash)
     if (state.selectedProduct && !get().victoryAchieved) {
