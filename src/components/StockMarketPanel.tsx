@@ -117,49 +117,61 @@ export function StockMarketPanel({ search = '' }: { search?: string }) {
               </div>
             </div>
             {isSelected && (
-              <div className="mt-1 mb-1.5 px-3 py-2 bg-surface-2 rounded-lg border border-border space-y-1.5">
-                <div className="flex items-center justify-between text-[10px] text-ink-soft">
-                  <span>Price per share</span>
-                  <span className="font-mono font-semibold text-ink">${comp.sharePrice}</span>
+              <div className="mt-1 mb-1.5 px-3 py-2 bg-surface-2 rounded-lg border border-border space-y-2">
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
+                  <span className="text-ink-soft">Price/share</span>
+                  <span className="font-mono font-semibold text-right text-ink">${comp.sharePrice}</span>
+                  <span className="text-ink-soft">Valuation</span>
+                  <span className="font-mono font-semibold text-right text-ink">{fmtCash(comp.valuation)}</span>
+                  <span className="text-ink-soft">Total shares</span>
+                  <span className="font-mono font-semibold text-right text-ink">{comp.totalShares.toLocaleString()}</span>
                 </div>
-                <div className="flex items-center justify-between text-[10px] text-ink-soft">
-                  <span>Valuation</span>
-                  <span className="font-mono font-semibold text-ink">{fmtCash(comp.valuation)}</span>
-                </div>
-                <div className="flex items-center justify-between text-[10px] text-ink-soft">
-                  <span>Total shares</span>
-                  <span className="font-mono font-semibold text-ink">{comp.totalShares.toLocaleString()}</span>
-                </div>
-                <div className="text-[10px] text-ink-soft">
+                <div className="text-[10px]">
                   <div className="flex justify-between mb-0.5">
-                    <span>Your ownership</span>
+                    <span className="text-ink-soft">Ownership</span>
                     <span className="font-mono font-semibold text-indigo">{playerPct.toFixed(2)}%</span>
                   </div>
                   <div className="h-1.5 bg-surface rounded-full overflow-hidden">
                     <div className="h-full rounded-full bg-indigo transition-all" style={{ width: `${playerPct}%` }} />
                   </div>
                   <div className="flex justify-between mt-0.5 text-[8px]">
-                    <span>Available: {(100 - playerPct).toFixed(1)}%</span>
+                    <span className="text-green">Available: {(100 - playerPct).toFixed(1)}%</span>
                     <span className="text-indigo">{playerPct.toFixed(1)}% owned</span>
                   </div>
                 </div>
-                <div className="flex gap-2 pt-1">
-                  <div className="flex-1 flex gap-1">
-                    <input type="number" min={1} max={comp.totalShares} placeholder="Buy"
-                      value={buyAmounts[comp.id] ?? ''}
-                      onChange={e => setBuyAmounts(p => ({ ...p, [comp.id]: e.target.value }))}
-                      className="w-full bg-surface border border-border rounded px-1.5 py-1 text-[10px] font-mono text-ink outline-none focus:border-green" />
+                <div className="space-y-1.5 pt-1 border-t border-border">
+                  <div className="flex gap-1.5">
+                    <div className="flex-1 relative">
+                      <input type="number" min={1} max={comp.totalShares} placeholder="Buy shares"
+                        value={buyAmounts[comp.id] ?? ''}
+                        onChange={e => setBuyAmounts(p => ({ ...p, [comp.id]: e.target.value }))}
+                        className="w-full bg-surface border border-border rounded px-2 py-1.5 text-[10px] font-mono text-ink outline-none focus:border-green" />
+                      {buyAmounts[comp.id] && (
+                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] text-ink-soft">
+                          ${(Number(buyAmounts[comp.id]) * comp.sharePrice).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
                     <button onClick={() => handleBuy(comp.id)}
-                      className="px-2 py-1 bg-green/20 text-green text-[10px] font-semibold rounded hover:bg-green/30 transition-colors cursor-pointer shrink-0">Buy</button>
+                      disabled={!buyAmounts[comp.id] || Number(buyAmounts[comp.id]) <= 0}
+                      className="px-3 py-1.5 bg-green/20 text-green text-[10px] font-semibold rounded hover:bg-green/30 transition-colors cursor-pointer disabled:opacity-30 shrink-0">Buy</button>
                   </div>
                   {playerPct > 0 && (
-                    <div className="flex-1 flex gap-1">
-                      <input type="number" min={1} max={comp.totalShares} placeholder="Sell"
-                        value={sellAmounts[comp.id] ?? ''}
-                        onChange={e => setSellAmounts(p => ({ ...p, [comp.id]: e.target.value }))}
-                        className="w-full bg-surface border border-border rounded px-1.5 py-1 text-[10px] font-mono text-ink outline-none focus:border-red" />
+                    <div className="flex gap-1.5">
+                      <div className="flex-1 relative">
+                        <input type="number" min={1} max={comp.totalShares} placeholder="Sell shares"
+                          value={sellAmounts[comp.id] ?? ''}
+                          onChange={e => setSellAmounts(p => ({ ...p, [comp.id]: e.target.value }))}
+                          className="w-full bg-surface border border-border rounded px-2 py-1.5 text-[10px] font-mono text-ink outline-none focus:border-red" />
+                        {sellAmounts[comp.id] && (
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] text-ink-soft">
+                            +${(Number(sellAmounts[comp.id]) * comp.sharePrice).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
                       <button onClick={() => handleSell(comp.id)}
-                        className="px-2 py-1 bg-red/20 text-red text-[10px] font-semibold rounded hover:bg-red/30 transition-colors cursor-pointer shrink-0">Sell</button>
+                        disabled={!sellAmounts[comp.id] || Number(sellAmounts[comp.id]) <= 0}
+                        className="px-3 py-1.5 bg-red/20 text-red text-[10px] font-semibold rounded hover:bg-red/30 transition-colors cursor-pointer disabled:opacity-30 shrink-0">Sell</button>
                     </div>
                   )}
                 </div>
