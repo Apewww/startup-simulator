@@ -4,6 +4,7 @@ import { useGameStore } from '../store/gameStore';
 import { listSaves, deleteSave, loadGame, type SaveSlotInfo } from '../systems/saveLoad';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ACHIEVEMENTS } from '../data/achievements';
+import { getAllObtained } from '../systems/globalAchievements';
 
 function fmtCash(n: number): string {
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
@@ -164,30 +165,41 @@ export function MainMenu() {
               </button>
             </div>
             <div className="space-y-2">
-              {ACHIEVEMENTS.map(a => {
-                const titleIcons: Record<string, string> = {
-                  hustler: '💼', founder: '🏗️', tycoon: '💰', mogul: '👑',
-                  millionaire: '💎', multi_millionaire: '🔷', billionaire: '🌟',
-                };
-                const icon = titleIcons[a.id] ?? '🏆';
-                return (
-                  <div key={a.id}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-surface-2 border border-border">
-                    <span className="text-xl shrink-0 w-8 text-center">{icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-xs text-ink">{a.label}</div>
-                      <div className="text-[9px] text-ink-soft mt-0.5">{a.description}</div>
+              {(() => {
+                const globalObtained = getAllObtained();
+                return ACHIEVEMENTS.map(a => {
+                  const titleIcons: Record<string, string> = {
+                    hustler: '💼', founder: '🏗️', tycoon: '💰', mogul: '👑',
+                    millionaire: '💎', multi_millionaire: '🔷', billionaire: '🌟',
+                  };
+                  const icon = titleIcons[a.id] ?? '🏆';
+                  const obtained = a.id in globalObtained;
+                  return (
+                    <div key={a.id}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border ${obtained ? 'bg-green-soft/30 border-green/20' : 'bg-surface-2 border-border'}`}>
+                      <span className="text-xl shrink-0 w-8 text-center">{icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className={`font-semibold text-xs ${obtained ? 'text-green' : 'text-ink'}`}>
+                          {a.label}
+                          {obtained && <span className="ml-1.5 text-[9px]">✓</span>}
+                        </div>
+                        <div className="text-[9px] text-ink-soft mt-0.5">{a.description}</div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className="text-[9px] text-ink-soft">{fmtRequirement(a.requirement)}</div>
+                        <div className="text-[8px] font-semibold">
+                          {obtained
+                            ? <span className="text-green">Obtained</span>
+                            : <span className="text-ink-soft">—</span>}
+                        </div>
+                      </div>
                     </div>
-                    <div className="shrink-0 text-right">
-                      <div className="text-[9px] text-ink-soft">{fmtRequirement(a.requirement)}</div>
-                      <div className="text-[8px] text-ink-soft font-semibold">—</div>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                });
+              })()}
             </div>
             <div className="text-center text-[9px] text-ink-soft mt-4">
-              Achievements unlock during gameplay via personal wealth milestones
+              Achievements are saved globally across all save games
             </div>
             <button onClick={() => setShowAchievements(false)}
               className="mt-3 w-full px-4 py-2.5 bg-indigo text-white rounded-lg text-xs font-semibold hover:bg-indigo/90 transition-colors cursor-pointer">

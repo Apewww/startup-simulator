@@ -35,6 +35,7 @@ import type { BoardTarget, QuarterlyReport, TermSheet } from '../types/investorR
 import { generateQuarterlyTargets, evaluateQuarterlyTargets, generateTermSheet, resetTermSheetCounter } from '../systems/investorRelations';
 import { checkNewAchievements } from '../data/achievements';
 import { calcMaxWithdrawal, calcPlayerOwnership } from '../systems/wealth';
+import { markAchievementObtained } from '../systems/globalAchievements';
 
 import { TICKS_PER_MONTH, TICKS_PER_DAY } from '../constants';
 
@@ -1469,6 +1470,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const newTitles = checkNewAchievements(newPersonal, state.unlockedTitles);
     for (const t of newTitles) {
       get().addNotification(`Achievement unlocked: ${t.icon} ${t.label}!`, 'success');
+      markAchievementObtained(t.id); // global
     }
     if (newTitles.length > 0) {
       set({ unlockedTitles: [...state.unlockedTitles, ...newTitles.map(t => t.id)] });
