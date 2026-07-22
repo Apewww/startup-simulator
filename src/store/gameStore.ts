@@ -1181,6 +1181,40 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     pendingNotifications.forEach(n => get().addNotification(n.msg, n.type));
 
+    // Passive tick for non-active products
+    const s2 = get();
+    if (Object.keys(s2.products).length > 1) {
+      let passiveCash = 0;
+      const passiveProducts: Record<string, ProductPortfolioState> = {};
+      for (const [pid, prod] of Object.entries(s2.products)) {
+        if (pid === s2.activeProductId) continue;
+        const pFeats = prod.features;
+        if (!pFeats.some((f: any) => f.level > 0)) continue;
+        const pPlatform = getPlatformStats(pFeats, [], prod.sector);
+        const pHasSynergy = hasActiveSynergy(pFeats, prod.sector);
+        const pCohesion = Math.min(1, pPlatform.cohesionScore + researchCohesionBonus);
+        const pMoodTarget = Math.min(100, getMoodTarget(prod.activeMonetization, pHasSynergy, 1));
+        let pMood = Math.max(0, Math.min(100, prod.userMood + (pMoodTarget - prod.userMood) * MOOD_DRIFT_RATE));
+        const pMoodPenalty = Math.max(0, (MOOD_BASELINE - pMood) * MOOD_PENALTY_K);
+        const pTier = getPricingTier(prod.activePricingTier, prod.sector);
+        const pDelta = (pPlatform.targetUsers - prod.currentUsers) * 0.005 * pCohesion * getMonetizationMods(prod.activeMonetization).growthMult * (pTier?.growthMult ?? 1);
+        const pChurn = Math.max(0, prod.currentUsers * Math.max(0, (1 - pCohesion) * 0.0002 + pMoodPenalty));
+        let pUsers = Math.max(0, prod.currentUsers + pDelta - pChurn);
+        const pCompliance = getComplianceStatus(pFeats, s2.racks, s2.rentedServers, s2.internetSubscriptions);
+        if (pCompliance.overall === 'critical') pUsers = 0;
+        else if (pCompliance.userCap < 1) pUsers = Math.min(pUsers, Math.round(pPlatform.targetUsers * pCompliance.userCap));
+        let pBrand = Math.max(0, Math.min(100, prod.brandScore - calcBrandDecay(prod.brandScore, false)));
+        if (newMonth > oldMonth) {
+          const rOpts = { strategy: prod.activeMonetization, productId: prod.sector, dataRatio: pCompliance.data.ratio, synergyActive: pHasSynergy, pricingRevenueMult: pTier?.revenueMult ?? 1, researchAdRevMult, researchSubRevMult };
+          passiveCash += calculateRevenue(pUsers, pFeats, s2.racks, pCohesion * pCompliance.revenueMult, pPlatform.synergyRevenueBonus, rOpts).total;
+        }
+        passiveProducts[pid] = { ...prod, currentUsers: Math.round(pUsers), userMood: pMood, brandScore: Math.round(pBrand * 10) / 10 };
+      }
+      if (Object.keys(passiveProducts).length > 0) {
+        set((st) => ({ products: { ...st.products, ...passiveProducts }, cash: st.cash + passiveCash }));
+      }
+    }
+
     get().checkMilestones();
     get().flushActiveProduct();
     } catch (e) { console.error('[tick]', e); }

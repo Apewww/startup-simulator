@@ -365,7 +365,8 @@ Prinsip pengerjaan: **iteratif per fase**, bukan numpuk semua fitur baru balanci
    - ✅ NewProductModal.tsx — modal 3 tipe produk
    - ✅ Store refactor: activeProductId, products map, activeProductTypeId
    - ✅ Save/Load migration v18→v19
-   - ❌ Tick loop — per-product RPS routing
+   - ✅ Tick loop — passive growth + revenue untuk non-active products
+   - ❌ Tick loop — per-product RPS routing per assigned rack (deferred)
    - ✅ ProductOverview.tsx — dashboard per produk
    - ✅ closeProduct action — archive product (min 1)
    - ✅ Rack & rented service type — `assignedProductId` field

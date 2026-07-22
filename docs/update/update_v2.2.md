@@ -142,7 +142,8 @@ interface ProductPortfolioState {
 - [x] assignRackToProduct, assignRentalToProduct actions
 - [x] Rented server — product assignment dropdown (ServerPanel)
 - [ ] Rack — product assignment (via LandMap / plot view, deferred)
-- [ ] Tick loop — routing RPS per produk
+- [x] Tick loop — passive tick untuk non-active products (growth + revenue)
+- [ ] Tick loop — routing RPS per assigned rack (deferred)
 - [ ] Data: region definitions
 - [ ] systems/regulatory.ts — compliance law checking
 - [ ] RegionPanel.tsx — global expansion UI
