@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetProviderId, InternetSubscription, AdCampaign, AdLead, CompetitorProduct, MarketingCampaign, MarketingCampaignType, WealthEntry, AiFundingOffer } from '../types';
+import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetProviderId, InternetSubscription, AdCampaign, AdLead, CompetitorProduct, MarketingCampaign, MarketingCampaignType, WealthEntry, AiFundingOffer, MonetizationStrategy, ProductPortfolioState } from '../types';
+import { createProductState } from '../types/portfolio';
 import { calcFundingOffer, calcMaxSupervised } from '../types/employee';
 import { getComponentDef, COMPONENTS } from '../data/components';
 import { getProductDef } from '../data/products';
@@ -67,8 +68,6 @@ export interface MonthlySnapshot {
   cash: number;
 }
 
-export type MonetizationStrategy = 'none' | 'text_ads' | 'video_ads' | 'targeted_ads' | 'freemium' | 'subscription';
-
 interface GameState {
   tick: number;
   isPaused: boolean;
@@ -83,7 +82,9 @@ interface GameState {
   rentedServers: RentedServer[];
   internetSubscriptions: InternetSubscription[];
   totalSalary: number;
-  selectedProduct: string | null;
+  activeProductId: string | null;
+  activeProductTypeId: string | null;
+  products: Record<string, ProductPortfolioState>;
   activeMonetization: MonetizationStrategy;
   userMood: number;
   devMode: boolean;
@@ -118,6 +119,9 @@ interface GameState {
   assignTask: (employeeId: string, componentId: string) => void;
   cancelTask: (employeeId: string) => void;
   selectProduct: (productId: string) => void;
+  switchProduct: (productId: string) => void;
+  flushActiveProduct: () => void;
+  createProduct: (productId: string, customName?: string) => void;
   setMonetizationStrategy: (strategy: MonetizationStrategy) => void;
   buildFeature: (featureId: string) => void;
   upgradeFeature: (featureId: string) => void;
@@ -301,7 +305,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   rentedServers: [],
   internetSubscriptions: [],
   totalSalary: 0,
-  selectedProduct: null,
+  activeProductId: null,
+  activeProductTypeId: null,
+  products: {},
   activeMonetization: 'none',
   userMood: 80,
   adLeads: [],
@@ -374,7 +380,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   setSpeed: (speed) => set({ speed }),
   skipTicks: (amount) => {
     const state = get();
-    if (state.isPaused || !state.selectedProduct || state.isBankrupt) return;
+    if (state.isPaused || !state.activeProductId || state.isBankrupt) return;
     const target = state.tick + amount;
     const maxIter = 5000; // safety cap
     let iter = 0;
@@ -443,7 +449,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   incrementTick: () => {
     try {
     const state = get();
-    const { tick, employees, resources, features, racks, events, currentUsers, selectedProduct, rentedServers } = state;
+    const { tick, employees, resources, features, racks, events, currentUsers, activeProductId, products, rentedServers } = state;
+    const productTypeId = state.activeProductTypeId ?? activeProductId;
     const internetSubs = state.internetSubscriptions;
     const internetRpsBonus = internetSubs.reduce((s, x) => s + x.rpsBonus, 0);
     const internetMoodSum = internetSubs.reduce((s, x) => s + x.moodBonus, 0);
@@ -464,7 +471,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       adPlatformLevel: platformLevel,
       dataRatio: (features.some(f => f.level > 0) ? getComplianceStatus(features, racks, rentedServers, internetSubs) : null)?.data.ratio ?? 1,
       userMood: state.userMood,
-      synergyActive: hasActiveSynergy(features, selectedProduct),
+      synergyActive: hasActiveSynergy(features, productTypeId),
       specialistLevel: 0,
       productFeaturesLevel,
     };
@@ -684,12 +691,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     const unplacedRacks = racks.filter(r => r.plotId === null);
 
     // Platform stats (cohesion, synergy, target users)
-    const platformStats = getPlatformStats(features, events, selectedProduct);
+    const platformStats = getPlatformStats(features, events, productTypeId);
     const targetUsers = platformStats.targetUsers;
     const cohesionScore = Math.min(1, platformStats.cohesionScore + researchCohesionBonus);
 
     // Dynamic users
-    const pricingTier = getPricingTier(state.activePricingTier, state.selectedProduct);
+    const pricingTier = getPricingTier(state.activePricingTier, productTypeId);
     const eventEffects = getAppliedEffects(events);
     const monetizationMods = getMonetizationMods(state.activeMonetization);
     const pricingGrowthMult = pricingTier?.growthMult ?? 1;
@@ -701,7 +708,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     // Server calculation with effectiveRPS — compliance load mult untuk compute/data shortage
     const complianceBefore = features.some(f => f.level > 0) ? getComplianceStatus(features, placedRacks, rentedServers, internetSubs) : null;
-    const synergyActive = hasActiveSynergy(features, selectedProduct);
+    const synergyActive = hasActiveSynergy(features, productTypeId);
     const earlyDataRatio = complianceBefore?.data.ratio ?? 1;
 
     // User mood (satisfaction) — drifts toward strategy target × pricing target; feeds churn
@@ -838,7 +845,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     let newTotalSalary = state.totalSalary;
     let newNegativeCashMonths = state.negativeCashMonths;
     const dataRatio = compliance?.data.ratio ?? 1;
-    const revOpts = { strategy: state.activeMonetization, productId: selectedProduct, dataRatio, synergyActive };
+    const revOpts = { strategy: state.activeMonetization, productId: productTypeId, dataRatio, synergyActive };
     const pricingRevMult = pricingTier?.revenueMult ?? 1;
     const revOptsWithPricing = { ...revOpts, pricingRevenueMult: pricingRevMult, researchAdRevMult, researchSubRevMult };
     const campaignRevenue = newAdCampaigns
@@ -997,7 +1004,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const isBankrupt = newNegativeCashMonths >= 3 && state.cash + cashChange < 0;
 
     // v2.0 — Victory check (setiap tick, cek leaderboard rank & personal cash)
-    if (state.selectedProduct && !get().victoryAchieved) {
+    if (state.activeProductId && !get().victoryAchieved) {
       const allEntries = get().competitors.filter(c => !c.delisted);
       if (allEntries.length > 0) {
         const sorted = [...allEntries].sort((a, b) => b.valuation - a.valuation);
@@ -1172,6 +1179,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     pendingNotifications.forEach(n => get().addNotification(n.msg, n.type));
 
     get().checkMilestones();
+    get().flushActiveProduct();
     } catch (e) { console.error('[tick]', e); }
   },
 
@@ -1273,6 +1281,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   selectProduct: (productId: string) => {
+    const state = get();
     const product = getProductDef(productId);
     if (!product) return;
     const features: PlatformFeature[] = product.features.map((f) => ({
@@ -1284,7 +1293,96 @@ export const useGameStore = create<GameState>((set, get) => ({
     resetNameGenerator();
     const initialCompetitors = generateInitialCompetitors(0, 100);
     const rankedCompetitors = computeRankings(initialCompetitors);
-    set({ selectedProduct: productId, features, screen: 'playerSetup', currentUsers: 0, userMood: 80, internetSubscriptions: [], adLeads: [], adCampaigns: [], adSalesUnlockNotified: false, activePricingTier: getDefaultPricingTier(productId), loan: null, creditScore: 50, missedPaymentTicks: 0, competitors: rankedCompetitors, brandScore: 10, marketingCampaigns: [], takeoverCapital: 0, acquiredBy: null, wealthLog: [] });
+    const pid = `prod_${Date.now().toString(36)}`;
+    const pricingTier = getDefaultPricingTier(productId);
+    const prodState = createProductState(pid, product.name, productId as any, features, 0, pricingTier);
+    set({
+      activeProductId: pid,
+      activeProductTypeId: productId,
+      products: { ...state.products, [pid]: prodState },
+      features, screen: 'playerSetup', currentUsers: 0, userMood: 80,
+      internetSubscriptions: [], adLeads: [], adCampaigns: [], adSalesUnlockNotified: false,
+      activePricingTier: pricingTier, loan: null, creditScore: 50, missedPaymentTicks: 0,
+      competitors: rankedCompetitors, brandScore: 10, marketingCampaigns: [],
+      takeoverCapital: 0, acquiredBy: null, wealthLog: [],
+    });
+  },
+
+  switchProduct: (productId: string) => {
+    const s = get();
+    if (productId === s.activeProductId || !s.products[productId]) return;
+    if (s.activeProductId && s.products[s.activeProductId]) {
+      get().flushActiveProduct();
+    }
+    const p = s.products[productId];
+    set({
+      activeProductId: productId,
+      activeProductTypeId: p.sector,
+      features: p.features,
+      currentUsers: p.currentUsers,
+      userMood: p.userMood,
+      activeMonetization: p.activeMonetization,
+      activePricingTier: p.activePricingTier,
+      brandScore: p.brandScore,
+      marketingCampaigns: p.marketingCampaigns,
+      adLeads: p.adLeads,
+      adCampaigns: p.adCampaigns,
+      adSalesUnlockNotified: p.adSalesUnlockNotified,
+      campaignCostThisMonth: p.campaignCostThisMonth,
+    });
+  },
+  flushActiveProduct: () => {
+    const s = get();
+    if (!s.activeProductId || !s.products[s.activeProductId]) return;
+    set({
+      products: {
+        ...s.products,
+        [s.activeProductId]: {
+          ...s.products[s.activeProductId],
+          features: s.features,
+          currentUsers: s.currentUsers,
+          userMood: s.userMood,
+          activeMonetization: s.activeMonetization,
+          activePricingTier: s.activePricingTier,
+          brandScore: s.brandScore,
+          marketingCampaigns: s.marketingCampaigns,
+          adLeads: s.adLeads,
+          adCampaigns: s.adCampaigns,
+          adSalesUnlockNotified: s.adSalesUnlockNotified,
+          campaignCostThisMonth: s.campaignCostThisMonth,
+        },
+      },
+    });
+  },
+  createProduct: (productId: string, customName?: string) => {
+    const state = get();
+    const product = getProductDef(productId);
+    if (!product) return;
+    const features: PlatformFeature[] = product.features.map((f) => ({
+      id: f.id, name: f.name, level: 0,
+      group: f.group,
+      requiredComponents: f.requiredComponents, trafficGenerated: 0, enabled: true,
+    }));
+    const pid = `prod_${Date.now().toString(36)}`;
+    const name = customName || product.name;
+    const pricingTier = getDefaultPricingTier(productId);
+    const prodState = createProductState(pid, name, productId as any, features, state.month, pricingTier);
+    set({
+      products: { ...state.products, [pid]: prodState },
+      activeProductId: pid,
+      activeProductTypeId: productId,
+      features: prodState.features,
+      currentUsers: prodState.currentUsers,
+      userMood: prodState.userMood,
+      activeMonetization: prodState.activeMonetization,
+      activePricingTier: prodState.activePricingTier,
+      brandScore: prodState.brandScore,
+      marketingCampaigns: prodState.marketingCampaigns,
+      adLeads: prodState.adLeads,
+      adCampaigns: prodState.adCampaigns,
+      adSalesUnlockNotified: prodState.adSalesUnlockNotified,
+      campaignCostThisMonth: prodState.campaignCostThisMonth,
+    });
   },
 
   setMonetizationStrategy: (strategy) => {
@@ -1828,7 +1926,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   buildFeature: (featureId: string) => {
     const state = get();
-    const product = getProductDef(state.selectedProduct || '');
+    const product = getProductDef(state.activeProductId || '');
     if (!product) return;
 
     const featDef = product.features.find(f => f.id === featureId);
@@ -1857,7 +1955,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   upgradeFeature: (featureId: string) => {
     const state = get();
-    const product = getProductDef(state.selectedProduct || '');
+    const product = getProductDef(state.activeProductId || '');
     if (!product) return;
 
     const featDef = product.features.find(f => f.id === featureId);
@@ -2432,7 +2530,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   unlockAllFeatures: () => {
     const state = get();
-    const product = getProductDef(state.selectedProduct || '');
+    const product = getProductDef(state.activeProductId || '');
     if (!product) return;
 
     const newFeatures = state.features.map(f => {
@@ -2785,8 +2883,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     resetTermSheetCounter();
     set({
       tick: 0, isPaused: false, speed: 1, cash: 15000, month: 0,
-      employees: [], resources: [], features: [], racks: [], plots: [], rentedServers: [],
-      totalSalary: 0, selectedProduct: null, activeMonetization: 'none', userMood: 80, internetSubscriptions: [], devMode: false,
+      employees: [], resources: [], features: [], racks: [], plots: [], rentedServers: [], products: {},
+      totalSalary: 0, activeProductId: null, activeProductTypeId: null, activeMonetization: 'none', userMood: 80, internetSubscriptions: [], devMode: false,
       inventoryNodes: [], activeView: { type: 'office' }, visitedPlots: [], gameLog: [],
       cashFlowHistory: [], notifications: [],
       isBankrupt: false, negativeCashMonths: 0, screen: 'menu', companyName: '',

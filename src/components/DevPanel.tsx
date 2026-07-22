@@ -20,9 +20,11 @@ const TABS: { id: DevTab; label: string }[] = [
   { id: 'state', label: 'State' },
 ];
 
+(window as any).__gameStore = useGameStore;
+
 export function DevPanel() {
   const [tab, setTab] = useState<DevTab>('core');
-  const { cash, addCash, employees, hireEmployee, addResources, features, unlockAllFeatures, racks, fillRack, selectedProduct, perkPoints, unlockedPerks, unlockAllPerks, devSpawnFurniture, currentUsers, adLeads, adCampaigns, gameLog, devSpawnCompetitor, devSetMaxBrand, devResetCompetitors, devTriggerHotSector, competitors, skipTicks } = useGameStore();
+  const { cash, addCash, employees, hireEmployee, addResources, features, unlockAllFeatures, racks, fillRack, activeProductTypeId, perkPoints, unlockedPerks, unlockAllPerks, devSpawnFurniture, currentUsers, adLeads, adCampaigns, gameLog, devSpawnCompetitor, devSetMaxBrand, devResetCompetitors, devTriggerHotSector, competitors, skipTicks } = useGameStore();
   const [cashAmount, setCashAmount] = useState('100000');
   const [resAmount, setResAmount] = useState('10');
   const [spawnedLeads, setSpawnedLeads] = useState<AdLead[]>([]);
@@ -33,7 +35,7 @@ export function DevPanel() {
   const unlockedLevels = features.filter(f => f.level > 0).map(f => f.level);
   const platformLevel = unlockedLevels.length > 0 ? unlockedLevels.reduce((s, l) => s + l, 0) / unlockedLevels.length : 0;
   const productFeaturesLevel = features.reduce((s, f) => s + f.level, 0);
-  const synergyActive = hasActiveSynergy(features, selectedProduct);
+  const synergyActive = hasActiveSynergy(features, activeProductTypeId);
   const specialists = employees.filter(e => e.role === 'Ad_Monetization_Specialist');
   const specLevel = specialists[0]?.level ?? 1;
 
@@ -96,8 +98,8 @@ export function DevPanel() {
             </DevSection>
 
             <DevSection title="Features">
-              <button onClick={unlockAllFeatures} disabled={!selectedProduct}
-                className={`px-3 py-1.5 text-[10px] font-semibold rounded-lg ${selectedProduct ? 'bg-indigo hover:bg-indigo/90 text-white' : 'bg-surface-2 text-ink-soft border border-border cursor-not-allowed'}`}>
+              <button onClick={unlockAllFeatures} disabled={!activeProductTypeId}
+                className={`px-3 py-1.5 text-[10px] font-semibold rounded-lg ${activeProductTypeId ? 'bg-indigo hover:bg-indigo/90 text-white' : 'bg-surface-2 text-ink-soft border border-border cursor-not-allowed'}`}>
                 Unlock All Features
               </button>
               <div className="text-ink-soft text-[10px] mt-1">{features.filter(f => f.level > 0).length}/{features.length} built</div>

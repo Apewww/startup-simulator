@@ -25,7 +25,7 @@ Semua produk bisa **IPO**, diperjualbelikan sahamnya, saling akuisisi, dan salin
 | v2.0 — Depth Update | R&D / Tech Tree + Investor Relations diperdalam | ✅ Done (Fase B) |
 | **v2.0.5 — Wealth & Legacy** | **Personal withdrawal, achievement/title system, dual win condition** | ✅ Done |
 | **v2.1 — Market Update** | **Leaderboard 1000 produk + Stock Market + Multi-AI Funding + Akuisisi** | ✅ Done (Fase C) |
-| v2.2 — Scale Update | Multi-Product Portfolio + Global Expansion | 📝 Planned |
+| v2.2 — Scale Update | Multi-Product Portfolio + Global Expansion | 🏗️ In Progress (Phase 1-2) |
 | v2.3 — Endgame | Win conditions finalization + prestige/new game+ | 📝 Planned |
 
 > Urutan ini dipilih karena Stock Market System butuh fondasi Competitor AI (v1.9) sudah berjalan lebih dulu — nggak ada gunanya bikin bursa saham kalau kompetitornya belum hidup.
@@ -358,10 +358,16 @@ Prinsip pengerjaan: **iteratif per fase**, bukan numpuk semua fitur baru balanci
    - Tuning formula valuasi (§3.2), spawn rate kompetitor (§7.1)
    - **Ini fase paling kompleks — sisihkan waktu balancing paling lama di sini**
 
-### Fase D — v2.2 "Scale Update"
+### Fase D — v2.2 "Scale Update" 🏗️
 1. **Build**
-   - Multi-Product Portfolio (state per-produk terpisah, shared resource pool)
-   - Global Expansion (region baru, compliance ala GDPR)
+   - ✅ Multi-Product State & Actions (createProduct, switchProduct, flushActiveProduct)
+   - ✅ ProductBar.tsx — product switcher + new product dropdown
+   - ✅ Store refactor: activeProductId, products map, activeProductTypeId
+   - ✅ Save/Load migration v18→v19
+   - ❌ Tick loop — per-product RPS routing
+   - ❌ ProductOverview.tsx — dashboard per produk
+   - ❌ Rack & rented service product assignment
+   - ❌ Global Expansion (region, regulatory compliance)
 2. **Playtest metric**
    - Apakah manage 2+ produk sekaligus terasa manageable atau overwhelming?
    - Apakah expansion region worth cost compliance tambahan?

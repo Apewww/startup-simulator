@@ -4,6 +4,7 @@ import { MainMenu } from './components/MainMenu';
 import { ProductSelect } from './components/ProductSelect';
 import { PlayerSetup } from './components/PlayerSetup';
 import { ServerPanel } from './components/ServerPanel';
+import { ProductBar } from './components/ProductBar';
 import { DevPanel } from './components/DevPanel';
 import { EventBanner } from './components/EventBanner';
 import { HudBar } from './components/HudBar';
@@ -90,15 +91,15 @@ function GameOverScreen() {
   );
 }
 
-function useAutosave(selectedProduct: string | null) {
+function useAutosave(activeProductId: string | null) {
   useEffect(() => {
-    if (!selectedProduct) return;
+    if (!activeProductId) return;
     const interval = setInterval(async () => {
       const slotId = useGameStore.getState().currentSlotId;
       if (slotId) await saveGame(slotId);
     }, 60000);
     return () => clearInterval(interval);
-  }, [selectedProduct]);
+  }, [activeProductId]);
 }
 
 const TOAST_ICONS: Record<Notification['type'], typeof Info> = {
@@ -137,7 +138,7 @@ function ToastContainer() {
 }
 
 function App() {
-  const { isPaused, speed, incrementTick, selectedProduct, devMode, toggleDevMode, isBankrupt, screen, darkMode, toggleDarkMode, maximizedPanel, companyName } = useGameStore();
+  const { isPaused, speed, incrementTick, activeProductId, devMode, toggleDevMode, isBankrupt, screen, darkMode, toggleDarkMode, maximizedPanel, companyName } = useGameStore();
   const [saveMsg, setSaveMsg] = useState('');
   const [showCompanyPrompt, setShowCompanyPrompt] = useState(false);
   const [companyInput, setCompanyInput] = useState('');
@@ -149,12 +150,12 @@ function App() {
   }, [screen, companyName]);
 
   useEffect(() => {
-    if (isPaused || !selectedProduct || isBankrupt) return;
+    if (isPaused || !activeProductId || isBankrupt) return;
     const interval = setInterval(incrementTick, 2000 / speed);
     return () => clearInterval(interval);
-  }, [isPaused, speed, incrementTick, selectedProduct, isBankrupt]);
+  }, [isPaused, speed, incrementTick, activeProductId, isBankrupt]);
 
-  useAutosave(selectedProduct);
+  useAutosave(activeProductId);
 
   const handleSave = useCallback(async () => {
     await saveGame();
@@ -197,6 +198,7 @@ function App() {
   return (
     <div className="flex flex-col h-screen bg-bg text-ink overflow-hidden" data-theme={darkMode ? 'dark' : undefined}>
       <HudBar onSave={handleSave} saveMsg={saveMsg} onToggleTheme={toggleDarkMode} darkMode={darkMode} />
+      <ProductBar />
 
       <div className="flex flex-1 min-h-0">
         <Dock />

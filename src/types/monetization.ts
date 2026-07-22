@@ -1,3 +1,5 @@
+export type MonetizationStrategy = 'none' | 'text_ads' | 'video_ads' | 'targeted_ads' | 'freemium' | 'subscription';
+
 export interface PricingTier {
   id: string;
   label: string;

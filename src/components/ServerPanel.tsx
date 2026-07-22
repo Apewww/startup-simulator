@@ -183,13 +183,13 @@ export function ServerPanel() {
   const features = useGameStore(s => s.features);
   const racks = useGameStore(s => s.racks);
   const events = useGameStore(s => s.events);
-  const selectedProduct = useGameStore(s => s.selectedProduct);
+  const activeProductId = useGameStore(s => s.activeProductId);
   const internetSubscriptions = useGameStore(s => s.internetSubscriptions);
   const [shopOpen, setShopOpen] = useState(false);
 
   const hasFeatures = features.some(f => f.level > 0);
   const compliance = hasFeatures ? getComplianceStatus(features, racks, rentedServers, internetSubscriptions) : null;
-  const dbStatus = getDatabaseStatus(racks, getPlatformStats(features, events, selectedProduct).effectiveRps, rentedServers);
+  const dbStatus = getDatabaseStatus(racks, getPlatformStats(features, events, activeProductId).effectiveRps, rentedServers);
 
   return (
     <div className="space-y-3">

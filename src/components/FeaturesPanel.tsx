@@ -1,6 +1,6 @@
 import { useGameStore } from '../store/gameStore';
 import type { ComponentRequirement, PlatformFeature, FeatureGroup } from '../types';
-import type { MonetizationStrategy } from '../store/gameStore';
+import type { MonetizationStrategy } from '../types';
 import { getProductDef } from '../data/products';
 import { getComponentDef } from '../data/components';
 import { calculateRevenue, getMonetizationMods, getAdPlatformLevel, getMoodTarget, MOOD_BASELINE } from '../systems/monetization';
@@ -33,18 +33,18 @@ const MONETIZATION_STRATEGIES: StratDef[] = [
 function MonetizationStrategySection() {
   const {
     activeMonetization, setMonetizationStrategy,
-    currentUsers, features, racks, rentedServers, internetSubscriptions, selectedProduct, events, userMood, activePricingTier,
+    currentUsers, features, racks, rentedServers, internetSubscriptions, activeProductTypeId, events, userMood, activePricingTier,
   } = useGameStore();
 
   const adPlatformLevel = getAdPlatformLevel(features);
   const paymentGatewayActive = features.some(f => f.id === 'payment_gateway' && f.level > 0 && f.enabled);
   const hasBusinessLv3 = features.some(f => f.group === 'business' && f.level >= 3 && f.enabled);
-  const synergyActive = hasActiveSynergy(features, selectedProduct);
+  const synergyActive = hasActiveSynergy(features, activeProductTypeId);
   const compliance = features.some(f => f.level > 0)
     ? getComplianceStatus(features, racks, rentedServers, internetSubscriptions)
     : null;
   const dataRatio = compliance?.data.ratio ?? 1;
-  const platformStats = getPlatformStats(features, events, selectedProduct);
+  const platformStats = getPlatformStats(features, events, activeProductTypeId);
 
   function getAvailability(id: MonetizationStrategy): { ok: boolean; reason: string } {
     switch (id) {
@@ -71,12 +71,12 @@ function MonetizationStrategySection() {
   }
 
   function preview(id: MonetizationStrategy) {
-    const pricingMult = getPricingTier(activePricingTier, selectedProduct)?.revenueMult ?? 1;
+    const pricingMult = getPricingTier(activePricingTier, activeProductTypeId)?.revenueMult ?? 1;
     const rev = calculateRevenue(
       currentUsers, features, racks,
       platformStats.cohesionScore * (compliance?.revenueMult ?? 1),
       platformStats.synergyRevenueBonus,
-      { strategy: id, productId: selectedProduct, dataRatio, synergyActive, pricingRevenueMult: pricingMult },
+      { strategy: id, productId: activeProductTypeId, dataRatio, synergyActive, pricingRevenueMult: pricingMult },
     );
     return { total: rev.total, mods: getMonetizationMods(id) };
   }
@@ -154,9 +154,9 @@ function FeatureCard({ feature }: { feature: PlatformFeature }) {
   const toggleFeature = useGameStore((s) => s.toggleFeature);
   const downgradeFeature = useGameStore((s) => s.downgradeFeature);
   const resources = useGameStore((s) => s.resources);
-  const selectedProduct = useGameStore((s) => s.selectedProduct);
+  const activeProductTypeId = useGameStore((s) => s.activeProductTypeId);
   const features = useGameStore((s) => s.features);
-  const product = getProductDef(selectedProduct || '');
+  const product = getProductDef(activeProductTypeId || '');
   const featDef = product?.features.find((f) => f.id === feature.id);
 
   const isBuilt = feature.level > 0;
@@ -265,12 +265,12 @@ function FeatureCard({ feature }: { feature: PlatformFeature }) {
 }
 
 export function FeaturesPanel() {
-  const { features, resources, selectedProduct } = useGameStore();
-  const product = getProductDef(selectedProduct || '');
+  const { features, resources, activeProductTypeId } = useGameStore();
+  const product = getProductDef(activeProductTypeId || '');
 
 function PricingSliderSection() {
-  const { activePricingTier, setPricingTier, selectedProduct } = useGameStore();
-  const tiers = getPricingTiers(selectedProduct);
+  const { activePricingTier, setPricingTier, activeProductTypeId } = useGameStore();
+  const tiers = getPricingTiers(activeProductTypeId);
   if (tiers.length === 0) return null;
   const activeTier = tiers.find(t => t.id === activePricingTier);
 

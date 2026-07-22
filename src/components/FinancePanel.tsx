@@ -23,14 +23,14 @@ function fmtStat(label: string, value: string, icon: React.ReactNode) {
 }
 
 export function FinancePanel() {
-  const { features, totalSalary, racks, rentedServers, month, cash, employees, cashFlowHistory, currentUsers, events, selectedProduct, adCampaigns, activeMonetization, activePricingTier, loan, campaignCostThisMonth } = useGameStore();
+  const { features, totalSalary, racks, rentedServers, month, cash, employees, cashFlowHistory, currentUsers, events, activeProductTypeId, adCampaigns, activeMonetization, activePricingTier, loan, campaignCostThisMonth } = useGameStore();
   const [chartOpen, setChartOpen] = useState(false);
-  const platformStats = getPlatformStats(features, events, selectedProduct);
+  const platformStats = getPlatformStats(features, events, activeProductTypeId);
   const serverCost = (racks.length > 0 || rentedServers.length > 0) ? calcMonthlyServerCost(racks, rentedServers) : 0;
-  const synergyActive = hasActiveSynergy(features, selectedProduct);
-  const pricingMult = getPricingTier(activePricingTier, selectedProduct)?.revenueMult ?? 1;
+  const synergyActive = hasActiveSynergy(features, activeProductTypeId);
+  const pricingMult = getPricingTier(activePricingTier, activeProductTypeId)?.revenueMult ?? 1;
   const revenue = racks.length > 0 || features.some((f) => f.level > 0)
-    ? calculateRevenue(currentUsers, features, racks, 1, 0, { strategy: activeMonetization, productId: selectedProduct, dataRatio: 1, synergyActive, pricingRevenueMult: pricingMult })
+    ? calculateRevenue(currentUsers, features, racks, 1, 0, { strategy: activeMonetization, productId: activeProductTypeId, dataRatio: 1, synergyActive, pricingRevenueMult: pricingMult })
     : { ads: 0, subscription: 0, b2b: 0, freemium: 0, total: 0, hasSubscription: false, uptimePenalty: 1 };
 
   const activeCampaigns = adCampaigns.filter(c => c.status === 'active');

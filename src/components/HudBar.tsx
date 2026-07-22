@@ -1,7 +1,7 @@
 import { Play, Pause, Save, AlertTriangle, Handshake, Moon, Sun, TrendingUp, TrendingDown, Activity, Shield, Circle, Star, Wifi, Megaphone } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import { TICKS_PER_MONTH, TICKS_PER_DAY } from '../constants';
-import type { MonetizationStrategy } from '../store/gameStore';
+import type { MonetizationStrategy } from '../types';
 import { getPlatformStats } from '../systems/platform';
 import { calculateRevenue, MOOD_BASELINE } from '../systems/monetization';
 import { calcMonthlyServerCost } from '../systems/server';
@@ -39,8 +39,8 @@ interface HudBarProps {
 }
 
 export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps) {
-  const { tick, isPaused, speed, cash, month, features, racks, rentedServers, totalSalary, togglePause, setSpeed, negativeCashMonths, pendingFunding, currentUsers, events, selectedProduct, employees, activeMonetization, userMood, internetSubscriptions, activePricingTier, adCampaigns, loan, brandScore, personalCash, unlockedTitles } = useGameStore();
-  const platformStats = getPlatformStats(features, events, selectedProduct);
+  const { tick, isPaused, speed, cash, month, features, racks, rentedServers, totalSalary, togglePause, setSpeed, negativeCashMonths, pendingFunding, currentUsers, events, activeProductTypeId, employees, activeMonetization, userMood, internetSubscriptions, activePricingTier, adCampaigns, loan, brandScore, personalCash, unlockedTitles } = useGameStore();
+  const platformStats = getPlatformStats(features, events, activeProductTypeId);
   const bankruptWarning = negativeCashMonths > 0;
 
   const day = Math.floor((tick % TICKS_PER_MONTH) / TICKS_PER_DAY) + 1;
@@ -50,8 +50,8 @@ export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps
   const hour = Math.floor((tick % TICKS_PER_DAY) * (24 / TICKS_PER_DAY));
   const timeStr = `${String(hour).padStart(2, '0')}:00`;
 
-  const pricingMult = getPricingTier(activePricingTier, selectedProduct)?.revenueMult ?? 1;
-  const monthlyRevenue = calculateRevenue(currentUsers, features, racks, 1, 0, { strategy: activeMonetization, productId: selectedProduct, dataRatio: 1, synergyActive: false, pricingRevenueMult: pricingMult });
+  const pricingMult = getPricingTier(activePricingTier, activeProductTypeId)?.revenueMult ?? 1;
+  const monthlyRevenue = calculateRevenue(currentUsers, features, racks, 1, 0, { strategy: activeMonetization, productId: activeProductTypeId, dataRatio: 1, synergyActive: false, pricingRevenueMult: pricingMult });
   const campaignMonthly = adCampaigns.filter(c => c.status === 'active').reduce((s, c) => s + c.revenuePerTick, 0) * TICKS_PER_MONTH;
   const loanPayment = loan?.status === 'active' ? loan.monthlyPayment : 0;
   const monthlyServerCost = calcMonthlyServerCost(racks, rentedServers);

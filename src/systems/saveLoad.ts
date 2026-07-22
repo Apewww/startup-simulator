@@ -1,6 +1,8 @@
 import { db, type GameSave } from '../db/gameDB';
 import { useGameStore } from '../store/gameStore';
 import { deduplicateNames, computeRankings } from './competitor';
+import { getDefaultPricingTier } from '../types/monetization';
+import { getProductDef } from '../data/products';
 
 const GRID_COLS = 8;
 
@@ -21,7 +23,9 @@ function serialize(): Omit<GameSave, 'id' | 'timestamp'> {
     activeView: s.activeView,
     visitedPlots: s.visitedPlots,
     totalSalary: s.totalSalary,
-    selectedProduct: s.selectedProduct,
+    selectedProduct: s.activeProductId && s.products[s.activeProductId] ? s.products[s.activeProductId].sector : s.activeProductId,
+    activeProductId: s.activeProductId,
+    products: s.products,
     activeMonetization: s.activeMonetization,
     userMood: s.userMood,
     internetSubscriptions: s.internetSubscriptions,
@@ -97,6 +101,32 @@ export async function loadGame(slotId: number): Promise<boolean> {
     return emp;
   });
 
+  // v2.2 — Migrate old saves: create product entry from flat fields
+  let products = save.products ?? {};
+  let activeProductId = save.activeProductId ?? null;
+  if (!activeProductId && save.selectedProduct) {
+    activeProductId = save.selectedProduct;
+  }
+  if (Object.keys(products).length === 0 && activeProductId) {
+    const sector = activeProductId as any;
+    const pricingTier = (save as any).activePricingTier ?? getDefaultPricingTier(activeProductId);
+    products = {
+      [activeProductId]: {
+        id: activeProductId, name: getProductDef(activeProductId)?.name ?? activeProductId,
+        sector, features: save.features ?? [],
+        currentUsers: save.currentUsers ?? 0, userMood: save.userMood ?? 80,
+        activeMonetization: save.activeMonetization ?? 'none',
+        activePricingTier: pricingTier, brandScore: save.brandScore ?? 10,
+        marketingCampaigns: save.marketingCampaigns ?? [],
+        adLeads: save.adLeads ?? [], adCampaigns: save.adCampaigns ?? [],
+        adSalesUnlockNotified: save.adSalesUnlockNotified ?? false,
+        campaignCostThisMonth: save.campaignCostThisMonth ?? 0,
+        createdMonth: save.month ?? 0, expandedRegions: [],
+        businessModel: sector === 'search_engine' ? 'b2b' : 'b2c',
+      },
+    };
+  }
+
   useGameStore.setState({
     tick: save.tick,
     speed: save.speed,
@@ -115,7 +145,8 @@ export async function loadGame(slotId: number): Promise<boolean> {
     activeView: save.activeView ?? { type: 'office' },
     visitedPlots: save.visitedPlots ?? [],
     totalSalary: save.totalSalary,
-    selectedProduct: save.selectedProduct,
+    activeProductId,
+    products,
     activeMonetization: save.activeMonetization ?? 'none',
     userMood: save.userMood ?? 80,
     internetSubscriptions: (save.internetSubscriptions ?? []).map(s => ({ ...s })),
@@ -197,6 +228,7 @@ export interface SaveSlotInfo {
   currentUsers: number;
   selectedProduct: string | null;
   tick: number;
+  products?: Record<string, { name: string; sector: string }>;
 }
 
 export async function listSaves(): Promise<SaveSlotInfo[]> {
@@ -210,6 +242,7 @@ export async function listSaves(): Promise<SaveSlotInfo[]> {
       currentUsers: s.currentUsers,
       selectedProduct: s.selectedProduct,
       tick: s.tick,
+      products: s.products,
     }))
     .sort((a, b) => b.timestamp - a.timestamp);
 }
