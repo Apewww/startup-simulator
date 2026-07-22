@@ -86,7 +86,8 @@
 | `src/components/CompetitorPanel.tsx` | Baca dari `activeProductTypeId` | ✅ Done |
 | `src/components/DevPanel.tsx` | Expose `__gameStore` ke window | ✅ Done |
 | `src/components/ServerPanel.tsx` | Baca dari `activeProductTypeId` | ✅ Done |
-| `src/components/ProductSelect.tsx` | Adaptasi untuk "New Product" flow | 📝 Planned |
+| `src/components/NewProductModal.tsx` | Modal New Product dengan 3 tipe | ✅ Done |
+| `src/components/ProductSelect.tsx` | Adaptasi untuk "New Product" flow | ✅ Done (via modal) |
 | `src/App.tsx` | Integrasi ProductBar | ✅ Done |
 
 ---
@@ -126,7 +127,8 @@ interface ProductPortfolioState {
 - [x] gameStore: action flushActiveProduct
 - [ ] gameStore: action closeProduct
 - [x] gameStore: tick loop → productTypeId fix
-- [x] ProductBar.tsx — switcher + new product dropdown
+- [x] ProductBar.tsx — switcher + new product button
+- [x] NewProductModal.tsx — modal 3 tipe produk
 - [ ] ProductOverview.tsx — dashboard per produk
 - [ ] FeaturesPanel.tsx — adaptasi per-produk ✅ (via activeProductTypeId)
 - [ ] HudBar.tsx — per-product metrics ✅ (via activeProductTypeId)

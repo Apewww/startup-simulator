@@ -361,7 +361,8 @@ Prinsip pengerjaan: **iteratif per fase**, bukan numpuk semua fitur baru balanci
 ### Fase D — v2.2 "Scale Update" 🏗️
 1. **Build**
    - ✅ Multi-Product State & Actions (createProduct, switchProduct, flushActiveProduct)
-   - ✅ ProductBar.tsx — product switcher + new product dropdown
+   - ✅ ProductBar.tsx — product switcher + new product button
+   - ✅ NewProductModal.tsx — modal 3 tipe produk
    - ✅ Store refactor: activeProductId, products map, activeProductTypeId
    - ✅ Save/Load migration v18→v19
    - ❌ Tick loop — per-product RPS routing
