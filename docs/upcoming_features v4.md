@@ -373,7 +373,9 @@ Prinsip pengerjaan: **iteratif per fase**, bukan numpuk semua fitur baru balanci
    - ✅ assignRackToProduct / assignRentalToProduct actions
    - ✅ Rented server dropdown — pilih produk tujuan
    - ❌ Rack assignment UI (via LandMap, deferred)
-   - ❌ Global Expansion (region, regulatory compliance)
+   - ✅ Global Expansion (region definitions, regulatory system, RegionPanel)
+   - ✅ Region bonuses wired into active + passive tick
+   - ✅ expandToRegion / withdrawFromRegion actions
 2. **Playtest metric**
    - Apakah manage 2+ produk sekaligus terasa manageable atau overwhelming?
    - Apakah expansion region worth cost compliance tambahan?

@@ -17,3 +17,4 @@ export type { ResearchProjectDef, ResearchCategory, ResearchEffect, ActiveResear
 export type { BoardTarget, BoardMetric, QuarterlyReport, TermSheet, AiFundingOffer } from './investorRelations';
 export type { TitleId, AchievementDef, PlayerWealth, WealthEntry, WealthEntryType } from './wealth';
 export type { ProductPortfolioState } from './portfolio';
+export type { RegionDef, ComplianceLaw } from '../data/regions';

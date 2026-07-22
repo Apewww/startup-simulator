@@ -29,6 +29,8 @@ import { resetNameGenerator } from '../data/competitorNames';
 import { createCampaign, processCampaignTick, calcBrandDecay, calcBrandEffects } from '../systems/marketing';
 import { getHotSector, hasMarketCrash, hasMarketBoom } from '../systems/events';
 import { getPricingTier, getDefaultPricingTier, type BusinessLoan } from '../types/monetization';
+import { getRegionDef, calcRegionRevenueMult, calcRegionMaintenance } from '../data/regions';
+import { calcTotalPenalties } from '../systems/regulatory';
 import type { ActiveResearch } from '../types/research';
 import { startResearch as startResearchSystem, processResearchTick, isResearchComplete, costForLevel, collectResearchEffects, calcResearchEffects, getActiveResearchMonthlyCost, resetResearchIdCounter } from '../systems/research';
 import { RESEARCH_TREE } from '../data/research';
@@ -42,7 +44,7 @@ import { TICKS_PER_MONTH, TICKS_PER_DAY } from '../constants';
 
 export type GameSpeed = 1 | 2 | 4;
 
-export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment' | 'perks' | 'adsales' | 'banking' | 'competitor' | 'marketing' | 'research' | 'investor' | 'wealth' | 'products' | 'dev';
+export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment' | 'perks' | 'adsales' | 'banking' | 'competitor' | 'marketing' | 'research' | 'investor' | 'wealth' | 'products' | 'regions' | 'dev';
 export type PanelOpenState = Record<PanelId, boolean>;
 export type GameScreen = 'menu' | 'select' | 'playerSetup' | 'playing';
 
@@ -123,6 +125,8 @@ interface GameState {
   flushActiveProduct: () => void;
   createProduct: (productId: string, customName?: string) => void;
   closeProduct: (productId: string) => void;
+  expandToRegion: (regionId: string) => void;
+  withdrawFromRegion: (regionId: string) => void;
   setMonetizationStrategy: (strategy: MonetizationStrategy) => void;
   buildFeature: (featureId: string) => void;
   upgradeFeature: (featureId: string) => void;
@@ -338,8 +342,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   negativeCashMonths: 0,
   screen: 'menu',
   companyName: '',
-      panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, products: false, dev: false },
-      panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, products: false, dev: false },
+      panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, products: false, regions: false, dev: false },
+      panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, products: false, regions: false, dev: false },
   maximizedPanel: null,
   selectedEmployeeId: null,
   darkMode: (() => { try { return localStorage.getItem('ss-dark') === '1'; } catch { return false; } })(),
@@ -454,6 +458,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     const state = get();
     const { tick, employees, resources, features, racks, events, currentUsers, activeProductId, products, rentedServers } = state;
     const productTypeId = state.activeProductTypeId ?? activeProductId;
+    const activeRegions = (activeProductId ? products[activeProductId]?.expandedRegions : []) ?? [];
+    const regionGrowthMult = activeRegions.length > 0 ? calcRegionGrowthMult(activeRegions) : 1;
+    const regionRevenueMult = calcRegionRevenueMult(activeRegions);
+    const regionMaintenance = calcRegionMaintenance(activeRegions);
+    const regionPenalties = calcTotalPenalties(activeRegions, features);
     const internetSubs = state.internetSubscriptions;
     const internetRpsBonus = internetSubs.reduce((s, x) => s + x.rpsBonus, 0);
     const internetMoodSum = internetSubs.reduce((s, x) => s + x.moodBonus, 0);
@@ -703,7 +712,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const eventEffects = getAppliedEffects(events);
     const monetizationMods = getMonetizationMods(state.activeMonetization);
     const pricingGrowthMult = pricingTier?.growthMult ?? 1;
-    const userDelta = (targetUsers - currentUsers) * 0.005 * cohesionScore * monetizationMods.growthMult * pricingGrowthMult * brandEffects.growthMult * researchTrafficMult;
+    const userDelta = (targetUsers - currentUsers) * 0.005 * cohesionScore * monetizationMods.growthMult * pricingGrowthMult * brandEffects.growthMult * researchTrafficMult * regionGrowthMult;
     const hasCrash = placedRacks.some(r => r.slots.some(s => s.node?.status === 'crashed'));
     const crashPenalty = hasCrash ? currentUsers * 0.05 : 0;
     const baseChurnRate = Math.max(0, ((1 - cohesionScore) * 0.0002 + monetizationMods.churnDelta - brandEffects.churnReduction) * (1 - researchChurnReduction));
@@ -890,7 +899,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         get().addNotification(`📊 Dividend income: $${dividendIncome.toLocaleString()} → personal cash: $${newPersonal.toLocaleString()}`, 'info');
       }
       newTotalDividends = state.totalDividendsReceived + dividendIncome;
-      cashChange = revenue.total + adCampaignMonthly - (newTotalSalary + serverCost + loanPayment + campaignCost + researchCost);
+      cashChange = Math.round(revenue.total * (1 + regionRevenueMult)) + adCampaignMonthly - (newTotalSalary + serverCost + loanPayment + campaignCost + researchCost + regionMaintenance + regionPenalties);
 
       // Loan payment tracking
       if (state.loan?.status === 'active') {
@@ -1197,7 +1206,8 @@ export const useGameStore = create<GameState>((set, get) => ({
         let pMood = Math.max(0, Math.min(100, prod.userMood + (pMoodTarget - prod.userMood) * MOOD_DRIFT_RATE));
         const pMoodPenalty = Math.max(0, (MOOD_BASELINE - pMood) * MOOD_PENALTY_K);
         const pTier = getPricingTier(prod.activePricingTier, prod.sector);
-        const pDelta = (pPlatform.targetUsers - prod.currentUsers) * 0.005 * pCohesion * getMonetizationMods(prod.activeMonetization).growthMult * (pTier?.growthMult ?? 1);
+        const pRegionGrowthMult = calcRegionGrowthMult(prod.expandedRegions);
+const pDelta = (pPlatform.targetUsers - prod.currentUsers) * 0.005 * pCohesion * getMonetizationMods(prod.activeMonetization).growthMult * (pTier?.growthMult ?? 1) * pRegionGrowthMult;
         const pChurn = Math.max(0, prod.currentUsers * Math.max(0, (1 - pCohesion) * 0.0002 + pMoodPenalty));
         let pUsers = Math.max(0, prod.currentUsers + pDelta - pChurn);
         const pCompliance = getComplianceStatus(pFeats, s2.racks, s2.rentedServers, s2.internetSubscriptions);
@@ -1206,7 +1216,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         let pBrand = Math.max(0, Math.min(100, prod.brandScore - calcBrandDecay(prod.brandScore, false)));
         if (newMonth > oldMonth) {
           const rOpts = { strategy: prod.activeMonetization, productId: prod.sector, dataRatio: pCompliance.data.ratio, synergyActive: pHasSynergy, pricingRevenueMult: pTier?.revenueMult ?? 1, researchAdRevMult, researchSubRevMult };
-          passiveCash += calculateRevenue(pUsers, pFeats, s2.racks, pCohesion * pCompliance.revenueMult, pPlatform.synergyRevenueBonus, rOpts).total;
+          const pRegionMult = calcRegionRevenueMult(prod.expandedRegions);
+          const pRegionCost = calcRegionMaintenance(prod.expandedRegions) + calcTotalPenalties(prod.expandedRegions, pFeats);
+          passiveCash += Math.round(calculateRevenue(pUsers, pFeats, s2.racks, pCohesion * pCompliance.revenueMult, pPlatform.synergyRevenueBonus, rOpts).total * (1 + pRegionMult)) - pRegionCost;
         }
         passiveProducts[pid] = { ...prod, currentUsers: Math.round(pUsers), userMood: pMood, brandScore: Math.round(pBrand * 10) / 10 };
       }
@@ -1446,6 +1458,32 @@ export const useGameStore = create<GameState>((set, get) => ({
       adSalesUnlockNotified: remaining[nextId]?.adSalesUnlockNotified ?? false,
       campaignCostThisMonth: remaining[nextId]?.campaignCostThisMonth ?? 0,
     });
+  },
+
+  expandToRegion: (regionId: string) => {
+    const s = get();
+    if (!s.activeProductId || !s.products[s.activeProductId]) return;
+    const prod = s.products[s.activeProductId];
+    if (prod.expandedRegions.includes(regionId)) return;
+    const def = getRegionDef(regionId);
+    if (!def) return;
+    if (s.cash < def.entryCost) { get().addNotification(`Need $${def.entryCost.toLocaleString()} to expand`, 'warning'); return; }
+    set({
+      cash: s.cash - def.entryCost,
+      products: { ...s.products, [s.activeProductId]: { ...prod, expandedRegions: [...prod.expandedRegions, regionId] } },
+    });
+    get().addNotification(`Expanded to ${def.name}! Revenue +${(def.revenueMult * 100).toFixed(0)}%`, 'success');
+  },
+  withdrawFromRegion: (regionId: string) => {
+    const s = get();
+    if (!s.activeProductId || !s.products[s.activeProductId]) return;
+    const prod = s.products[s.activeProductId];
+    if (!prod.expandedRegions.includes(regionId)) return;
+    set({
+      products: { ...s.products, [s.activeProductId]: { ...prod, expandedRegions: prod.expandedRegions.filter(r => r !== regionId) } },
+    });
+    const def = getRegionDef(regionId);
+    get().addNotification(`Withdrew from ${def?.name ?? regionId}`, 'info');
   },
 
   setMonetizationStrategy: (strategy) => {

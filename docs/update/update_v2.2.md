@@ -63,10 +63,10 @@
 |------|--------|--------|
 | `src/types/portfolio.ts` | `ProductPortfolioState`, `createProductState` | ✅ Done |
 | `src/components/ProductBar.tsx` | Product switcher + new product | ✅ Done |
-| `src/systems/regulatory.ts` | Compliance law checking, penalty calc | 📝 Planned |
-| `src/data/regions.ts` | Region definitions (NA, EU, AS, OC, SA, AF) | 📝 Planned |
+| `src/systems/regulatory.ts` | Compliance law checking, penalty calc | ✅ Done |
+| `src/data/regions.ts` | Region definitions (NA, EU, AS, OC, SA, AF) | ✅ Done |
 | `src/components/ProductOverview.tsx` | Dashboard per produk | ✅ Done |
-| `src/components/RegionPanel.tsx` | Global expansion UI | 📝 Planned |
+| `src/components/RegionPanel.tsx` | Global expansion UI | ✅ Done |
 
 ## Modified Files
 
@@ -144,10 +144,13 @@ interface ProductPortfolioState {
 - [ ] Rack — product assignment (via LandMap / plot view, deferred)
 - [x] Tick loop — passive tick untuk non-active products (growth + revenue)
 - [ ] Tick loop — routing RPS per assigned rack (deferred)
-- [ ] Data: region definitions
-- [ ] systems/regulatory.ts — compliance law checking
-- [ ] RegionPanel.tsx — global expansion UI
-- [ ] monetization.ts — wiring region mult
+- [x] Data: region definitions (6 regions)
+- [x] systems/regulatory.ts — compliance law checking
+- [x] RegionPanel.tsx — global expansion UI
+- [x] expandToRegion / withdrawFromRegion actions
+- [x] Region panel in Dock + FloatingPanel
+- [x] Wire region bonuses into active tick (growth + revenue + penalties)
+- [x] Wire region bonuses into passive tick (per-product)
 - [x] gameDB.ts — Dexie v19
 - [x] saveLoad.ts — migration v18→v19
 - [x] Build sukses (tsc -b + vite build)
