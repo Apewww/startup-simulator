@@ -149,6 +149,8 @@ interface GameState {
   rentServer: (type: RentalType) => void;
   scaleRental: (rentalId: string, delta: number) => void;
   cancelRental: (id: string) => void;
+  assignRackToProduct: (rackId: string, productId: string | null) => void;
+  assignRentalToProduct: (rentalId: string, productId: string | null) => void;
   rentInternet: (providerId: InternetProviderId, tierId: string) => void;
   cancelInternet: (id: string) => void;
   toggleDevMode: () => void;
@@ -2096,6 +2098,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       overheatTicks: 0,
       heatRatio: 0,
       adjacentRackIds: [],
+      assignedProductId: null,
     };
 
     get().addLog(`Bought ${def.label} ($${def.price})`);
@@ -2433,7 +2436,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     };
     const def = baseDefs[type];
     get().addNotification(`Rented ${def.label} — $${def.monthlyCost}/mo`, 'info');
-    set({ rentedServers: [...state.rentedServers, { id: `rent-${state.rentedServers.length + 1}`, type, ...def, load: 0, scaleLevel: 1 }] });
+    set({ rentedServers: [...state.rentedServers, { id: `rent-${state.rentedServers.length + 1}`, type, ...def, load: 0, scaleLevel: 1, assignedProductId: null }] });
   },
 
   scaleRental: (rentalId: string, delta: number) => {
@@ -2472,6 +2475,13 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   cancelRental: (id: string) => {
     set((state) => ({ rentedServers: state.rentedServers.filter(r => r.id !== id) }));
+  },
+
+  assignRackToProduct: (rackId: string, productId: string | null) => {
+    set((state) => ({ racks: state.racks.map(r => r.id === rackId ? { ...r, assignedProductId: productId } : r) }));
+  },
+  assignRentalToProduct: (rentalId: string, productId: string | null) => {
+    set((state) => ({ rentedServers: state.rentedServers.map(r => r.id === rentalId ? { ...r, assignedProductId: productId } : r) }));
   },
 
   rentInternet: (providerId, tierId) => {

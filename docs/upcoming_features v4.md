@@ -368,7 +368,10 @@ Prinsip pengerjaan: **iteratif per fase**, bukan numpuk semua fitur baru balanci
    - ❌ Tick loop — per-product RPS routing
    - ✅ ProductOverview.tsx — dashboard per produk
    - ✅ closeProduct action — archive product (min 1)
-   - ❌ Rack & rented service product assignment
+   - ✅ Rack & rented service type — `assignedProductId` field
+   - ✅ assignRackToProduct / assignRentalToProduct actions
+   - ✅ Rented server dropdown — pilih produk tujuan
+   - ❌ Rack assignment UI (via LandMap, deferred)
    - ❌ Global Expansion (region, regulatory compliance)
 2. **Playtest metric**
    - Apakah manage 2+ produk sekaligus terasa manageable atau overwhelming?

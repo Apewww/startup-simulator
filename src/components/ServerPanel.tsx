@@ -180,10 +180,13 @@ export function ServerPanel() {
   const rentedServers = useGameStore(s => s.rentedServers);
   const cancelRental = useGameStore(s => s.cancelRental);
   const scaleRental = useGameStore(s => s.scaleRental);
+  const assignRentalToProduct = useGameStore(s => s.assignRentalToProduct);
+  const assignRackToProduct = useGameStore(s => s.assignRackToProduct);
   const features = useGameStore(s => s.features);
   const racks = useGameStore(s => s.racks);
   const events = useGameStore(s => s.events);
   const activeProductId = useGameStore(s => s.activeProductId);
+  const products = useGameStore(s => s.products);
   const internetSubscriptions = useGameStore(s => s.internetSubscriptions);
   const [shopOpen, setShopOpen] = useState(false);
 
@@ -269,10 +272,20 @@ export function ServerPanel() {
                       </button>
                     </div>
                   </div>
-                  <div className="text-[10px] text-ink-soft mb-1 flex gap-2">
+                  <div className="text-[10px] text-ink-soft mb-1 flex gap-2 flex-wrap">
                     <span>{r.capacityRps} RPS</span>
                     <span>$ {r.monthlyCost}/mo</span>
                     <span>{r.compute}C {r.data}D {r.network}N</span>
+                    <select
+                      value={r.assignedProductId ?? ''}
+                      onChange={(e) => assignRentalToProduct(r.id, e.target.value || null)}
+                      className="ml-auto text-[9px] bg-surface-2 border border-border rounded px-1 py-0.5 text-ink-soft cursor-pointer"
+                    >
+                      <option value="">All Products</option>
+                      {Object.entries(products).map(([pid, p]) => (
+                        <option key={pid} value={pid}>{p.name}{pid === activeProductId ? ' (active)' : ''}</option>
+                      ))}
+                    </select>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 bg-border rounded h-1.5">

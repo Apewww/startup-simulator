@@ -85,7 +85,9 @@
 | `src/components/MarketingPanel.tsx` | Per-product campaigns | ✅ Done |
 | `src/components/CompetitorPanel.tsx` | Baca dari `activeProductTypeId` | ✅ Done |
 | `src/components/DevPanel.tsx` | Expose `__gameStore` ke window | ✅ Done |
-| `src/components/ServerPanel.tsx` | Baca dari `activeProductTypeId` | ✅ Done |
+| `src/components/ServerPanel.tsx` | Baca dari `activeProductTypeId`; dropdown assign per rental | ✅ Done |
+| `src/types/server.ts` | +`assignedProductId` di ServerRack & RentedServer | ✅ Done |
+| `src/store/gameStore.ts` | +assignRackToProduct, assignRentalToProduct actions | ✅ Done |
 | `src/components/NewProductModal.tsx` | Modal New Product dengan 3 tipe | ✅ Done |
 | `src/components/ProductSelect.tsx` | Adaptasi untuk "New Product" flow | ✅ Done (via modal) |
 | `src/App.tsx` | Integrasi ProductBar | ✅ Done |
@@ -136,7 +138,10 @@ interface ProductPortfolioState {
 - [ ] HudBar.tsx — per-product metrics ✅ (via activeProductTypeId)
 - [ ] FinancePanel.tsx — revenue breakdown per produk ✅ (via activeProductTypeId)
 - [ ] MarketingPanel.tsx — per-produk campaigns ✅ (via activeProductTypeId)
-- [ ] Rack assignment — dropdown + action
+- [x] Rack & Rented type — assignedProductId field
+- [x] assignRackToProduct, assignRentalToProduct actions
+- [x] Rented server — product assignment dropdown (ServerPanel)
+- [ ] Rack — product assignment (via LandMap / plot view, deferred)
 - [ ] Tick loop — routing RPS per produk
 - [ ] Data: region definitions
 - [ ] systems/regulatory.ts — compliance law checking

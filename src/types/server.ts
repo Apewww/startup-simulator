@@ -92,6 +92,7 @@ export interface ServerRack {
   overheatTicks: number;
   heatRatio: number;
   adjacentRackIds: string[];
+  assignedProductId: string | null;
 }
 
 export interface Plot {
@@ -120,6 +121,7 @@ export interface RentedServer {
   data: number;
   network: number;
   dbCapacity: number;
+  assignedProductId: string | null;
 }
 
 export interface NodeDef {
