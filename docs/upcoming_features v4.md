@@ -366,7 +366,8 @@ Prinsip pengerjaan: **iteratif per fase**, bukan numpuk semua fitur baru balanci
    - ✅ Store refactor: activeProductId, products map, activeProductTypeId
    - ✅ Save/Load migration v18→v19
    - ❌ Tick loop — per-product RPS routing
-   - ❌ ProductOverview.tsx — dashboard per produk
+   - ✅ ProductOverview.tsx — dashboard per produk
+   - ✅ closeProduct action — archive product (min 1)
    - ❌ Rack & rented service product assignment
    - ❌ Global Expansion (region, regulatory compliance)
 2. **Playtest metric**

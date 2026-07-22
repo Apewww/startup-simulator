@@ -42,7 +42,7 @@ import { TICKS_PER_MONTH, TICKS_PER_DAY } from '../constants';
 
 export type GameSpeed = 1 | 2 | 4;
 
-export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment' | 'perks' | 'adsales' | 'banking' | 'competitor' | 'marketing' | 'research' | 'investor' | 'wealth' | 'dev';
+export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment' | 'perks' | 'adsales' | 'banking' | 'competitor' | 'marketing' | 'research' | 'investor' | 'wealth' | 'products' | 'dev';
 export type PanelOpenState = Record<PanelId, boolean>;
 export type GameScreen = 'menu' | 'select' | 'playerSetup' | 'playing';
 
@@ -122,6 +122,7 @@ interface GameState {
   switchProduct: (productId: string) => void;
   flushActiveProduct: () => void;
   createProduct: (productId: string, customName?: string) => void;
+  closeProduct: (productId: string) => void;
   setMonetizationStrategy: (strategy: MonetizationStrategy) => void;
   buildFeature: (featureId: string) => void;
   upgradeFeature: (featureId: string) => void;
@@ -335,8 +336,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   negativeCashMonths: 0,
   screen: 'menu',
   companyName: '',
-      panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, dev: false },
-      panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, dev: false },
+      panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, products: false, dev: false },
+      panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, products: false, dev: false },
   maximizedPanel: null,
   selectedEmployeeId: null,
   darkMode: (() => { try { return localStorage.getItem('ss-dark') === '1'; } catch { return false; } })(),
@@ -1382,6 +1383,32 @@ export const useGameStore = create<GameState>((set, get) => ({
       adCampaigns: prodState.adCampaigns,
       adSalesUnlockNotified: prodState.adSalesUnlockNotified,
       campaignCostThisMonth: prodState.campaignCostThisMonth,
+    });
+  },
+
+  closeProduct: (productId: string) => {
+    const s = get();
+    if (!s.products[productId]) return;
+    const ids = Object.keys(s.products);
+    if (ids.length <= 1) { get().addNotification('Cannot close your only product', 'warning'); return; }
+    const { [productId]: _, ...remaining } = s.products;
+    const nextId = productId === s.activeProductId ? Object.keys(remaining)[0] : s.activeProductId;
+    get().addNotification(`Product closed`, 'info');
+    set({
+      products: remaining,
+      activeProductId: nextId,
+      activeProductTypeId: remaining[nextId]?.sector ?? null,
+      features: remaining[nextId]?.features ?? [],
+      currentUsers: remaining[nextId]?.currentUsers ?? 0,
+      userMood: remaining[nextId]?.userMood ?? 80,
+      activeMonetization: remaining[nextId]?.activeMonetization ?? 'none',
+      activePricingTier: remaining[nextId]?.activePricingTier ?? '',
+      brandScore: remaining[nextId]?.brandScore ?? 10,
+      marketingCampaigns: remaining[nextId]?.marketingCampaigns ?? [],
+      adLeads: remaining[nextId]?.adLeads ?? [],
+      adCampaigns: remaining[nextId]?.adCampaigns ?? [],
+      adSalesUnlockNotified: remaining[nextId]?.adSalesUnlockNotified ?? false,
+      campaignCostThisMonth: remaining[nextId]?.campaignCostThisMonth ?? 0,
     });
   },
 
@@ -2889,8 +2916,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       cashFlowHistory: [], notifications: [],
       isBankrupt: false, negativeCashMonths: 0, screen: 'menu', companyName: '',
       competitors: [], marketingCampaigns: [], brandScore: 10, nextCompetitorCheck: 600, campaignCostThisMonth: 0, currentSlotId: null,
-  panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, dev: false },
-  panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, dev: false },
+  panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, products: false, dev: false },
+  panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, products: false, dev: false },
       maximizedPanel: null,
       selectedEmployeeId: null,
   darkMode: (() => { try { return localStorage.getItem('ss-dark') === '1'; } catch { return false; } })(),

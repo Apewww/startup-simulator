@@ -24,8 +24,9 @@ import { MarketingPanel } from './components/MarketingPanel';
 import { ResearchPanel } from './components/ResearchPanel';
 import { InvestorRelationsPanel } from './components/InvestorRelationsPanel';
 import { WealthPanel } from './components/WealthPanel';
+import { ProductOverview } from './components/ProductOverview';
 import { TakeoverCapitalBanner } from './components/TakeoverCapitalBanner';
-import { Server, Skull, CheckCircle, Info, AlertTriangle, XCircle, Gift, BarChart3, Megaphone, Microscope, Handshake, Wallet, Bug } from 'lucide-react';
+import { Server, Skull, CheckCircle, Info, AlertTriangle, XCircle, Gift, BarChart3, Megaphone, Microscope, Handshake, Wallet, Bug, LayoutGrid } from 'lucide-react';
 import { saveGame } from './systems/saveLoad';
 import { db } from './db/gameDB';
 
@@ -266,7 +267,11 @@ function App() {
             <WealthPanel />
           </FloatingPanel>
 
-          <FloatingPanel id="dev" index={13} title="Dev Panel" icon={<Bug className="w-4 h-4 text-amber" />} accent="#D1453B">
+          <FloatingPanel id="products" index={13} title="Products" icon={<LayoutGrid className="w-4 h-4 text-indigo" />} accent="#4F5EFF">
+            <ProductOverview />
+          </FloatingPanel>
+
+          <FloatingPanel id="dev" index={14} title="Dev Panel" icon={<Bug className="w-4 h-4 text-amber" />} accent="#D1453B">
             <DevPanel />
           </FloatingPanel>
         </div>

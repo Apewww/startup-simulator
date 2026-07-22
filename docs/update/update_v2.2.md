@@ -65,7 +65,7 @@
 | `src/components/ProductBar.tsx` | Product switcher + new product | ✅ Done |
 | `src/systems/regulatory.ts` | Compliance law checking, penalty calc | 📝 Planned |
 | `src/data/regions.ts` | Region definitions (NA, EU, AS, OC, SA, AF) | 📝 Planned |
-| `src/components/ProductOverview.tsx` | Dashboard per produk | 📝 Planned |
+| `src/components/ProductOverview.tsx` | Dashboard per produk | ✅ Done |
 | `src/components/RegionPanel.tsx` | Global expansion UI | 📝 Planned |
 
 ## Modified Files
@@ -129,7 +129,9 @@ interface ProductPortfolioState {
 - [x] gameStore: tick loop → productTypeId fix
 - [x] ProductBar.tsx — switcher + new product button
 - [x] NewProductModal.tsx — modal 3 tipe produk
-- [ ] ProductOverview.tsx — dashboard per produk
+- [x] ProductOverview.tsx — dashboard per produk
+- [x] closeProduct action — archive product (min 1 tersisa)
+- [x] Products panel — Dock + FloatingPanel
 - [ ] FeaturesPanel.tsx — adaptasi per-produk ✅ (via activeProductTypeId)
 - [ ] HudBar.tsx — per-product metrics ✅ (via activeProductTypeId)
 - [ ] FinancePanel.tsx — revenue breakdown per produk ✅ (via activeProductTypeId)
