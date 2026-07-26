@@ -2,7 +2,7 @@
 
 **Induk:** `docs/upcoming_features v4.md` — Fase E (v2.3)
 **Tujuan:** Win condition finalization, Victory screen, New Game+
-**Status:** 🏗️ Phase C ✅
+**Status:** 🏗️ Phase D ✅
 
 ---
 

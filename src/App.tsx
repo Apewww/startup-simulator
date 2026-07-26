@@ -24,6 +24,7 @@ import { MarketingPanel } from './components/MarketingPanel';
 import { ResearchPanel } from './components/ResearchPanel';
 import { InvestorRelationsPanel } from './components/InvestorRelationsPanel';
 import { WealthPanel } from './components/WealthPanel';
+import { VictoryScreen } from './components/VictoryScreen';
 import { ProductOverview } from './components/ProductOverview';
 import { RegionPanel } from './components/RegionPanel';
 import { TakeoverCapitalBanner } from './components/TakeoverCapitalBanner';
@@ -164,6 +165,14 @@ function App() {
     setSaveMsg('Game saved!');
     setTimeout(() => setSaveMsg(''), 2000);
   }, []);
+
+  if (screen === 'victory') {
+    return (
+      <div data-theme={darkMode ? 'dark' : undefined} className="bg-bg text-ink min-h-screen">
+        <VictoryScreen />
+      </div>
+    );
+  }
 
   if (isBankrupt) {
     return (

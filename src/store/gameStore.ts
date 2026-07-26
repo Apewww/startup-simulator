@@ -47,7 +47,7 @@ export type GameSpeed = 1 | 2 | 4;
 
 export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment' | 'perks' | 'adsales' | 'banking' | 'competitor' | 'marketing' | 'research' | 'investor' | 'wealth' | 'products' | 'regions' | 'dev';
 export type PanelOpenState = Record<PanelId, boolean>;
-export type GameScreen = 'menu' | 'select' | 'playerSetup' | 'playing';
+export type GameScreen = 'menu' | 'select' | 'playerSetup' | 'playing' | 'victory';
 
 export interface Notification {
   id: string;
