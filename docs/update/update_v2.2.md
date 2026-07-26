@@ -2,7 +2,7 @@
 
 **Induk:** `docs/upcoming_features v4.md` — Fase D (v2.2)
 **Tujuan:** Multi-Product Portfolio + Global Expansion
-**Status:** 🏗️ In Progress
+**Status:** ✅ Complete
 
 ---
 
@@ -141,9 +141,9 @@ interface ProductPortfolioState {
 - [x] Rack & Rented type — assignedProductId field
 - [x] assignRackToProduct, assignRentalToProduct actions
 - [x] Rented server — product assignment dropdown (ServerPanel)
-- [ ] Rack — product assignment (via LandMap / plot view, deferred)
+- [x] Rack — product assignment (via RackSlotView modal)
 - [x] Tick loop — passive tick untuk non-active products (growth + revenue)
-- [ ] Tick loop — routing RPS per assigned rack (deferred)
+- [x] Tick loop — routing RPS per assigned rack
 - [x] Data: region definitions (6 regions)
 - [x] systems/regulatory.ts — compliance law checking
 - [x] RegionPanel.tsx — global expansion UI

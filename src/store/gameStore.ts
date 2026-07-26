@@ -9,6 +9,7 @@ import { PERKS } from '../data/perks';
 import { getNodeDef, getRackDef } from '../data/servers';
 import { makeInternetSubscription } from '../data/internet';
 import { calculateNodeLoads, calcMonthlyServerCost, recomputeRackAdjacency, getUpgradeCost } from '../systems/server';
+import { buildProductRpsMap, poolIncomingRps, SHARED_INFRA_POOL, hasWebCapacityForProduct } from '../systems/productRouting';
 import { getPlatformStats, getAppliedEffects, hasActiveSynergy } from '../systems/platform';
 import { getSupervisionBoost } from '../systems/leadDeveloper';
 import { computeFurnitureEffects } from '../systems/radiusEffect';
@@ -732,22 +733,40 @@ export const useGameStore = create<GameState>((set, get) => ({
     const churn = Math.max(0, currentUsers * (baseChurnRate + moodPenalty));
     newCurrentUsers = currentUsers + (userDelta * eventEffects.userGrowthMult) - crashPenalty - churn;
     newCurrentUsers = Math.max(0, newCurrentUsers);
-    const computeLoadMult = complianceBefore ? Math.max(1, complianceBefore.compute.required / Math.max(complianceBefore.compute.provided, 0.1)) : 1;
-    const dataLoadMult = complianceBefore ? Math.max(1, complianceBefore.data.required / Math.max(complianceBefore.data.provided, 0.1)) : 1;
-    const adjustedRps = Math.round(platformStats.effectiveRps * computeLoadMult * dataLoadMult);
 
     const sysAdminLevel = employees
       .filter(e => e.role === 'SysAdmin' && e.happiness >= 15)
       .reduce((max, e) => Math.max(max, e.level), 0);
-    const adjustedRpsWithEfficiency = Math.round(adjustedRps / researchServerEfficiency);
-    const { racks: updatedPlacedRacks, rentedServers: updatedRentedServers } = calculateNodeLoads(placedRacks, adjustedRpsWithEfficiency, rentedServers, sysAdminLevel, eventEffects.crashChanceBonus, internetRpsBonus);
+    // Per-pool RPS routing
+    const productRpsMap = buildProductRpsMap(state.products, events, placedRacks, rentedServers, internetSubs, researchServerEfficiency);
+    const poolMap = new Map<string, { racks: ServerRack[]; rentals: RentedServer[] }>();
+    for (const rack of placedRacks) {
+      const key = rack.assignedProductId ?? SHARED_INFRA_POOL;
+      if (!poolMap.has(key)) poolMap.set(key, { racks: [], rentals: [] });
+      poolMap.get(key)!.racks.push(rack);
+    }
+    for (const r of rentedServers) {
+      const key = r.assignedProductId ?? SHARED_INFRA_POOL;
+      if (!poolMap.has(key)) poolMap.set(key, { racks: [], rentals: [] });
+      poolMap.get(key)!.rentals.push(r);
+    }
+    let updatedPlacedRacks: ServerRack[] = [];
+    let updatedRentedServers: RentedServer[] = [];
+    for (const [poolKey, pool] of poolMap) {
+      const poolRps = poolIncomingRps(poolKey, productRpsMap);
+      const result = calculateNodeLoads(pool.racks, poolRps, pool.rentals, sysAdminLevel, eventEffects.crashChanceBonus, internetRpsBonus);
+      updatedPlacedRacks.push(...result.racks);
+      updatedRentedServers.push(...result.rentedServers);
+    }
 
-    // If no web capacity at all, users drop fast
-    const hasWebCapacity = updatedPlacedRacks.some(r =>
-      r.slots.some(s =>
-        s.node?.category === 'web_server' && (s.node.status === 'active' || s.node.status === 'overloaded')
-      )
-    ) || updatedRentedServers.some(r => r.capacityRps > 0);
+    // If no web capacity for active product, users drop fast
+    const hasWebCapacity = state.activeProductId
+      ? hasWebCapacityForProduct(state.activeProductId, updatedPlacedRacks, updatedRentedServers)
+      : updatedPlacedRacks.some(r =>
+          r.slots.some(s =>
+            s.node?.category === 'web_server' && (s.node.status === 'active' || s.node.status === 'overloaded')
+          )
+        ) || updatedRentedServers.some(r => r.capacityRps > 0);
     if (platformStats.effectiveRps > 0 && !hasWebCapacity) {
       newCurrentUsers = Math.max(0, Math.floor(newCurrentUsers * 0.92));
     }

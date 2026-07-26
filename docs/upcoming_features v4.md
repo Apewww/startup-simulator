@@ -25,7 +25,7 @@ Semua produk bisa **IPO**, diperjualbelikan sahamnya, saling akuisisi, dan salin
 | v2.0 — Depth Update | R&D / Tech Tree + Investor Relations diperdalam | ✅ Done (Fase B) |
 | **v2.0.5 — Wealth & Legacy** | **Personal withdrawal, achievement/title system, dual win condition** | ✅ Done |
 | **v2.1 — Market Update** | **Leaderboard 1000 produk + Stock Market + Multi-AI Funding + Akuisisi** | ✅ Done (Fase C) |
-| v2.2 — Scale Update | Multi-Product Portfolio + Global Expansion | 🏗️ In Progress (Phase 1-2) |
+| v2.2 — Scale Update | Multi-Product Portfolio + Global Expansion | ✅ Complete |
 | v2.3 — Endgame | Win conditions finalization + prestige/new game+ | 📝 Planned |
 
 > Urutan ini dipilih karena Stock Market System butuh fondasi Competitor AI (v1.9) sudah berjalan lebih dulu — nggak ada gunanya bikin bursa saham kalau kompetitornya belum hidup.
@@ -366,13 +366,13 @@ Prinsip pengerjaan: **iteratif per fase**, bukan numpuk semua fitur baru balanci
    - ✅ Store refactor: activeProductId, products map, activeProductTypeId
    - ✅ Save/Load migration v18→v19
    - ✅ Tick loop — passive growth + revenue untuk non-active products
-   - ❌ Tick loop — per-product RPS routing per assigned rack (deferred)
+    - ✅ Tick loop — per-product RPS routing per assigned rack
    - ✅ ProductOverview.tsx — dashboard per produk
    - ✅ closeProduct action — archive product (min 1)
    - ✅ Rack & rented service type — `assignedProductId` field
    - ✅ assignRackToProduct / assignRentalToProduct actions
    - ✅ Rented server dropdown — pilih produk tujuan
-   - ❌ Rack assignment UI (via LandMap, deferred)
+    - ✅ Rack assignment UI (via RackSlotView modal)
    - ✅ Global Expansion (region definitions, regulatory system, RegionPanel)
    - ✅ Region bonuses wired into active + passive tick
    - ✅ expandToRegion / withdrawFromRegion actions

@@ -200,6 +200,9 @@ function RackSlotView({ rackId, onClose }: { rackId: string; onClose: () => void
   const inventoryNodes = useGameStore((s) => s.inventoryNodes);
   const placeNode = useGameStore((s) => s.placeNode);
   const unequipNode = useGameStore((s) => s.unequipNode);
+  const assignRackToProduct = useGameStore((s) => s.assignRackToProduct);
+  const products = useGameStore((s) => s.products);
+  const activeProductId = useGameStore((s) => s.activeProductId);
   const [dragOverSlot, setDragOverSlot] = useState<number | null>(null);
   const [placedSlot, setPlacedSlot] = useState<number | null>(null);
 
@@ -226,6 +229,16 @@ function RackSlotView({ rackId, onClose }: { rackId: string; onClose: () => void
               <span>{rack.tier} · {rack.maxSlots} slots</span>
               <span className="text-indigo">Cool {rack.coolingUsed}/{rack.coolingCapacity}</span>
               <span className="text-amber">{rack.powerDraw}pw</span>
+              <select
+                value={rack.assignedProductId ?? ''}
+                onChange={(e) => assignRackToProduct(rack.id, e.target.value || null)}
+                className="text-[9px] bg-surface-2 border border-border rounded px-1 py-0.5 text-ink-soft cursor-pointer"
+              >
+                <option value="">All Products</option>
+                {Object.entries(products).map(([pid, p]) => (
+                  <option key={pid} value={pid}>{p.name}{pid === activeProductId ? ' (active)' : ''}</option>
+                ))}
+              </select>
               {rack.slots.some(s => s.node) && (
                 <button
                   onClick={() => { useGameStore.getState().clearRack(rack.id); }}
