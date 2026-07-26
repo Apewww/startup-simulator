@@ -411,6 +411,16 @@ export const useGameStore = create<GameState>((set, get) => ({
       iter++;
     }
   },
+
+  triggerEndGame: () => {
+    const state = get();
+    set({ screen: 'victory', victoryAchieved: true, completedGame: true });
+    const achievements = checkNewAchievements(state.personalCash, state.unlockedTitles);
+    for (const a of achievements) {
+      markAchievementObtained(a.id);
+    }
+    markAchievementObtained('game_completed');
+  },
   toggleDarkMode: () => set((state) => {
     const next = !state.darkMode;
     try { localStorage.setItem('ss-dark', next ? '1' : '0'); } catch {}

@@ -39,7 +39,7 @@ interface HudBarProps {
 }
 
 export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps) {
-  const { tick, isPaused, speed, cash, month, features, racks, rentedServers, totalSalary, togglePause, setSpeed, negativeCashMonths, pendingFunding, currentUsers, events, activeProductTypeId, employees, activeMonetization, userMood, internetSubscriptions, activePricingTier, adCampaigns, loan, brandScore, personalCash, unlockedTitles } = useGameStore();
+  const { tick, isPaused, speed, cash, month, features, racks, rentedServers, totalSalary, togglePause, setSpeed, negativeCashMonths, pendingFunding, currentUsers, events, activeProductTypeId, employees, activeMonetization, userMood, internetSubscriptions, activePricingTier, adCampaigns, loan, brandScore, personalCash, unlockedTitles, endgameUnlocked, triggerEndGame } = useGameStore();
   const platformStats = getPlatformStats(features, events, activeProductTypeId);
   const bankruptWarning = negativeCashMonths > 0;
 
@@ -104,6 +104,14 @@ export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps
             <Activity className="w-2.5 h-2.5" />
             {events[0]?.name?.slice(0, 12) || 'Event'}
           </span>
+        )}
+
+        {/* End Career button */}
+        {endgameUnlocked && (
+          <button onClick={triggerEndGame}
+            className="flex items-center gap-1 px-2 py-0.5 bg-amber-soft border border-amber/40 rounded-lg text-amber text-[9px] font-bold animate-pulse cursor-pointer shrink-0">
+            🏆 End Career
+          </button>
         )}
 
         <div className="flex-1 min-w-[8px]" />
