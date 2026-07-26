@@ -20,12 +20,12 @@ function formatCompact(n: number): string {
 export function VictoryScreen() {
   const { month, cash, employees, racks, currentUsers, personalCash, unlockedTitles, companyName, restartGame, setScreen, startNewGamePlus } = useGameStore();
   const title = getCurrentTitle(personalCash, unlockedTitles);
-  const titleDef = ACHIEVEMENTS.find(a => a.id === title);
+  const titleDef = title ? ACHIEVEMENTS.find(a => a.id === title.id) : null;
   const globalAchievements = getAllObtained();
   const completedCount = Object.keys(globalAchievements).length;
 
   const handleNewGamePlus = () => {
-    startNewGamePlus(title ?? 'hustler');
+    startNewGamePlus(title?.id ?? 'hustler');
   };
 
   const handleMainMenu = () => {

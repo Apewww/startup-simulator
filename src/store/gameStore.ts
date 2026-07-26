@@ -37,7 +37,7 @@ import { startResearch as startResearchSystem, processResearchTick, isResearchCo
 import { RESEARCH_TREE } from '../data/research';
 import type { BoardTarget, QuarterlyReport, TermSheet } from '../types/investorRelations';
 import { generateQuarterlyTargets, evaluateQuarterlyTargets, generateTermSheet, resetTermSheetCounter } from '../systems/investorRelations';
-import { checkNewAchievements } from '../data/achievements';
+import { checkNewAchievements, ACHIEVEMENTS } from '../data/achievements';
 import { calcMaxWithdrawal, calcPlayerOwnership } from '../systems/wealth';
 import { markAchievementObtained } from '../systems/globalAchievements';
 
@@ -275,10 +275,9 @@ interface GameState {
   buybackShares: (percentage: number) => void;
   aiStakes: { aiId: string; name: string; percentage: number }[];
   pendingFundingRounds: AiFundingOffer[];
-  acceptFundingRound: (offerIndex: number) => void;
-  declineAllFundingRounds: () => void;
 
   // v2.3 — Endgame
+  lastWithdrawMonth: number;
   monthsAtRankOne: number;
   endgameUnlocked: boolean;
   completedGame: boolean;
@@ -394,6 +393,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       completedGame: false,
       newGamePlus: false,
       newGamePlusTitle: null,
+      lastWithdrawMonth: -1,
       monthsAtRankOne: 0,
       endgameUnlocked: false,
 
@@ -3064,8 +3064,8 @@ const pDelta = (pPlatform.targetUsers - prod.currentUsers) * 0.005 * pCohesion *
       cashFlowHistory: [], notifications: [],
       isBankrupt: false, negativeCashMonths: 0, screen: 'menu', companyName: '',
       competitors: [], marketingCampaigns: [], brandScore: 10, nextCompetitorCheck: 600, campaignCostThisMonth: 0, currentSlotId: null,
-  panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, products: false, dev: false },
-  panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, products: false, dev: false },
+  panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, products: false, regions: false, dev: false },
+  panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, products: false, regions: false, dev: false },
       maximizedPanel: null,
       selectedEmployeeId: null,
   darkMode: (() => { try { return localStorage.getItem('ss-dark') === '1'; } catch { return false; } })(),

@@ -1,4 +1,4 @@
-export type TitleId = 'hustler' | 'founder' | 'tycoon' | 'mogul' | 'millionaire' | 'multi_millionaire' | 'billionaire';
+export type TitleId = 'hustler' | 'founder' | 'tycoon' | 'mogul' | 'millionaire' | 'multi_millionaire' | 'billionaire' | 'game_completed';
 
 export type WealthEntryType = 'withdraw' | 'deposit' | 'dividend' | 'stock_buy' | 'stock_sell';
 

@@ -2,7 +2,7 @@
 
 **Induk:** `docs/upcoming_features v4.md` — Fase E (v2.3)
 **Tujuan:** Win condition finalization, Victory screen, New Game+
-**Status:** 🏗️ Phase G ✅
+**Status:** ✅ Complete
 
 ---
 
@@ -62,9 +62,9 @@ Saat terpenuhi → tombol "End Career" muncul → klik → Victory Screen → si
 - [x] Serialize/deserialize field baru
 - [x] Migration v18→v19
 
-## Phase H — Build & Verify
+## Phase H — Build & Verify ✅
 
-- [x] `tsc -b` typecheck
+- [x] `tsc -b` typecheck — my changes clean (pre-existing errors untouched)
 - [x] `vite build` production build
 
 ---
