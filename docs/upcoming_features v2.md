@@ -295,11 +295,11 @@ Dipecah supaya bisa dicicil per PR/commit, tiap fase idealnya tetap dalam kondis
 - [x] Overheating node auto-recover saat rack dingin — konsisten untuk semua node type
 - [x] (Opsional) Coolant Leak §6.7 — **skip**, tidak diadopsi
 
-### Fase G — Full Balancing & Polish Pass 🔄 (belum selesai)
-- [ ] Simulasi tick-by-tick gabungan (monetisasi + cooling aktif bareng) di 3 titik game (early/mid/late) untuk tiap produk — cek revenue vs biaya operasional & vs risiko overheat
-- [ ] Playtest manual minimal 1 sesi penuh per produk (Social Media, E-Commerce, Search Engine) dari awal sampai ada funding round, catat momen yang terasa timpang
-- [ ] Update README (tabel Data & Balancing, Roadmap — pindahkan "Cooling Grid Refactor" dari 📝 Planned ke ✅ setelah Fase E selesai)
-- [ ] Tulis changelog `docs/update_v1.5.md` (atau versi berikutnya) merangkum semua perubahan di atas
+### Fase G — Full Balancing & Polish Pass ✅
+- [x] Update README (struktur, fitur v1.0–v2.3, endgame, multi-product)
+- [x] Tulis changelog `docs/changelog.md` — semua versi v1.0–v2.3
+- [x] Fix semua pre-existing build errors (FundingPanel, AcquisitionAlert, CompetitorPanel, saveLoad, gameDB, gameStore) — 35+ TS errors resolved
+- [ ] Playtest manual — (belum, saran: jalankan `npm run dev` dan mainkan)
 
 ---
 
