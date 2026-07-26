@@ -78,23 +78,14 @@ export function RegionPanel() {
               <div className="flex justify-end">
                 {isExpanded ? (
                   <button
-                    onClick={() => useGameStore.getState().addNotification('Use withdrawFromRegion to exit', 'info')}
+                    onClick={() => useGameStore.getState().withdrawFromRegion(region.id)}
                     className="text-[10px] text-red hover:text-red/80 font-semibold px-2 py-1 rounded-lg hover:bg-red/10 transition-colors cursor-pointer"
                   >
                     Withdraw
                   </button>
                 ) : (
                   <button
-                    onClick={() => {
-                      const s = useGameStore.getState();
-                      if (s.cash < region.entryCost) { s.addNotification(`Need $${region.entryCost.toLocaleString()} to expand`, 'warning'); return; }
-                      const prod = s.products[s.activeProductId!];
-                      if (!prod) return;
-                      const newRegions = [...prod.expandedRegions, region.id];
-                      s.products[s.activeProductId!] = { ...prod, expandedRegions: newRegions };
-                      useGameStore.setState({ cash: s.cash - region.entryCost, products: { ...s.products } });
-                      s.addNotification(`Expanded to ${region.name}!`, 'success');
-                    }}
+                    onClick={() => useGameStore.getState().expandToRegion(region.id)}
                     disabled={!canAfford}
                     className={`text-[10px] font-semibold px-3 py-1 rounded-lg transition-colors cursor-pointer ${
                       canAfford ? 'bg-indigo hover:bg-indigo/90 text-white' : 'bg-surface-2 text-ink-soft border border-border cursor-not-allowed'
