@@ -1070,12 +1070,17 @@ export const useGameStore = create<GameState>((set, get) => ({
             if (isRankOne) {
               const newMonths = get().monthsAtRankOne + 1;
               set({ monthsAtRankOne: newMonths });
-              if (newMonths >= 3 && (get().personalCash ?? 0) >= 10_000_000 && !get().endgameUnlocked) {
-                set({ endgameUnlocked: true });
-                get().addNotification('🏆 Both victory conditions met! You can now end your career.', 'success');
-              }
             } else if (get().monthsAtRankOne > 0) {
               set({ monthsAtRankOne: 0 });
+            }
+            const wealthUnlocked = (get().personalCash ?? 0) >= 10_000_000 || get().unlockedTitles.includes('millionaire');
+            const rankUnlocked = get().monthsAtRankOne >= 3;
+            if ((wealthUnlocked || rankUnlocked) && !get().endgameUnlocked) {
+              set({ endgameUnlocked: true });
+              const reasons: string[] = [];
+              if (wealthUnlocked) reasons.push('Millionaire');
+              if (rankUnlocked) reasons.push('Rank #1 (3mo)');
+              get().addNotification(`🏆 Victory condition met: ${reasons.join(' + ')}! End career in Wealth panel.`, 'success');
             }
           }
         }

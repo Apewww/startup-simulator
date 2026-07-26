@@ -2,17 +2,17 @@
 
 **Induk:** `docs/upcoming_features v4.md` — Fase E (v2.3)
 **Tujuan:** Win condition finalization, Victory screen, New Game+
-**Status:** ✅ Complete (v2.3.1: per-product valuation + IPO)
+**Status:** ✅ Complete (v2.3.2: endgame OR condition — rank #1 or Millionaire)
 
 ---
 
 ## Ringkasan
 
-Dua kondisi harus terpenuhi untuk unlock "End Career":
+Salah satu kondisi cukup untuk unlock "End Career":
 1. **Rank #1 di leaderboard bertahan ≥3 bulan** (consecutive)
 2. **personalCash ≥ $10,000,000** (Millionaire title)
 
-Saat terpenuhi → tombol "End Career" muncul → klik → Victory Screen → simpan achievement "menamatkan game" → opsi New Game+.
+Saat terpenuhi → tombol "End Career" di WealthPanel → klik → Victory Screen → simpan achievement "menamatkan game" → opsi New Game+.
 
 ---
 
@@ -26,7 +26,7 @@ Saat terpenuhi → tombol "End Career" muncul → klik → Victory Screen → si
 
 - [x] Cek rank player tiap akhir bulan di tick loop
 - [x] Increment `monthsAtRankOne` jika rank=1, reset ke 0 jika turun
-- [x] Cek kedua kondisi → set `endgameUnlocked`
+- [x] Cek **salah satu** kondisi (OR): rank #1 ≥3mo ATAU Millionaire → set `endgameUnlocked`
 - [x] Notifikasi "End Career" saat unlock
 
 ## Phase C — UI: End Career Button

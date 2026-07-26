@@ -218,7 +218,7 @@ export function WealthPanel() {
               </div>
             );
           })}
-          <div className="text-center text-[9px] text-ink-soft pt-1 border-t border-border">Endgame: Rank #1 (3mo) + Millionaire ($10M)</div>
+          <div className="text-center text-[9px] text-ink-soft pt-1 border-t border-border">Endgame: Rank #1 (3mo) or Millionaire ($10M)</div>
         </div>
       )}
 
