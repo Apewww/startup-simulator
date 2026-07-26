@@ -37,6 +37,8 @@ function fmtRequirement(n: number): string {
 export function MainMenu() {
   const setScreen = useGameStore((s) => s.setScreen);
   const restartGame = useGameStore((s) => s.restartGame);
+  const newGamePlus = useGameStore((s) => s.newGamePlus);
+  const newGamePlusTitle = useGameStore((s) => s.newGamePlusTitle);
   const [saves, setSaves] = useState<SaveSlotInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAchievements, setShowAchievements] = useState(false);
@@ -72,6 +74,11 @@ export function MainMenu() {
         <div className="flex items-center justify-center gap-3 mb-1">
           <span className="w-3 h-3 rounded-sm bg-indigo" />
           <h1 className="text-5xl font-extrabold tracking-tight">Startup Simulator</h1>
+          {newGamePlus && (
+            <span className="px-2 py-0.5 bg-amber-soft border border-amber/40 rounded-md text-amber text-xs font-bold" title={`NG+ ${newGamePlusTitle ?? ''}`}>
+              NG+
+            </span>
+          )}
         </div>
         <p className="text-base text-ink-soft font-light">Build your tech empire from scratch</p>
       </div>

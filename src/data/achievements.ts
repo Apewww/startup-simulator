@@ -8,6 +8,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'millionaire', label: 'Millionaire', icon: '💎', requirement: 10_000_000, description: 'Build personal wealth of $10,000,000.' },
   { id: 'multi_millionaire', label: 'Multi-Millionaire', icon: '🔷', requirement: 100_000_000, description: 'Build personal wealth of $100,000,000.' },
   { id: 'billionaire', label: 'Billionaire', icon: '🌟', requirement: 1_000_000_000, description: 'Achieve billionaire status — personal wealth of $1,000,000,000.' },
+  { id: 'game_completed', label: 'Game Completed', icon: '🏆', requirement: 1, description: 'Sukses menamatkan Startup Simulator.' },
 ];
 
 export function getAchievement(id: string): AchievementDef | undefined {
@@ -19,6 +20,6 @@ export function checkNewAchievements(
   unlockedTitles: string[],
 ): AchievementDef[] {
   return ACHIEVEMENTS.filter(
-    a => personalCash >= a.requirement && !unlockedTitles.includes(a.id)
+    a => a.id !== 'game_completed' && personalCash >= a.requirement && !unlockedTitles.includes(a.id)
   );
 }

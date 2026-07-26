@@ -78,6 +78,11 @@ function serialize(): Omit<GameSave, 'id' | 'timestamp'> {
     wealthLog: s.wealthLog,
     aiStakes: s.aiStakes,
     pendingFundingRounds: s.pendingFundingRounds,
+    monthsAtRankOne: s.monthsAtRankOne,
+    endgameUnlocked: s.endgameUnlocked,
+    completedGame: s.completedGame,
+    newGamePlus: s.newGamePlus,
+    newGamePlusTitle: s.newGamePlusTitle,
   };
 }
 
@@ -199,6 +204,11 @@ export async function loadGame(slotId: number): Promise<boolean> {
     wealthLog: (save as any).wealthLog ?? [],
     aiStakes: (save as any).aiStakes ?? [],
     pendingFundingRounds: (save as any).pendingFundingRounds ?? [],
+    monthsAtRankOne: (save as any).monthsAtRankOne ?? 0,
+    endgameUnlocked: (save as any).endgameUnlocked ?? false,
+    completedGame: (save as any).completedGame ?? false,
+    newGamePlus: (save as any).newGamePlus ?? false,
+    newGamePlusTitle: (save as any).newGamePlusTitle ?? null,
     currentSlotId: slotId,
   });
 

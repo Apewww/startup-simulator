@@ -3035,6 +3035,22 @@ const pDelta = (pPlatform.targetUsers - prod.currentUsers) * 0.005 * pCohesion *
     });
   },
 
+  startNewGamePlus: (titleId: string) => {
+    get().restartGame();
+    const titleDef = ACHIEVEMENTS.find(a => a.id === titleId);
+    set({
+      newGamePlus: true,
+      newGamePlusTitle: titleId,
+      cash: 25000,
+      personalCash: 10000,
+      unlockedTitles: [titleId],
+    });
+    if (titleDef) {
+      get().addNotification(`New Game+ started with ${titleDef.icon} ${titleDef.label} title — starting cash $25,000`, 'success');
+    }
+    set({ screen: 'select' });
+  },
+
   restartGame: () => {
     resetCompetitorIdCounter();
     resetNameGenerator();

@@ -216,7 +216,7 @@ export function WealthPanel() {
               </div>
             );
           })}
-          <div className="text-center text-[9px] text-ink-soft pt-1 border-t border-border">Billionaire = win condition</div>
+          <div className="text-center text-[9px] text-ink-soft pt-1 border-t border-border">Endgame: Rank #1 (3mo) + Millionaire ($10M)</div>
         </div>
       )}
     </div>

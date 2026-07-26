@@ -78,6 +78,13 @@ export interface GameSave {
   wealthLog?: WealthEntry[];
   aiStakes?: { aiId: string; name: string; percentage: number }[];
   pendingFundingRounds?: AiFundingOffer[];
+
+  // v2.3 — Endgame
+  monthsAtRankOne?: number;
+  endgameUnlocked?: boolean;
+  completedGame?: boolean;
+  newGamePlus?: boolean;
+  newGamePlusTitle?: string | null;
 }
 
 export class GameDB extends Dexie {
@@ -103,6 +110,7 @@ export class GameDB extends Dexie {
     this.version(16).stores({ saves: '++id, timestamp' });
     this.version(17).stores({ saves: '++id, timestamp' });
     this.version(18).stores({ saves: '++id, timestamp' });
+    this.version(19).stores({ saves: '++id, timestamp' });
   }
 }
 
