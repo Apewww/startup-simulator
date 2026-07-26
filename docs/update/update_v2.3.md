@@ -2,7 +2,7 @@
 
 **Induk:** `docs/upcoming_features v4.md` — Fase E (v2.3)
 **Tujuan:** Win condition finalization, Victory screen, New Game+
-**Status:** ✅ Complete
+**Status:** ✅ Complete (v2.3.1: per-product valuation + IPO)
 
 ---
 
@@ -32,7 +32,7 @@ Saat terpenuhi → tombol "End Career" muncul → klik → Victory Screen → si
 ## Phase C — UI: End Career Button
 
 - [x] Action `triggerEndGame()` — set `screen='victory'`, freeze tick
-- [x] Tombol "End Career" di HUD (muncul hanya jika `endgameUnlocked`)
+- [x] Tombol "End Career" di **WealthPanel** (muncul jika `endgameUnlocked`)
 - [x] Notifikasi endgame di WealthPanel
 
 ## Phase D — Victory Screen
@@ -61,6 +61,15 @@ Saat terpenuhi → tombol "End Career" muncul → klik → Victory Screen → si
 - [x] Bump Dexie v18 → v19
 - [x] Serialize/deserialize field baru
 - [x] Migration v18→v19
+
+## V2.3.1 — Per-Product Valuation & IPO ✅
+
+- [x] `valuation` field di `ProductPortfolioState`
+- [x] Per-product valuation computed monthly (active + passive tick)
+- [x] `activeProductValuation` state untuk active product
+- [x] Combined valuation untuk rank check (sum of all products)
+- [x] End Career button pindah dari HUD ke WealthPanel
+- [x] Shared: employees, personalCash tetap global
 
 ## Phase H — Build & Verify ✅
 

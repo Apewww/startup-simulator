@@ -18,6 +18,7 @@ export interface ProductPortfolioState {
   createdMonth: number;
   expandedRegions: string[];
   businessModel: 'b2c' | 'b2b';
+  valuation: number;
 }
 
 export function createProductState(id: string, name: string, sector: CompetitorSector, features: PlatformFeature[], month: number, pricingTier: string): ProductPortfolioState {
@@ -39,5 +40,6 @@ export function createProductState(id: string, name: string, sector: CompetitorS
     createdMonth: month,
     expandedRegions: [],
     businessModel: sector === 'search_engine' ? 'b2b' : 'b2c',
+    valuation: 0,
   };
 }

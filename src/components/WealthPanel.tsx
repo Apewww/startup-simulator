@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useGameStore } from '../store/gameStore';
 import { ACHIEVEMENTS } from '../data/achievements';
 import { calcMaxWithdrawal, calcPlayerOwnership, getCurrentTitle, getNextAchievement } from '../systems/wealth';
-import { ArrowUpFromLine, ArrowDownToLine, Trophy, History, Briefcase } from 'lucide-react';
+import { ArrowUpFromLine, ArrowDownToLine, Trophy, History, Briefcase, Award } from 'lucide-react';
 import { PortfolioPanel } from './PortfolioPanel';
 
 type Tab = 'withdraw' | 'deposit' | 'history' | 'portfolio' | 'achievements';
@@ -60,6 +60,8 @@ export function WealthPanel() {
   const depositToCompany = useGameStore((s) => s.depositToCompany);
   const wealthLog = useGameStore((s) => s.wealthLog);
   const month = useGameStore((s) => s.month);
+  const endgameUnlocked = useGameStore((s) => s.endgameUnlocked);
+  const triggerEndGame = useGameStore((s) => s.triggerEndGame);
 
   const [activeTab, setActiveTab] = useState<Tab>('withdraw');
   const [amount, setAmount] = useState('10000');
@@ -217,6 +219,17 @@ export function WealthPanel() {
             );
           })}
           <div className="text-center text-[9px] text-ink-soft pt-1 border-t border-border">Endgame: Rank #1 (3mo) + Millionaire ($10M)</div>
+        </div>
+      )}
+
+      {/* End Career button */}
+      {endgameUnlocked && (
+        <div className="mt-3 pt-3 border-t border-border">
+          <button onClick={triggerEndGame}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber hover:bg-amber/90 text-white font-bold rounded-[10px] transition-all duration-200 hover:translate-y-[-1px] cursor-pointer animate-pulse">
+            <Award className="w-4 h-4" /> End Career
+          </button>
+          <p className="text-[9px] text-ink-soft text-center mt-1.5">Victory conditions met! End your career and see your final stats.</p>
         </div>
       )}
     </div>

@@ -277,6 +277,7 @@ interface GameState {
   pendingFundingRounds: AiFundingOffer[];
 
   // v2.3 — Endgame
+  activeProductValuation: number;
   lastWithdrawMonth: number;
   monthsAtRankOne: number;
   endgameUnlocked: boolean;
@@ -393,6 +394,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       completedGame: false,
       newGamePlus: false,
       newGamePlusTitle: null,
+      activeProductValuation: 0,
       lastWithdrawMonth: -1,
       monthsAtRankOne: 0,
       endgameUnlocked: false,
@@ -976,7 +978,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         cash: state.cash + cashChange,
       };
       const history = [...state.cashFlowHistory, snapshot].slice(-12);
-      set({ cashFlowHistory: history, campaignCostThisMonth: 0 });
+      const sSector = state.activeProductTypeId as CompetitorSector | null;
+      const activeValuation = sSector ? calcPlayerValuation(newCurrentUsers, revenue.total, sSector, cohesionScore) : 0;
+      set({ cashFlowHistory: history, campaignCostThisMonth: 0, activeProductValuation: activeValuation });
 
       // v2.0 — Quarterly board evaluation (every 3 months)
       if (newMonth > 0 && newMonth % 3 === 0) {
@@ -1053,24 +1057,25 @@ export const useGameStore = create<GameState>((set, get) => ({
             get().addNotification(`⚠️ Investor control: ${totalEq}% equity held externally. Board is setting strategy.`, 'warning');
           }
 
-          // v2.3 — Endgame: player rank check (every month)
+          // v2.3 — Endgame: combined player rank check (every month)
           if (state.activeProductId && !get().victoryAchieved) {
-            const pSector = state.activeProductTypeId as CompetitorSector | null;
-            if (pSector) {
-              const playerVal = calcPlayerValuation(newCurrentUsers, revenue.total, pSector, cohesionScore);
-              const active = get().competitors.filter(c => !c.delisted && c.valuation > 0);
-              const maxVal = active.length > 0 ? Math.max(...active.map(c => c.valuation)) : 0;
-              const isRankOne = playerVal > 0 && playerVal >= maxVal;
-              if (isRankOne) {
-                const newMonths = get().monthsAtRankOne + 1;
-                set({ monthsAtRankOne: newMonths });
-                if (newMonths >= 3 && (get().personalCash ?? 0) >= 10_000_000 && !get().endgameUnlocked) {
-                  set({ endgameUnlocked: true });
-                  get().addNotification('🏆 Both victory conditions met! You can now end your career.', 'success');
-                }
-              } else if (get().monthsAtRankOne > 0) {
-                set({ monthsAtRankOne: 0 });
+            const activeVal = get().activeProductValuation;
+            const passiveVals = Object.entries(get().products)
+              .filter(([pid]) => pid !== get().activeProductId)
+              .reduce((sum, [, p]) => sum + (p.valuation ?? 0), 0);
+            const combinedVal = activeVal + passiveVals;
+            const active = get().competitors.filter(c => !c.delisted && c.valuation > 0);
+            const maxVal = active.length > 0 ? Math.max(...active.map(c => c.valuation)) : 0;
+            const isRankOne = combinedVal > 0 && combinedVal >= maxVal;
+            if (isRankOne) {
+              const newMonths = get().monthsAtRankOne + 1;
+              set({ monthsAtRankOne: newMonths });
+              if (newMonths >= 3 && (get().personalCash ?? 0) >= 10_000_000 && !get().endgameUnlocked) {
+                set({ endgameUnlocked: true });
+                get().addNotification('🏆 Both victory conditions met! You can now end your career.', 'success');
               }
+            } else if (get().monthsAtRankOne > 0) {
+              set({ monthsAtRankOne: 0 });
             }
           }
         }
@@ -1265,13 +1270,17 @@ const pDelta = (pPlatform.targetUsers - prod.currentUsers) * 0.005 * pCohesion *
         if (pCompliance.overall === 'critical') pUsers = 0;
         else if (pCompliance.userCap < 1) pUsers = Math.min(pUsers, Math.round(pPlatform.targetUsers * pCompliance.userCap));
         let pBrand = Math.max(0, Math.min(100, prod.brandScore - calcBrandDecay(prod.brandScore, false)));
+        let pRevenue = 0;
         if (newMonth > oldMonth) {
           const rOpts = { strategy: prod.activeMonetization, productId: prod.sector, dataRatio: pCompliance.data.ratio, synergyActive: pHasSynergy, pricingRevenueMult: pTier?.revenueMult ?? 1, researchAdRevMult, researchSubRevMult };
           const pRegionMult = calcRegionRevenueMult(prod.expandedRegions);
           const pRegionCost = calcRegionMaintenance(prod.expandedRegions) + calcTotalPenalties(prod.expandedRegions, pFeats);
-          passiveCash += Math.round(calculateRevenue(pUsers, pFeats, s2.racks, pCohesion * pCompliance.revenueMult, pPlatform.synergyRevenueBonus, rOpts).total * (1 + pRegionMult)) - pRegionCost;
+          const rev = calculateRevenue(pUsers, pFeats, s2.racks, pCohesion * pCompliance.revenueMult, pPlatform.synergyRevenueBonus, rOpts).total;
+          pRevenue = rev;
+          passiveCash += Math.round(rev * (1 + pRegionMult)) - pRegionCost;
         }
-        passiveProducts[pid] = { ...prod, currentUsers: Math.round(pUsers), userMood: pMood, brandScore: Math.round(pBrand * 10) / 10 };
+        const pVal = newMonth > oldMonth ? calcPlayerValuation(Math.round(pUsers), pRevenue, prod.sector, pCohesion) : prod.valuation;
+        passiveProducts[pid] = { ...prod, currentUsers: Math.round(pUsers), userMood: pMood, brandScore: Math.round(pBrand * 10) / 10, valuation: pVal };
       }
       if (Object.keys(passiveProducts).length > 0) {
         set((st) => ({ products: { ...st.products, ...passiveProducts }, cash: st.cash + passiveCash }));
@@ -1450,6 +1459,7 @@ const pDelta = (pPlatform.targetUsers - prod.currentUsers) * 0.005 * pCohesion *
           adCampaigns: s.adCampaigns,
           adSalesUnlockNotified: s.adSalesUnlockNotified,
           campaignCostThisMonth: s.campaignCostThisMonth,
+          valuation: s.activeProductValuation ?? 0,
         },
       },
     });
@@ -3110,6 +3120,7 @@ const pDelta = (pPlatform.targetUsers - prod.currentUsers) * 0.005 * pCohesion *
       acquiredBy: null,
       lastWithdrawMonth: -1,
       wealthLog: [],
+      activeProductValuation: 0,
       monthsAtRankOne: 0,
       endgameUnlocked: false,
       completedGame: false,
