@@ -35,7 +35,6 @@ function serialize(): Omit<GameSave, 'id' | 'timestamp'> {
     companyName: s.companyName,
     cashFlowHistory: s.cashFlowHistory,
     fundingRounds: s.fundingRounds,
-    pendingFunding: s.pendingFunding,
     sourcingCampaign: s.sourcingCampaign,
     applicants: s.applicants,
     selectedHrId: s.selectedHrId,
@@ -128,6 +127,7 @@ export async function loadGame(slotId: number): Promise<boolean> {
         campaignCostThisMonth: save.campaignCostThisMonth ?? 0,
         createdMonth: save.month ?? 0, expandedRegions: [],
         businessModel: sector === 'search_engine' ? 'b2b' : 'b2c',
+        valuation: 0,
       },
     };
   }
@@ -161,7 +161,6 @@ export async function loadGame(slotId: number): Promise<boolean> {
     companyName: (save as any).companyName ?? '',
     cashFlowHistory: save.cashFlowHistory ?? [],
     fundingRounds: save.fundingRounds ?? [],
-    pendingFunding: save.pendingFunding ?? null,
     sourcingCampaign: save.sourcingCampaign ?? null,
     applicants: save.applicants ?? [],
     selectedHrId: save.selectedHrId ?? null,
@@ -250,7 +249,7 @@ export async function listSaves(): Promise<SaveSlotInfo[]> {
       month: s.month,
       cash: s.cash,
       currentUsers: s.currentUsers,
-      selectedProduct: s.selectedProduct,
+      selectedProduct: s.selectedProduct ?? null,
       tick: s.tick,
       products: s.products,
     }))

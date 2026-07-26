@@ -59,7 +59,6 @@ export function WealthPanel() {
   const withdrawPersonal = useGameStore((s) => s.withdrawPersonal);
   const depositToCompany = useGameStore((s) => s.depositToCompany);
   const wealthLog = useGameStore((s) => s.wealthLog);
-  const month = useGameStore((s) => s.month);
   const endgameUnlocked = useGameStore((s) => s.endgameUnlocked);
   const triggerEndGame = useGameStore((s) => s.triggerEndGame);
 

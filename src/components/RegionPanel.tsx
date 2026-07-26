@@ -1,4 +1,4 @@
-import { Globe, XCircle, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Globe, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import { REGIONS, calcRegionRevenueMult, calcRegionGrowthMult, calcRegionMaintenance, getRegionDef } from '../data/regions';
 import { checkRegionCompliance, calcTotalPenalties } from '../systems/regulatory';
@@ -50,7 +50,7 @@ export function RegionPanel() {
         {REGIONS.map((region) => {
           const isExpanded = expanded.includes(region.id);
           const checks = isExpanded ? checkRegionCompliance(region.id, activeProduct.features) : [];
-          const regionPenalty = calcTotalPenalties([region.id], activeProduct.features);
+          const regionPenalty = calcTotalPenalties([region.id], activeProduct.features); void regionPenalty;
           const canAfford = cash >= region.entryCost;
 
           return (

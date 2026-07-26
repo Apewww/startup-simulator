@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetProviderId, InternetSubscription, AdCampaign, AdLead, CompetitorProduct, CompetitorSector, MarketingCampaign, MarketingCampaignType, WealthEntry, AiFundingOffer, MonetizationStrategy, ProductPortfolioState } from '../types';
 import { createProductState } from '../types/portfolio';
-import { calcFundingOffer, calcMaxSupervised } from '../types/employee';
+import { calcMaxSupervised } from '../types/employee';
 import { getComponentDef, COMPONENTS } from '../data/components';
 import { getProductDef } from '../data/products';
 import { MILESTONES, type PerkContext } from '../data/milestones';
@@ -30,7 +30,7 @@ import { resetNameGenerator } from '../data/competitorNames';
 import { createCampaign, processCampaignTick, calcBrandDecay, calcBrandEffects } from '../systems/marketing';
 import { getHotSector, hasMarketCrash, hasMarketBoom } from '../systems/events';
 import { getPricingTier, getDefaultPricingTier, type BusinessLoan } from '../types/monetization';
-import { getRegionDef, calcRegionRevenueMult, calcRegionMaintenance } from '../data/regions';
+import { getRegionDef, calcRegionRevenueMult, calcRegionGrowthMult, calcRegionMaintenance } from '../data/regions';
 import { calcTotalPenalties } from '../systems/regulatory';
 import type { ActiveResearch } from '../types/research';
 import { startResearch as startResearchSystem, processResearchTick, isResearchComplete, costForLevel, collectResearchEffects, calcResearchEffects, getActiveResearchMonthlyCost, resetResearchIdCounter } from '../systems/research';
@@ -1094,7 +1094,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       const lastRound = state.fundingRounds[state.fundingRounds.length - 1];
       const monthsSinceLast = lastRound ? newMonth - lastRound.month : newMonth;
       if (monthsSinceLast >= 6) {
-        const revenue = calculateRevenue(newCurrentUsers, features, finalRacks, cohesionScore * (compliance?.revenueMult ?? 1), platformStats.synergyRevenueBonus, revOptsWithPricing);
         const companyVal = Math.max(1000, newCurrentUsers * 80);
         if (companyVal >= 100_000) {
         const aiCandidates = (get().competitors ?? []).filter(c => !c.delisted).sort(() => Math.random() - 0.5).slice(0, 3 + Math.floor(Math.random() * 3));
@@ -1506,7 +1505,7 @@ const pDelta = (pPlatform.targetUsers - prod.currentUsers) * 0.005 * pCohesion *
     const ids = Object.keys(s.products);
     if (ids.length <= 1) { get().addNotification('Cannot close your only product', 'warning'); return; }
     const { [productId]: _, ...remaining } = s.products;
-    const nextId = productId === s.activeProductId ? Object.keys(remaining)[0] : s.activeProductId;
+    const nextId: string = productId === s.activeProductId ? (Object.keys(remaining)[0] ?? ids[0]) : (s.activeProductId ?? ids[0]);
     get().addNotification(`Product closed`, 'info');
     set({
       products: remaining,
@@ -3119,8 +3118,6 @@ const pDelta = (pPlatform.targetUsers - prod.currentUsers) * 0.005 * pCohesion *
       unlockedTitles: [],
       victoryAchieved: false,
       totalDividendsReceived: 0,
-      distressActive: false,
-      distressTicks: 0,
       takeoverCapital: 0,
       acquiredBy: null,
       lastWithdrawMonth: -1,

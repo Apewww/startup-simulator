@@ -39,7 +39,7 @@ interface HudBarProps {
 }
 
 export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps) {
-  const { tick, isPaused, speed, cash, month, features, racks, rentedServers, totalSalary, togglePause, setSpeed, negativeCashMonths, pendingFunding, currentUsers, events, activeProductTypeId, employees, activeMonetization, userMood, internetSubscriptions, activePricingTier, adCampaigns, loan, brandScore, personalCash, unlockedTitles } = useGameStore();
+  const { tick, isPaused, speed, cash, month, features, racks, rentedServers, totalSalary, togglePause, setSpeed, negativeCashMonths, currentUsers, events, activeProductTypeId, employees, activeMonetization, userMood, internetSubscriptions, activePricingTier, adCampaigns, loan, brandScore, personalCash, unlockedTitles } = useGameStore();
   const platformStats = getPlatformStats(features, events, activeProductTypeId);
   const bankruptWarning = negativeCashMonths > 0;
 
@@ -93,8 +93,8 @@ export function HudBar({ onSave, saveMsg, onToggleTheme, darkMode }: HudBarProps
             <AlertTriangle className="w-3 h-3" /> BK {3 - negativeCashMonths}m
           </span>
         )}
-        {pendingFunding && (
-          <button onClick={() => useGameStore.getState().togglePanel('finance')}
+        {useGameStore.getState().pendingFundingRounds.length > 0 && (
+          <button onClick={() => useGameStore.getState().togglePanel('investor')}
             className="flex items-center gap-1 px-1.5 py-0.5 bg-green-soft border border-green/30 rounded-lg text-green text-[9px] font-semibold animate-pulse cursor-pointer shrink-0">
             <Handshake className="w-2.5 h-2.5" /> Funding
           </button>

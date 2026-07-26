@@ -1,9 +1,9 @@
 import Dexie, { type Table } from 'dexie';
-import type { Employee, ComponentResource, PlatformFeature, ServerRack, Plot, RentedServer, ServerNode, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetSubscription, AdLead, AdCampaign, CompetitorProduct, MarketingCampaign, OwnershipStake, WealthEntry, ProductPortfolioState } from '../types';
+import type { Employee, ComponentResource, PlatformFeature, ServerRack, Plot, RentedServer, ServerNode, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetSubscription, AdLead, AdCampaign, CompetitorProduct, MarketingCampaign, WealthEntry, ProductPortfolioState } from '../types';
 import type { GameSpeed, GameScreen, MonthlySnapshot } from '../store/gameStore';
 import type { MonetizationStrategy } from '../types';
 import type { ActiveResearch } from '../types/research';
-import type { BoardTarget, QuarterlyReport, TermSheet } from '../types/investorRelations';
+import type { BoardTarget, QuarterlyReport, TermSheet, AiFundingOffer } from '../types/investorRelations';
 
 export interface GameSave {
   id: number;
@@ -35,7 +35,7 @@ export interface GameSave {
   companyName?: string;
   cashFlowHistory: MonthlySnapshot[];
   fundingRounds: FundingRound[];
-  pendingFunding: FundingRound | null;
+  pendingFunding?: FundingRound | null;
   sourcingCampaign: SourcingCampaign | null;
   applicants: Applicant[];
   selectedHrId: string | null;

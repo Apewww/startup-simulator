@@ -11,18 +11,11 @@ export function ProductOverview() {
   const products = useGameStore((s) => s.products);
   const activeProductId = useGameStore((s) => s.activeProductId);
   const month = useGameStore((s) => s.month);
-  const competitors = useGameStore((s) => s.competitors);
   const switchProduct = useGameStore((s) => s.switchProduct);
   const closeProduct = useGameStore((s) => s.closeProduct);
 
   const entries = Object.entries(products);
   const totalUsers = entries.reduce((sum, [, p]) => sum + p.currentUsers, 0);
-
-  function getRank(sector: string): number {
-    const sameSector = competitors.filter(c => !c.delisted && c.sector === sector);
-    const idx = sameSector.findIndex(c => c.userCount < totalUsers);
-    return idx === -1 ? sameSector.length + 1 : idx + 1;
-  }
 
   return (
     <div className="p-3 space-y-3 text-xs">

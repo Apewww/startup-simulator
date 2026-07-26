@@ -37,10 +37,10 @@ function TrendArrow({ growthRate }: { growthRate: number }) {
   return <span className="text-ink-soft text-[9px]">—</span>;
 }
 
-function EntryRow({ entry, rank, isMaximized }: { entry: any; rank: number; isMaximized: boolean }) {
+function EntryRow({ entry, rank, isMaximized }: { entry: { sector: CompetitorSector; name: string; isPlayer?: boolean; userCount: number; valuation: number; growthRate: number; hotSectorBadgeTicks?: number; newBadgeTicks?: number; personality?: string }; rank: number; isMaximized: boolean }) {
   const trend = entry.growthRate > 0.03 ? 'up' : entry.growthRate < -0.01 ? 'down' : 'flat';
-  const isHot = entry.hotSectorBadgeTicks > 0;
-  const isNew = entry.newBadgeTicks > 0 && !entry.isPlayer;
+  const isHot = (entry.hotSectorBadgeTicks ?? 0) > 0;
+  const isNew = (entry.newBadgeTicks ?? 0) > 0 && !entry.isPlayer;
 
   const bgColor = rank === 1 ? 'bg-amber-soft/60 border-amber/20'
     : rank === 2 ? 'bg-surface-2 border-border'

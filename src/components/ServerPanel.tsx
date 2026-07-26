@@ -181,7 +181,6 @@ export function ServerPanel() {
   const cancelRental = useGameStore(s => s.cancelRental);
   const scaleRental = useGameStore(s => s.scaleRental);
   const assignRentalToProduct = useGameStore(s => s.assignRentalToProduct);
-  const assignRackToProduct = useGameStore(s => s.assignRackToProduct);
   const features = useGameStore(s => s.features);
   const racks = useGameStore(s => s.racks);
   const events = useGameStore(s => s.events);
