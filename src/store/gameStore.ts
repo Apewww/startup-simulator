@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetProviderId, InternetSubscription, AdCampaign, AdLead, CompetitorProduct, MarketingCampaign, MarketingCampaignType, WealthEntry, AiFundingOffer, MonetizationStrategy, ProductPortfolioState } from '../types';
+import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetProviderId, InternetSubscription, AdCampaign, AdLead, CompetitorProduct, CompetitorSector, MarketingCampaign, MarketingCampaignType, WealthEntry, AiFundingOffer, MonetizationStrategy, ProductPortfolioState } from '../types';
 import { createProductState } from '../types/portfolio';
 import { calcFundingOffer, calcMaxSupervised } from '../types/employee';
 import { getComponentDef, COMPONENTS } from '../data/components';
@@ -25,7 +25,7 @@ import {
   calcSearchDuration,
 } from '../systems/adSales';
 import { makeLoan, calcCompanyValuation, calcMaxLoan, updateCreditScore } from '../systems/banking';
-import { generateInitialCompetitors, updateCompetitorValuation, shouldDelist, checkSpawnNew, generateCompetitor, calcSectorGrowthBonus, computeRankings, deduplicateNames, resetCompetitorIdCounter, chooseSpawnSector, isUnicornSpawn } from '../systems/competitor';
+import { generateInitialCompetitors, updateCompetitorValuation, shouldDelist, checkSpawnNew, generateCompetitor, calcSectorGrowthBonus, computeRankings, deduplicateNames, resetCompetitorIdCounter, chooseSpawnSector, isUnicornSpawn, calcPlayerValuation } from '../systems/competitor';
 import { resetNameGenerator } from '../data/competitorNames';
 import { createCampaign, processCampaignTick, calcBrandDecay, calcBrandEffects } from '../systems/marketing';
 import { getHotSector, hasMarketCrash, hasMarketBoom } from '../systems/events';
@@ -1042,26 +1042,34 @@ export const useGameStore = create<GameState>((set, get) => ({
           if (totalEq > 50) {
             get().addNotification(`⚠️ Investor control: ${totalEq}% equity held externally. Board is setting strategy.`, 'warning');
           }
+
+          // v2.3 — Endgame: player rank check (every month)
+          if (state.activeProductId && !get().victoryAchieved) {
+            const pSector = state.activeProductTypeId as CompetitorSector | null;
+            if (pSector) {
+              const playerVal = calcPlayerValuation(newCurrentUsers, revenue.total, pSector, cohesionScore);
+              const active = get().competitors.filter(c => !c.delisted && c.valuation > 0);
+              const maxVal = active.length > 0 ? Math.max(...active.map(c => c.valuation)) : 0;
+              const isRankOne = playerVal > 0 && playerVal >= maxVal;
+              if (isRankOne) {
+                const newMonths = get().monthsAtRankOne + 1;
+                set({ monthsAtRankOne: newMonths });
+                if (newMonths >= 3 && (get().personalCash ?? 0) >= 10_000_000 && !get().endgameUnlocked) {
+                  set({ endgameUnlocked: true });
+                  get().addNotification('🏆 Both victory conditions met! You can now end your career.', 'success');
+                }
+              } else if (get().monthsAtRankOne > 0) {
+                set({ monthsAtRankOne: 0 });
+              }
+            }
+          }
         }
       }
     }
 
     const isBankrupt = newNegativeCashMonths >= 3 && state.cash + cashChange < 0;
 
-    // v2.0 — Victory check (setiap tick, cek leaderboard rank & personal cash)
-    if (state.activeProductId && !get().victoryAchieved) {
-      const allEntries = get().competitors.filter(c => !c.delisted);
-      if (allEntries.length > 0) {
-        const sorted = [...allEntries].sort((a, b) => b.valuation - a.valuation);
-        const topValuation = sorted[0]?.valuation ?? 0;
-        // Player rank approximated via competitor comparison
-        if (topValuation > 0 && get().currentUsers > 0) {
-          // ponytail: proper player entry in ranking pending sub-tahap c
-        }
-      }
-    }
-
-        // v2.1 � Multi-AI funding rounds (every 6 months)
+    // v2.1 — Multi-AI funding rounds (every 6 months)
     if (newMonth > oldMonth && state.pendingFundingRounds.length === 0) {
       const lastRound = state.fundingRounds[state.fundingRounds.length - 1];
       const monthsSinceLast = lastRound ? newMonth - lastRound.month : newMonth;
