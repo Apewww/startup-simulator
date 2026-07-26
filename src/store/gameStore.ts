@@ -1784,17 +1784,16 @@ const pDelta = (pPlatform.targetUsers - prod.currentUsers) * 0.005 * pCohesion *
     const aiOwnership = 100 - currentOwnership;
     const buyPct = Math.min(percentage, aiOwnership);
     if (buyPct <= 0) { get().addNotification('No external shares to buy back', 'warning'); return; }
-    const companyVal = state.currentUsers * 80;
-    const cost = Math.round(companyVal * (buyPct / 100) * 1.2);
+    const companyVal = Math.max(50000, state.currentUsers * 80);
+    const cost = Math.max(1, Math.round(companyVal * (buyPct / 100) * 1.2));
     if (state.personalCash < cost) { get().addNotification(`Need $${cost.toLocaleString()} to buy back ${buyPct}% — not enough personal wealth`, 'warning'); return; }
     const newEquityGiven = Math.max(0, state.totalEquityGiven - buyPct);
-    // Reduce aiStakes proportionally
-    const totalAiPct = state.aiStakes.reduce((s, x) => s + x.percentage, 0);
-    const newAiStakes = totalAiPct > 0 ? state.aiStakes.map(s => ({
-      ...s,
-      percentage: Math.max(0, s.percentage - (s.percentage / totalAiPct) * buyPct),
-    })).filter(s => s.percentage > 0) : [];
     const fullyOwned = newEquityGiven === 0;
+    const totalAiPct = state.aiStakes.reduce((t, x) => t + x.percentage, 0);
+    const newAiStakes = fullyOwned ? [] : state.aiStakes.map(s => ({
+      ...s,
+      percentage: Math.max(0, Math.round((s.percentage - (s.percentage / Math.max(totalAiPct, 1)) * buyPct) * 100) / 100),
+    })).filter(s => s.percentage > 0.01);
     const entry: WealthEntry = { type: 'stock_buy', amount: -cost, personalCash: state.personalCash - cost, month: state.month };
     set({
       personalCash: state.personalCash - cost,
