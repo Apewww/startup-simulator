@@ -1,6 +1,7 @@
 import Dexie, { type Table } from 'dexie';
-import type { Employee, ComponentResource, PlatformFeature, ServerRack, Plot, RentedServer, ServerNode, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetSubscription, AdLead, AdCampaign, CompetitorProduct, MarketingCampaign, OwnershipStake, WealthEntry } from '../types';
-import type { GameSpeed, GameScreen, MonthlySnapshot, MonetizationStrategy } from '../store/gameStore';
+import type { Employee, ComponentResource, PlatformFeature, ServerRack, Plot, RentedServer, ServerNode, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetSubscription, AdLead, AdCampaign, CompetitorProduct, MarketingCampaign, OwnershipStake, WealthEntry, ProductPortfolioState } from '../types';
+import type { GameSpeed, GameScreen, MonthlySnapshot } from '../store/gameStore';
+import type { MonetizationStrategy } from '../types';
 import type { ActiveResearch } from '../types/research';
 import type { BoardTarget, QuarterlyReport, TermSheet } from '../types/investorRelations';
 
@@ -21,7 +22,10 @@ export interface GameSave {
   activeView: { type: 'office' } | { type: 'server'; plotId: string };
   visitedPlots: string[];
   totalSalary: number;
-  selectedProduct: string | null;
+  // v2.0
+  activeProductId?: string | null;
+  selectedProduct?: string | null;
+  products?: Record<string, ProductPortfolioState>;
   activeMonetization?: MonetizationStrategy;
   userMood?: number;
   internetSubscriptions?: InternetSubscription[];

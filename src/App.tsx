@@ -4,6 +4,7 @@ import { MainMenu } from './components/MainMenu';
 import { ProductSelect } from './components/ProductSelect';
 import { PlayerSetup } from './components/PlayerSetup';
 import { ServerPanel } from './components/ServerPanel';
+import { ProductBar } from './components/ProductBar';
 import { DevPanel } from './components/DevPanel';
 import { EventBanner } from './components/EventBanner';
 import { HudBar } from './components/HudBar';
@@ -23,8 +24,10 @@ import { MarketingPanel } from './components/MarketingPanel';
 import { ResearchPanel } from './components/ResearchPanel';
 import { InvestorRelationsPanel } from './components/InvestorRelationsPanel';
 import { WealthPanel } from './components/WealthPanel';
+import { ProductOverview } from './components/ProductOverview';
+import { RegionPanel } from './components/RegionPanel';
 import { TakeoverCapitalBanner } from './components/TakeoverCapitalBanner';
-import { Server, Skull, CheckCircle, Info, AlertTriangle, XCircle, Gift, BarChart3, Megaphone, Microscope, Handshake, Wallet, Bug } from 'lucide-react';
+import { Server, Skull, CheckCircle, Info, AlertTriangle, XCircle, Gift, BarChart3, Megaphone, Microscope, Handshake, Wallet, Bug, LayoutGrid, Globe } from 'lucide-react';
 import { saveGame } from './systems/saveLoad';
 import { db } from './db/gameDB';
 
@@ -90,15 +93,15 @@ function GameOverScreen() {
   );
 }
 
-function useAutosave(selectedProduct: string | null) {
+function useAutosave(activeProductId: string | null) {
   useEffect(() => {
-    if (!selectedProduct) return;
+    if (!activeProductId) return;
     const interval = setInterval(async () => {
       const slotId = useGameStore.getState().currentSlotId;
       if (slotId) await saveGame(slotId);
     }, 60000);
     return () => clearInterval(interval);
-  }, [selectedProduct]);
+  }, [activeProductId]);
 }
 
 const TOAST_ICONS: Record<Notification['type'], typeof Info> = {
@@ -137,7 +140,7 @@ function ToastContainer() {
 }
 
 function App() {
-  const { isPaused, speed, incrementTick, selectedProduct, devMode, toggleDevMode, isBankrupt, screen, darkMode, toggleDarkMode, maximizedPanel, companyName } = useGameStore();
+  const { isPaused, speed, incrementTick, activeProductId, devMode, toggleDevMode, isBankrupt, screen, darkMode, toggleDarkMode, maximizedPanel, companyName } = useGameStore();
   const [saveMsg, setSaveMsg] = useState('');
   const [showCompanyPrompt, setShowCompanyPrompt] = useState(false);
   const [companyInput, setCompanyInput] = useState('');
@@ -149,12 +152,12 @@ function App() {
   }, [screen, companyName]);
 
   useEffect(() => {
-    if (isPaused || !selectedProduct || isBankrupt) return;
+    if (isPaused || !activeProductId || isBankrupt) return;
     const interval = setInterval(incrementTick, 2000 / speed);
     return () => clearInterval(interval);
-  }, [isPaused, speed, incrementTick, selectedProduct, isBankrupt]);
+  }, [isPaused, speed, incrementTick, activeProductId, isBankrupt]);
 
-  useAutosave(selectedProduct);
+  useAutosave(activeProductId);
 
   const handleSave = useCallback(async () => {
     await saveGame();
@@ -197,6 +200,7 @@ function App() {
   return (
     <div className="flex flex-col h-screen bg-bg text-ink overflow-hidden" data-theme={darkMode ? 'dark' : undefined}>
       <HudBar onSave={handleSave} saveMsg={saveMsg} onToggleTheme={toggleDarkMode} darkMode={darkMode} />
+      <ProductBar />
 
       <div className="flex flex-1 min-h-0">
         <Dock />
@@ -264,7 +268,15 @@ function App() {
             <WealthPanel />
           </FloatingPanel>
 
-          <FloatingPanel id="dev" index={13} title="Dev Panel" icon={<Bug className="w-4 h-4 text-amber" />} accent="#D1453B">
+          <FloatingPanel id="products" index={13} title="Products" icon={<LayoutGrid className="w-4 h-4 text-indigo" />} accent="#4F5EFF">
+            <ProductOverview />
+          </FloatingPanel>
+
+          <FloatingPanel id="regions" index={14} title="Global" icon={<Globe className="w-4 h-4 text-green" />} accent="#17A366">
+            <RegionPanel />
+          </FloatingPanel>
+
+          <FloatingPanel id="dev" index={15} title="Dev Panel" icon={<Bug className="w-4 h-4 text-amber" />} accent="#D1453B">
             <DevPanel />
           </FloatingPanel>
         </div>

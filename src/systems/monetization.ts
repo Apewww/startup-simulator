@@ -1,5 +1,5 @@
 import type { PlatformFeature, ServerRack } from '../types';
-import type { MonetizationStrategy } from '../store/gameStore';
+import type { MonetizationStrategy } from '../types';
 
 export interface RevenueBreakdown {
   ads: number;

@@ -77,7 +77,7 @@ function EntryRow({ entry, rank, isMaximized }: { entry: any; rank: number; isMa
 export function CompetitorPanel({ search = '' }: { search?: string }) {
   const competitors = useGameStore((s) => s.competitors);
   const currentUsers = useGameStore((s) => s.currentUsers);
-  const selectedProduct = useGameStore((s) => s.selectedProduct);
+  const activeProductTypeId = useGameStore((s) => s.activeProductTypeId);
   const companyName = useGameStore((s) => s.companyName);
   const maximizedPanel = useGameStore((s) => s.maximizedPanel);
   const isMaximized = maximizedPanel === 'competitor';
@@ -92,7 +92,7 @@ export function CompetitorPanel({ search = '' }: { search?: string }) {
   if (currentUsers > 0) {
     allEntries.push({
       id: 'player', name: companyName || 'You',
-      sector: (selectedProduct as CompetitorSector) ?? 'social_media',
+      sector: (activeProductTypeId as CompetitorSector) ?? 'social_media',
       valuation: playerValuation, userCount: currentUsers,
       growthRate: 0, personality: 'balanced',
       isPlayer: true, hotSectorBadgeTicks: 0, newBadgeTicks: 0,

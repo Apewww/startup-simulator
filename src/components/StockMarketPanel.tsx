@@ -35,8 +35,8 @@ export function StockMarketPanel({ search = '' }: { search?: string }) {
     .filter(c => !search || c.name.toLowerCase().includes(search.toLowerCase()));
   const playerOwnership = calcPlayerOwnership(totalEquityGiven);
   const aiOwnership = 100 - playerOwnership;
-  const companyVal = Math.max(1, currentUsers * 80);
-  const buybackCost = Math.round(companyVal * (Math.min(Number(buybackPct) || 0, aiOwnership) / 100) * 1.2);
+  const companyVal = Math.max(50000, currentUsers * 80);
+  const buybackCost = Math.max(1, Math.round(companyVal * (Math.min(Number(buybackPct) || 0, aiOwnership) / 100) * 1.2));
 
   function handleBuy(compId: string) {
     const amount = parseInt(buyAmounts[compId] || '0');

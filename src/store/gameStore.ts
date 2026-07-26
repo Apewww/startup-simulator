@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetProviderId, InternetSubscription, AdCampaign, AdLead, CompetitorProduct, MarketingCampaign, MarketingCampaignType, WealthEntry, AiFundingOffer } from '../types';
+import type { Employee, EmployeeRole, ComponentResource, PlatformFeature, ComponentRequirement, ServerRack, RackTier, NodeTypeId, ServerNode, Plot, RentedServer, RentalType, FundingRound, SourcingCampaign, Applicant, GameEvent, PlacedFurniture, FurnitureInventoryItem, InternetProviderId, InternetSubscription, AdCampaign, AdLead, CompetitorProduct, MarketingCampaign, MarketingCampaignType, WealthEntry, AiFundingOffer, MonetizationStrategy, ProductPortfolioState } from '../types';
+import { createProductState } from '../types/portfolio';
 import { calcFundingOffer, calcMaxSupervised } from '../types/employee';
 import { getComponentDef, COMPONENTS } from '../data/components';
 import { getProductDef } from '../data/products';
@@ -8,6 +9,7 @@ import { PERKS } from '../data/perks';
 import { getNodeDef, getRackDef } from '../data/servers';
 import { makeInternetSubscription } from '../data/internet';
 import { calculateNodeLoads, calcMonthlyServerCost, recomputeRackAdjacency, getUpgradeCost } from '../systems/server';
+import { buildProductRpsMap, poolIncomingRps, SHARED_INFRA_POOL, hasWebCapacityForProduct } from '../systems/productRouting';
 import { getPlatformStats, getAppliedEffects, hasActiveSynergy } from '../systems/platform';
 import { getSupervisionBoost } from '../systems/leadDeveloper';
 import { computeFurnitureEffects } from '../systems/radiusEffect';
@@ -28,6 +30,8 @@ import { resetNameGenerator } from '../data/competitorNames';
 import { createCampaign, processCampaignTick, calcBrandDecay, calcBrandEffects } from '../systems/marketing';
 import { getHotSector, hasMarketCrash, hasMarketBoom } from '../systems/events';
 import { getPricingTier, getDefaultPricingTier, type BusinessLoan } from '../types/monetization';
+import { getRegionDef, calcRegionRevenueMult, calcRegionMaintenance } from '../data/regions';
+import { calcTotalPenalties } from '../systems/regulatory';
 import type { ActiveResearch } from '../types/research';
 import { startResearch as startResearchSystem, processResearchTick, isResearchComplete, costForLevel, collectResearchEffects, calcResearchEffects, getActiveResearchMonthlyCost, resetResearchIdCounter } from '../systems/research';
 import { RESEARCH_TREE } from '../data/research';
@@ -41,7 +45,7 @@ import { TICKS_PER_MONTH, TICKS_PER_DAY } from '../constants';
 
 export type GameSpeed = 1 | 2 | 4;
 
-export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment' | 'perks' | 'adsales' | 'banking' | 'competitor' | 'marketing' | 'research' | 'investor' | 'wealth' | 'dev';
+export type PanelId = 'employees' | 'features' | 'server' | 'finance' | 'recruitment' | 'perks' | 'adsales' | 'banking' | 'competitor' | 'marketing' | 'research' | 'investor' | 'wealth' | 'products' | 'regions' | 'dev';
 export type PanelOpenState = Record<PanelId, boolean>;
 export type GameScreen = 'menu' | 'select' | 'playerSetup' | 'playing';
 
@@ -67,8 +71,6 @@ export interface MonthlySnapshot {
   cash: number;
 }
 
-export type MonetizationStrategy = 'none' | 'text_ads' | 'video_ads' | 'targeted_ads' | 'freemium' | 'subscription';
-
 interface GameState {
   tick: number;
   isPaused: boolean;
@@ -83,7 +85,9 @@ interface GameState {
   rentedServers: RentedServer[];
   internetSubscriptions: InternetSubscription[];
   totalSalary: number;
-  selectedProduct: string | null;
+  activeProductId: string | null;
+  activeProductTypeId: string | null;
+  products: Record<string, ProductPortfolioState>;
   activeMonetization: MonetizationStrategy;
   userMood: number;
   devMode: boolean;
@@ -118,6 +122,12 @@ interface GameState {
   assignTask: (employeeId: string, componentId: string) => void;
   cancelTask: (employeeId: string) => void;
   selectProduct: (productId: string) => void;
+  switchProduct: (productId: string) => void;
+  flushActiveProduct: () => void;
+  createProduct: (productId: string, customName?: string) => void;
+  closeProduct: (productId: string) => void;
+  expandToRegion: (regionId: string) => void;
+  withdrawFromRegion: (regionId: string) => void;
   setMonetizationStrategy: (strategy: MonetizationStrategy) => void;
   buildFeature: (featureId: string) => void;
   upgradeFeature: (featureId: string) => void;
@@ -144,6 +154,8 @@ interface GameState {
   rentServer: (type: RentalType) => void;
   scaleRental: (rentalId: string, delta: number) => void;
   cancelRental: (id: string) => void;
+  assignRackToProduct: (rackId: string, productId: string | null) => void;
+  assignRentalToProduct: (rentalId: string, productId: string | null) => void;
   rentInternet: (providerId: InternetProviderId, tierId: string) => void;
   cancelInternet: (id: string) => void;
   toggleDevMode: () => void;
@@ -301,7 +313,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   rentedServers: [],
   internetSubscriptions: [],
   totalSalary: 0,
-  selectedProduct: null,
+  activeProductId: null,
+  activeProductTypeId: null,
+  products: {},
   activeMonetization: 'none',
   userMood: 80,
   adLeads: [],
@@ -329,8 +343,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   negativeCashMonths: 0,
   screen: 'menu',
   companyName: '',
-      panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, dev: false },
-      panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, dev: false },
+      panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, products: false, regions: false, dev: false },
+      panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, products: false, regions: false, dev: false },
   maximizedPanel: null,
   selectedEmployeeId: null,
   darkMode: (() => { try { return localStorage.getItem('ss-dark') === '1'; } catch { return false; } })(),
@@ -374,7 +388,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   setSpeed: (speed) => set({ speed }),
   skipTicks: (amount) => {
     const state = get();
-    if (state.isPaused || !state.selectedProduct || state.isBankrupt) return;
+    if (state.isPaused || !state.activeProductId || state.isBankrupt) return;
     const target = state.tick + amount;
     const maxIter = 5000; // safety cap
     let iter = 0;
@@ -443,7 +457,13 @@ export const useGameStore = create<GameState>((set, get) => ({
   incrementTick: () => {
     try {
     const state = get();
-    const { tick, employees, resources, features, racks, events, currentUsers, selectedProduct, rentedServers } = state;
+    const { tick, employees, resources, features, racks, events, currentUsers, activeProductId, products, rentedServers } = state;
+    const productTypeId = state.activeProductTypeId ?? activeProductId;
+    const activeRegions = (activeProductId ? products[activeProductId]?.expandedRegions : []) ?? [];
+    const regionGrowthMult = activeRegions.length > 0 ? calcRegionGrowthMult(activeRegions) : 1;
+    const regionRevenueMult = calcRegionRevenueMult(activeRegions);
+    const regionMaintenance = calcRegionMaintenance(activeRegions);
+    const regionPenalties = calcTotalPenalties(activeRegions, features);
     const internetSubs = state.internetSubscriptions;
     const internetRpsBonus = internetSubs.reduce((s, x) => s + x.rpsBonus, 0);
     const internetMoodSum = internetSubs.reduce((s, x) => s + x.moodBonus, 0);
@@ -464,7 +484,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       adPlatformLevel: platformLevel,
       dataRatio: (features.some(f => f.level > 0) ? getComplianceStatus(features, racks, rentedServers, internetSubs) : null)?.data.ratio ?? 1,
       userMood: state.userMood,
-      synergyActive: hasActiveSynergy(features, selectedProduct),
+      synergyActive: hasActiveSynergy(features, productTypeId),
       specialistLevel: 0,
       productFeaturesLevel,
     };
@@ -684,16 +704,16 @@ export const useGameStore = create<GameState>((set, get) => ({
     const unplacedRacks = racks.filter(r => r.plotId === null);
 
     // Platform stats (cohesion, synergy, target users)
-    const platformStats = getPlatformStats(features, events, selectedProduct);
+    const platformStats = getPlatformStats(features, events, productTypeId);
     const targetUsers = platformStats.targetUsers;
     const cohesionScore = Math.min(1, platformStats.cohesionScore + researchCohesionBonus);
 
     // Dynamic users
-    const pricingTier = getPricingTier(state.activePricingTier, state.selectedProduct);
+    const pricingTier = getPricingTier(state.activePricingTier, productTypeId);
     const eventEffects = getAppliedEffects(events);
     const monetizationMods = getMonetizationMods(state.activeMonetization);
     const pricingGrowthMult = pricingTier?.growthMult ?? 1;
-    const userDelta = (targetUsers - currentUsers) * 0.005 * cohesionScore * monetizationMods.growthMult * pricingGrowthMult * brandEffects.growthMult * researchTrafficMult;
+    const userDelta = (targetUsers - currentUsers) * 0.005 * cohesionScore * monetizationMods.growthMult * pricingGrowthMult * brandEffects.growthMult * researchTrafficMult * regionGrowthMult;
     const hasCrash = placedRacks.some(r => r.slots.some(s => s.node?.status === 'crashed'));
     const crashPenalty = hasCrash ? currentUsers * 0.05 : 0;
     const baseChurnRate = Math.max(0, ((1 - cohesionScore) * 0.0002 + monetizationMods.churnDelta - brandEffects.churnReduction) * (1 - researchChurnReduction));
@@ -701,7 +721,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     // Server calculation with effectiveRPS — compliance load mult untuk compute/data shortage
     const complianceBefore = features.some(f => f.level > 0) ? getComplianceStatus(features, placedRacks, rentedServers, internetSubs) : null;
-    const synergyActive = hasActiveSynergy(features, selectedProduct);
+    const synergyActive = hasActiveSynergy(features, productTypeId);
     const earlyDataRatio = complianceBefore?.data.ratio ?? 1;
 
     // User mood (satisfaction) — drifts toward strategy target × pricing target; feeds churn
@@ -713,22 +733,40 @@ export const useGameStore = create<GameState>((set, get) => ({
     const churn = Math.max(0, currentUsers * (baseChurnRate + moodPenalty));
     newCurrentUsers = currentUsers + (userDelta * eventEffects.userGrowthMult) - crashPenalty - churn;
     newCurrentUsers = Math.max(0, newCurrentUsers);
-    const computeLoadMult = complianceBefore ? Math.max(1, complianceBefore.compute.required / Math.max(complianceBefore.compute.provided, 0.1)) : 1;
-    const dataLoadMult = complianceBefore ? Math.max(1, complianceBefore.data.required / Math.max(complianceBefore.data.provided, 0.1)) : 1;
-    const adjustedRps = Math.round(platformStats.effectiveRps * computeLoadMult * dataLoadMult);
 
     const sysAdminLevel = employees
       .filter(e => e.role === 'SysAdmin' && e.happiness >= 15)
       .reduce((max, e) => Math.max(max, e.level), 0);
-    const adjustedRpsWithEfficiency = Math.round(adjustedRps / researchServerEfficiency);
-    const { racks: updatedPlacedRacks, rentedServers: updatedRentedServers } = calculateNodeLoads(placedRacks, adjustedRpsWithEfficiency, rentedServers, sysAdminLevel, eventEffects.crashChanceBonus, internetRpsBonus);
+    // Per-pool RPS routing
+    const productRpsMap = buildProductRpsMap(state.products, events, placedRacks, rentedServers, internetSubs, researchServerEfficiency);
+    const poolMap = new Map<string, { racks: ServerRack[]; rentals: RentedServer[] }>();
+    for (const rack of placedRacks) {
+      const key = rack.assignedProductId ?? SHARED_INFRA_POOL;
+      if (!poolMap.has(key)) poolMap.set(key, { racks: [], rentals: [] });
+      poolMap.get(key)!.racks.push(rack);
+    }
+    for (const r of rentedServers) {
+      const key = r.assignedProductId ?? SHARED_INFRA_POOL;
+      if (!poolMap.has(key)) poolMap.set(key, { racks: [], rentals: [] });
+      poolMap.get(key)!.rentals.push(r);
+    }
+    let updatedPlacedRacks: ServerRack[] = [];
+    let updatedRentedServers: RentedServer[] = [];
+    for (const [poolKey, pool] of poolMap) {
+      const poolRps = poolIncomingRps(poolKey, productRpsMap);
+      const result = calculateNodeLoads(pool.racks, poolRps, pool.rentals, sysAdminLevel, eventEffects.crashChanceBonus, internetRpsBonus);
+      updatedPlacedRacks.push(...result.racks);
+      updatedRentedServers.push(...result.rentedServers);
+    }
 
-    // If no web capacity at all, users drop fast
-    const hasWebCapacity = updatedPlacedRacks.some(r =>
-      r.slots.some(s =>
-        s.node?.category === 'web_server' && (s.node.status === 'active' || s.node.status === 'overloaded')
-      )
-    ) || updatedRentedServers.some(r => r.capacityRps > 0);
+    // If no web capacity for active product, users drop fast
+    const hasWebCapacity = state.activeProductId
+      ? hasWebCapacityForProduct(state.activeProductId, updatedPlacedRacks, updatedRentedServers)
+      : updatedPlacedRacks.some(r =>
+          r.slots.some(s =>
+            s.node?.category === 'web_server' && (s.node.status === 'active' || s.node.status === 'overloaded')
+          )
+        ) || updatedRentedServers.some(r => r.capacityRps > 0);
     if (platformStats.effectiveRps > 0 && !hasWebCapacity) {
       newCurrentUsers = Math.max(0, Math.floor(newCurrentUsers * 0.92));
     }
@@ -838,7 +876,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     let newTotalSalary = state.totalSalary;
     let newNegativeCashMonths = state.negativeCashMonths;
     const dataRatio = compliance?.data.ratio ?? 1;
-    const revOpts = { strategy: state.activeMonetization, productId: selectedProduct, dataRatio, synergyActive };
+    const revOpts = { strategy: state.activeMonetization, productId: productTypeId, dataRatio, synergyActive };
     const pricingRevMult = pricingTier?.revenueMult ?? 1;
     const revOptsWithPricing = { ...revOpts, pricingRevenueMult: pricingRevMult, researchAdRevMult, researchSubRevMult };
     const campaignRevenue = newAdCampaigns
@@ -880,7 +918,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         get().addNotification(`📊 Dividend income: $${dividendIncome.toLocaleString()} → personal cash: $${newPersonal.toLocaleString()}`, 'info');
       }
       newTotalDividends = state.totalDividendsReceived + dividendIncome;
-      cashChange = revenue.total + adCampaignMonthly - (newTotalSalary + serverCost + loanPayment + campaignCost + researchCost);
+      cashChange = Math.round(revenue.total * (1 + regionRevenueMult)) + adCampaignMonthly - (newTotalSalary + serverCost + loanPayment + campaignCost + researchCost + regionMaintenance + regionPenalties);
 
       // Loan payment tracking
       if (state.loan?.status === 'active') {
@@ -997,7 +1035,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const isBankrupt = newNegativeCashMonths >= 3 && state.cash + cashChange < 0;
 
     // v2.0 — Victory check (setiap tick, cek leaderboard rank & personal cash)
-    if (state.selectedProduct && !get().victoryAchieved) {
+    if (state.activeProductId && !get().victoryAchieved) {
       const allEntries = get().competitors.filter(c => !c.delisted);
       if (allEntries.length > 0) {
         const sorted = [...allEntries].sort((a, b) => b.valuation - a.valuation);
@@ -1171,7 +1209,45 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     pendingNotifications.forEach(n => get().addNotification(n.msg, n.type));
 
+    // Passive tick for non-active products
+    const s2 = get();
+    if (Object.keys(s2.products).length > 1) {
+      let passiveCash = 0;
+      const passiveProducts: Record<string, ProductPortfolioState> = {};
+      for (const [pid, prod] of Object.entries(s2.products)) {
+        if (pid === s2.activeProductId) continue;
+        const pFeats = prod.features;
+        if (!pFeats.some((f: any) => f.level > 0)) continue;
+        const pPlatform = getPlatformStats(pFeats, [], prod.sector);
+        const pHasSynergy = hasActiveSynergy(pFeats, prod.sector);
+        const pCohesion = Math.min(1, pPlatform.cohesionScore + researchCohesionBonus);
+        const pMoodTarget = Math.min(100, getMoodTarget(prod.activeMonetization, pHasSynergy, 1));
+        let pMood = Math.max(0, Math.min(100, prod.userMood + (pMoodTarget - prod.userMood) * MOOD_DRIFT_RATE));
+        const pMoodPenalty = Math.max(0, (MOOD_BASELINE - pMood) * MOOD_PENALTY_K);
+        const pTier = getPricingTier(prod.activePricingTier, prod.sector);
+        const pRegionGrowthMult = calcRegionGrowthMult(prod.expandedRegions);
+const pDelta = (pPlatform.targetUsers - prod.currentUsers) * 0.005 * pCohesion * getMonetizationMods(prod.activeMonetization).growthMult * (pTier?.growthMult ?? 1) * pRegionGrowthMult;
+        const pChurn = Math.max(0, prod.currentUsers * Math.max(0, (1 - pCohesion) * 0.0002 + pMoodPenalty));
+        let pUsers = Math.max(0, prod.currentUsers + pDelta - pChurn);
+        const pCompliance = getComplianceStatus(pFeats, s2.racks, s2.rentedServers, s2.internetSubscriptions);
+        if (pCompliance.overall === 'critical') pUsers = 0;
+        else if (pCompliance.userCap < 1) pUsers = Math.min(pUsers, Math.round(pPlatform.targetUsers * pCompliance.userCap));
+        let pBrand = Math.max(0, Math.min(100, prod.brandScore - calcBrandDecay(prod.brandScore, false)));
+        if (newMonth > oldMonth) {
+          const rOpts = { strategy: prod.activeMonetization, productId: prod.sector, dataRatio: pCompliance.data.ratio, synergyActive: pHasSynergy, pricingRevenueMult: pTier?.revenueMult ?? 1, researchAdRevMult, researchSubRevMult };
+          const pRegionMult = calcRegionRevenueMult(prod.expandedRegions);
+          const pRegionCost = calcRegionMaintenance(prod.expandedRegions) + calcTotalPenalties(prod.expandedRegions, pFeats);
+          passiveCash += Math.round(calculateRevenue(pUsers, pFeats, s2.racks, pCohesion * pCompliance.revenueMult, pPlatform.synergyRevenueBonus, rOpts).total * (1 + pRegionMult)) - pRegionCost;
+        }
+        passiveProducts[pid] = { ...prod, currentUsers: Math.round(pUsers), userMood: pMood, brandScore: Math.round(pBrand * 10) / 10 };
+      }
+      if (Object.keys(passiveProducts).length > 0) {
+        set((st) => ({ products: { ...st.products, ...passiveProducts }, cash: st.cash + passiveCash }));
+      }
+    }
+
     get().checkMilestones();
+    get().flushActiveProduct();
     } catch (e) { console.error('[tick]', e); }
   },
 
@@ -1273,6 +1349,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   selectProduct: (productId: string) => {
+    const state = get();
     const product = getProductDef(productId);
     if (!product) return;
     const features: PlatformFeature[] = product.features.map((f) => ({
@@ -1284,7 +1361,148 @@ export const useGameStore = create<GameState>((set, get) => ({
     resetNameGenerator();
     const initialCompetitors = generateInitialCompetitors(0, 100);
     const rankedCompetitors = computeRankings(initialCompetitors);
-    set({ selectedProduct: productId, features, screen: 'playerSetup', currentUsers: 0, userMood: 80, internetSubscriptions: [], adLeads: [], adCampaigns: [], adSalesUnlockNotified: false, activePricingTier: getDefaultPricingTier(productId), loan: null, creditScore: 50, missedPaymentTicks: 0, competitors: rankedCompetitors, brandScore: 10, marketingCampaigns: [], takeoverCapital: 0, acquiredBy: null, wealthLog: [] });
+    const pid = `prod_${Date.now().toString(36)}`;
+    const pricingTier = getDefaultPricingTier(productId);
+    const prodState = createProductState(pid, product.name, productId as any, features, 0, pricingTier);
+    set({
+      activeProductId: pid,
+      activeProductTypeId: productId,
+      products: { ...state.products, [pid]: prodState },
+      features, screen: 'playerSetup', currentUsers: 0, userMood: 80,
+      internetSubscriptions: [], adLeads: [], adCampaigns: [], adSalesUnlockNotified: false,
+      activePricingTier: pricingTier, loan: null, creditScore: 50, missedPaymentTicks: 0,
+      competitors: rankedCompetitors, brandScore: 10, marketingCampaigns: [],
+      takeoverCapital: 0, acquiredBy: null, wealthLog: [],
+    });
+  },
+
+  switchProduct: (productId: string) => {
+    const s = get();
+    if (productId === s.activeProductId || !s.products[productId]) return;
+    if (s.activeProductId && s.products[s.activeProductId]) {
+      get().flushActiveProduct();
+    }
+    const p = s.products[productId];
+    set({
+      activeProductId: productId,
+      activeProductTypeId: p.sector,
+      features: p.features,
+      currentUsers: p.currentUsers,
+      userMood: p.userMood,
+      activeMonetization: p.activeMonetization,
+      activePricingTier: p.activePricingTier,
+      brandScore: p.brandScore,
+      marketingCampaigns: p.marketingCampaigns,
+      adLeads: p.adLeads,
+      adCampaigns: p.adCampaigns,
+      adSalesUnlockNotified: p.adSalesUnlockNotified,
+      campaignCostThisMonth: p.campaignCostThisMonth,
+    });
+  },
+  flushActiveProduct: () => {
+    const s = get();
+    if (!s.activeProductId || !s.products[s.activeProductId]) return;
+    set({
+      products: {
+        ...s.products,
+        [s.activeProductId]: {
+          ...s.products[s.activeProductId],
+          features: s.features,
+          currentUsers: s.currentUsers,
+          userMood: s.userMood,
+          activeMonetization: s.activeMonetization,
+          activePricingTier: s.activePricingTier,
+          brandScore: s.brandScore,
+          marketingCampaigns: s.marketingCampaigns,
+          adLeads: s.adLeads,
+          adCampaigns: s.adCampaigns,
+          adSalesUnlockNotified: s.adSalesUnlockNotified,
+          campaignCostThisMonth: s.campaignCostThisMonth,
+        },
+      },
+    });
+  },
+  createProduct: (productId: string, customName?: string) => {
+    const state = get();
+    const product = getProductDef(productId);
+    if (!product) return;
+    const features: PlatformFeature[] = product.features.map((f) => ({
+      id: f.id, name: f.name, level: 0,
+      group: f.group,
+      requiredComponents: f.requiredComponents, trafficGenerated: 0, enabled: true,
+    }));
+    const pid = `prod_${Date.now().toString(36)}`;
+    const name = customName || product.name;
+    const pricingTier = getDefaultPricingTier(productId);
+    const prodState = createProductState(pid, name, productId as any, features, state.month, pricingTier);
+    set({
+      products: { ...state.products, [pid]: prodState },
+      activeProductId: pid,
+      activeProductTypeId: productId,
+      features: prodState.features,
+      currentUsers: prodState.currentUsers,
+      userMood: prodState.userMood,
+      activeMonetization: prodState.activeMonetization,
+      activePricingTier: prodState.activePricingTier,
+      brandScore: prodState.brandScore,
+      marketingCampaigns: prodState.marketingCampaigns,
+      adLeads: prodState.adLeads,
+      adCampaigns: prodState.adCampaigns,
+      adSalesUnlockNotified: prodState.adSalesUnlockNotified,
+      campaignCostThisMonth: prodState.campaignCostThisMonth,
+    });
+  },
+
+  closeProduct: (productId: string) => {
+    const s = get();
+    if (!s.products[productId]) return;
+    const ids = Object.keys(s.products);
+    if (ids.length <= 1) { get().addNotification('Cannot close your only product', 'warning'); return; }
+    const { [productId]: _, ...remaining } = s.products;
+    const nextId = productId === s.activeProductId ? Object.keys(remaining)[0] : s.activeProductId;
+    get().addNotification(`Product closed`, 'info');
+    set({
+      products: remaining,
+      activeProductId: nextId,
+      activeProductTypeId: remaining[nextId]?.sector ?? null,
+      features: remaining[nextId]?.features ?? [],
+      currentUsers: remaining[nextId]?.currentUsers ?? 0,
+      userMood: remaining[nextId]?.userMood ?? 80,
+      activeMonetization: remaining[nextId]?.activeMonetization ?? 'none',
+      activePricingTier: remaining[nextId]?.activePricingTier ?? '',
+      brandScore: remaining[nextId]?.brandScore ?? 10,
+      marketingCampaigns: remaining[nextId]?.marketingCampaigns ?? [],
+      adLeads: remaining[nextId]?.adLeads ?? [],
+      adCampaigns: remaining[nextId]?.adCampaigns ?? [],
+      adSalesUnlockNotified: remaining[nextId]?.adSalesUnlockNotified ?? false,
+      campaignCostThisMonth: remaining[nextId]?.campaignCostThisMonth ?? 0,
+    });
+  },
+
+  expandToRegion: (regionId: string) => {
+    const s = get();
+    if (!s.activeProductId || !s.products[s.activeProductId]) return;
+    const prod = s.products[s.activeProductId];
+    if (prod.expandedRegions.includes(regionId)) return;
+    const def = getRegionDef(regionId);
+    if (!def) return;
+    if (s.cash < def.entryCost) { get().addNotification(`Need $${def.entryCost.toLocaleString()} to expand`, 'warning'); return; }
+    set({
+      cash: s.cash - def.entryCost,
+      products: { ...s.products, [s.activeProductId]: { ...prod, expandedRegions: [...prod.expandedRegions, regionId] } },
+    });
+    get().addNotification(`Expanded to ${def.name}! Revenue +${(def.revenueMult * 100).toFixed(0)}%`, 'success');
+  },
+  withdrawFromRegion: (regionId: string) => {
+    const s = get();
+    if (!s.activeProductId || !s.products[s.activeProductId]) return;
+    const prod = s.products[s.activeProductId];
+    if (!prod.expandedRegions.includes(regionId)) return;
+    set({
+      products: { ...s.products, [s.activeProductId]: { ...prod, expandedRegions: prod.expandedRegions.filter(r => r !== regionId) } },
+    });
+    const def = getRegionDef(regionId);
+    get().addNotification(`Withdrew from ${def?.name ?? regionId}`, 'info');
   },
 
   setMonetizationStrategy: (strategy) => {
@@ -1566,17 +1784,16 @@ export const useGameStore = create<GameState>((set, get) => ({
     const aiOwnership = 100 - currentOwnership;
     const buyPct = Math.min(percentage, aiOwnership);
     if (buyPct <= 0) { get().addNotification('No external shares to buy back', 'warning'); return; }
-    const companyVal = state.currentUsers * 80;
-    const cost = Math.round(companyVal * (buyPct / 100) * 1.2);
+    const companyVal = Math.max(50000, state.currentUsers * 80);
+    const cost = Math.max(1, Math.round(companyVal * (buyPct / 100) * 1.2));
     if (state.personalCash < cost) { get().addNotification(`Need $${cost.toLocaleString()} to buy back ${buyPct}% — not enough personal wealth`, 'warning'); return; }
     const newEquityGiven = Math.max(0, state.totalEquityGiven - buyPct);
-    // Reduce aiStakes proportionally
-    const totalAiPct = state.aiStakes.reduce((s, x) => s + x.percentage, 0);
-    const newAiStakes = totalAiPct > 0 ? state.aiStakes.map(s => ({
-      ...s,
-      percentage: Math.max(0, s.percentage - (s.percentage / totalAiPct) * buyPct),
-    })).filter(s => s.percentage > 0) : [];
     const fullyOwned = newEquityGiven === 0;
+    const totalAiPct = state.aiStakes.reduce((t, x) => t + x.percentage, 0);
+    const newAiStakes = fullyOwned ? [] : state.aiStakes.map(s => ({
+      ...s,
+      percentage: Math.max(0, Math.round((s.percentage - (s.percentage / Math.max(totalAiPct, 1)) * buyPct) * 100) / 100),
+    })).filter(s => s.percentage > 0.01);
     const entry: WealthEntry = { type: 'stock_buy', amount: -cost, personalCash: state.personalCash - cost, month: state.month };
     set({
       personalCash: state.personalCash - cost,
@@ -1828,7 +2045,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   buildFeature: (featureId: string) => {
     const state = get();
-    const product = getProductDef(state.selectedProduct || '');
+    const product = getProductDef(state.activeProductId || '');
     if (!product) return;
 
     const featDef = product.features.find(f => f.id === featureId);
@@ -1857,7 +2074,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   upgradeFeature: (featureId: string) => {
     const state = get();
-    const product = getProductDef(state.selectedProduct || '');
+    const product = getProductDef(state.activeProductId || '');
     if (!product) return;
 
     const featDef = product.features.find(f => f.id === featureId);
@@ -1971,6 +2188,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       overheatTicks: 0,
       heatRatio: 0,
       adjacentRackIds: [],
+      assignedProductId: null,
     };
 
     get().addLog(`Bought ${def.label} ($${def.price})`);
@@ -2308,7 +2526,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     };
     const def = baseDefs[type];
     get().addNotification(`Rented ${def.label} — $${def.monthlyCost}/mo`, 'info');
-    set({ rentedServers: [...state.rentedServers, { id: `rent-${state.rentedServers.length + 1}`, type, ...def, load: 0, scaleLevel: 1 }] });
+    set({ rentedServers: [...state.rentedServers, { id: `rent-${state.rentedServers.length + 1}`, type, ...def, load: 0, scaleLevel: 1, assignedProductId: null }] });
   },
 
   scaleRental: (rentalId: string, delta: number) => {
@@ -2347,6 +2565,13 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   cancelRental: (id: string) => {
     set((state) => ({ rentedServers: state.rentedServers.filter(r => r.id !== id) }));
+  },
+
+  assignRackToProduct: (rackId: string, productId: string | null) => {
+    set((state) => ({ racks: state.racks.map(r => r.id === rackId ? { ...r, assignedProductId: productId } : r) }));
+  },
+  assignRentalToProduct: (rentalId: string, productId: string | null) => {
+    set((state) => ({ rentedServers: state.rentedServers.map(r => r.id === rentalId ? { ...r, assignedProductId: productId } : r) }));
   },
 
   rentInternet: (providerId, tierId) => {
@@ -2432,7 +2657,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   unlockAllFeatures: () => {
     const state = get();
-    const product = getProductDef(state.selectedProduct || '');
+    const product = getProductDef(state.activeProductId || '');
     if (!product) return;
 
     const newFeatures = state.features.map(f => {
@@ -2785,14 +3010,14 @@ export const useGameStore = create<GameState>((set, get) => ({
     resetTermSheetCounter();
     set({
       tick: 0, isPaused: false, speed: 1, cash: 15000, month: 0,
-      employees: [], resources: [], features: [], racks: [], plots: [], rentedServers: [],
-      totalSalary: 0, selectedProduct: null, activeMonetization: 'none', userMood: 80, internetSubscriptions: [], devMode: false,
+      employees: [], resources: [], features: [], racks: [], plots: [], rentedServers: [], products: {},
+      totalSalary: 0, activeProductId: null, activeProductTypeId: null, activeMonetization: 'none', userMood: 80, internetSubscriptions: [], devMode: false,
       inventoryNodes: [], activeView: { type: 'office' }, visitedPlots: [], gameLog: [],
       cashFlowHistory: [], notifications: [],
       isBankrupt: false, negativeCashMonths: 0, screen: 'menu', companyName: '',
       competitors: [], marketingCampaigns: [], brandScore: 10, nextCompetitorCheck: 600, campaignCostThisMonth: 0, currentSlotId: null,
-  panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, dev: false },
-  panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, dev: false },
+  panelOpen: { employees: true, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, products: false, dev: false },
+  panelMinimized: { employees: false, recruitment: false, features: false, server: false, finance: false, perks: false, adsales: false, banking: false, competitor: false, marketing: false, research: false, investor: false, wealth: false, products: false, dev: false },
       maximizedPanel: null,
       selectedEmployeeId: null,
   darkMode: (() => { try { return localStorage.getItem('ss-dark') === '1'; } catch { return false; } })(),
