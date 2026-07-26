@@ -277,6 +277,15 @@ interface GameState {
   pendingFundingRounds: AiFundingOffer[];
   acceptFundingRound: (offerIndex: number) => void;
   declineAllFundingRounds: () => void;
+
+  // v2.3 — Endgame
+  monthsAtRankOne: number;
+  endgameUnlocked: boolean;
+  completedGame: boolean;
+  newGamePlus: boolean;
+  newGamePlusTitle: string | null;
+  triggerEndGame: () => void;
+  startNewGamePlus: (titleId: string) => void;
 }
 
 function calcTotalSalary(employees: Employee[]): number {
@@ -382,6 +391,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       lifetimeWithdrawn: 0,
       unlockedTitles: [],
       victoryAchieved: false,
+      completedGame: false,
+      newGamePlus: false,
+      newGamePlusTitle: null,
+      monthsAtRankOne: 0,
+      endgameUnlocked: false,
 
   setScreen: (screen) => set({ screen }),
   togglePause: () => set((state) => ({ isPaused: !state.isPaused })),
@@ -3062,6 +3076,11 @@ const pDelta = (pPlatform.targetUsers - prod.currentUsers) * 0.005 * pCohesion *
       acquiredBy: null,
       lastWithdrawMonth: -1,
       wealthLog: [],
+      monthsAtRankOne: 0,
+      endgameUnlocked: false,
+      completedGame: false,
+      newGamePlus: false,
+      newGamePlusTitle: null,
     });
   },
 }));
