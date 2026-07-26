@@ -127,17 +127,17 @@ interface ProductPortfolioState {
 - [x] gameStore: action createProduct
 - [x] gameStore: action switchProduct
 - [x] gameStore: action flushActiveProduct
-- [ ] gameStore: action closeProduct
+- [x] gameStore: action closeProduct
 - [x] gameStore: tick loop → productTypeId fix
 - [x] ProductBar.tsx — switcher + new product button
 - [x] NewProductModal.tsx — modal 3 tipe produk
 - [x] ProductOverview.tsx — dashboard per produk
 - [x] closeProduct action — archive product (min 1 tersisa)
 - [x] Products panel — Dock + FloatingPanel
-- [ ] FeaturesPanel.tsx — adaptasi per-produk ✅ (via activeProductTypeId)
-- [ ] HudBar.tsx — per-product metrics ✅ (via activeProductTypeId)
-- [ ] FinancePanel.tsx — revenue breakdown per produk ✅ (via activeProductTypeId)
-- [ ] MarketingPanel.tsx — per-produk campaigns ✅ (via activeProductTypeId)
+- [x] FeaturesPanel.tsx — adaptasi per-produk (via activeProductTypeId)
+- [x] HudBar.tsx — per-product metrics (via activeProductTypeId)
+- [x] FinancePanel.tsx — revenue breakdown per produk (via activeProductTypeId)
+- [x] MarketingPanel.tsx — per-produk campaigns (via activeProductTypeId)
 - [x] Rack & Rented type — assignedProductId field
 - [x] assignRackToProduct, assignRentalToProduct actions
 - [x] Rented server — product assignment dropdown (ServerPanel)

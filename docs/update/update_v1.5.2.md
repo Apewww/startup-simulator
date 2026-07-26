@@ -103,7 +103,7 @@ Render sebagai `span` kecil (`text-[10px]`, border) dengan `title` berisi detail
 - [x] `HudBar.tsx` — tag strategi aktif (+tooltip)
 - [x] Build sukses (`tsc -b` + `vite build`)
 - [x] Lint: tanpa error baru (2 error `ServerRoomView` pre-existing, di luar scope)
-- [ ] Playtest manual: 1 sesi per produk (Social Media / E-Commerce / Search Engine) — switch strategi, cek preview & efek revenue berjalan (rekomendasi Fase G)
+- [ ] Playtest manual: 1 sesi per produk (Social Media / E-Commerce / Search Engine) — switch strategi, cek preview & efek revenue berjalan
 
 ---
 
