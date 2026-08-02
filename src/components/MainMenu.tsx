@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Play, Trash2, Power, Clock, Users, DollarSign, Trophy, X } from 'lucide-react';
+import { Play, Trash2, Power, Clock, DollarSign, Trophy, X, Sparkles } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import { listSaves, deleteSave, loadGame, type SaveSlotInfo } from '../systems/saveLoad';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { ACHIEVEMENTS } from '../data/achievements';
-import { getAllObtained } from '../systems/globalAchievements';
+import { isAchievementObtained } from '../systems/globalAchievements';
+import { soundManager } from '../systems/soundManager';
 
 function fmtCash(n: number): string {
   if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
@@ -28,12 +29,6 @@ const PRODUCT_LABELS: Record<string, string> = {
   search_engine: 'Search Engine',
 };
 
-function fmtRequirement(n: number): string {
-  if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1)}B`;
-  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-  return `$${(n / 1_000).toFixed(0)}K`;
-}
-
 export function MainMenu() {
   const setScreen = useGameStore((s) => s.setScreen);
   const restartGame = useGameStore((s) => s.restartGame);
@@ -51,172 +46,160 @@ export function MainMenu() {
   useEffect(refresh, []);
 
   const handleNewGame = async () => {
+    soundManager.playSuccess();
     restartGame();
     setScreen('select');
   };
 
   const handleLoad = (id: number) => {
+    soundManager.playSuccess();
     loadGame(id).then(ok => { if (ok) setScreen('playing'); });
   };
 
   const handleDelete = async (id: number) => {
+    soundManager.playClick();
     await deleteSave(id);
     refresh();
   };
 
   const handleQuit = () => {
+    soundManager.playClick();
     try { getCurrentWindow().close().catch(() => window.close()); } catch { window.close(); }
   };
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col items-center justify-center p-8 text-ink">
-      <div className="text-center mb-10 space-y-3">
-        <div className="flex items-center justify-center gap-3 mb-1">
-          <span className="w-3 h-3 rounded-sm bg-indigo" />
-          <h1 className="text-5xl font-extrabold tracking-tight">Startup Simulator</h1>
-          {newGamePlus && (
-            <span className="px-2 py-0.5 bg-amber-soft border border-amber/40 rounded-md text-amber text-xs font-bold" title={`NG+ ${newGamePlusTitle ?? ''}`}>
-              NG+
-            </span>
-          )}
+    <div className="relative min-h-screen w-full bg-slate-950 flex flex-col items-center justify-center p-6 text-white select-none overflow-hidden">
+      {/* Background Game Asset Cover Image */}
+      <img
+        src="/assets/main_menu_bg_1785636947437.png"
+        alt="Tech Startup Simulator Cover"
+        className="absolute inset-0 w-full h-full object-cover opacity-50 blur-xs scale-105"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/70 to-slate-950/40" />
+
+      {/* Main Title & Game Banner */}
+      <div className="relative z-10 text-center mb-8 max-w-xl space-y-3">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 backdrop-blur-md text-xs font-bold uppercase tracking-widest shadow-md">
+          <Sparkles className="w-3.5 h-3.5" /> 2D Isometric Edition • v0.2.0
         </div>
-        <p className="text-base text-ink-soft font-light">Build your tech empire from scratch</p>
+
+        <h1 className="text-5xl md:text-6xl font-black tracking-tight drop-shadow-xl text-white">
+          STARTUP <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-sky-300 to-emerald-400">SIMULATOR</span>
+        </h1>
+
+        {newGamePlus && (
+          <div className="inline-flex items-center gap-1.5 px-3 py-0.5 bg-amber-500/20 border border-amber-500/40 rounded-full text-amber-300 text-xs font-bold" title={`NG+ ${newGamePlusTitle ?? ''}`}>
+            🏆 NEW GAME+ UNLOCKED
+          </div>
+        )}
+
+        <p className="text-sm text-slate-300 font-light max-w-md mx-auto">
+          Bangun kekaisaran software milik Anda dari garasi kecil hingga menjadi raksasa teknologi dengan Data Center Hyperscale!
+        </p>
       </div>
 
-      <div className="w-full max-w-md space-y-4">
-        <button onClick={handleNewGame}
-          className="w-full flex items-center justify-between px-5 py-4 card-hover border border-indigo/20 rounded-xl transition-all duration-200 cursor-pointer hover:translate-x-0.5 bg-indigo/5">
-          <span className="text-base font-bold text-indigo">+ New Game</span>
-          <Play className="w-5 h-5 text-indigo" />
+      {/* Main Menu Action Panel */}
+      <div className="relative z-10 w-full max-w-md space-y-4">
+        <button
+          onClick={handleNewGame}
+          className="w-full flex items-center justify-between px-6 py-4 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white font-black text-lg rounded-2xl shadow-lg border border-indigo-400/40 transition-all duration-200 cursor-pointer hover:scale-[1.02] hover:shadow-indigo-500/25"
+        >
+          <span className="flex items-center gap-2">+ MAIN GAME BARU</span>
+          <Play className="w-6 h-6 fill-current" />
         </button>
 
-        <div className="space-y-2">
-          <div className="text-[11px] text-ink-soft font-semibold uppercase tracking-wider px-1">
-            Saved Games {!loading && `(${saves.length})`}
+        {/* Saved Games Box */}
+        <div className="card p-4 bg-slate-900/90 border border-white/10 backdrop-blur-md rounded-2xl shadow-xl space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+              SAVE GAME TERSIMPAN {!loading && `(${saves.length})`}
+            </span>
+            <button
+              onClick={() => { soundManager.playClick(); setShowAchievements(true); }}
+              className="flex items-center gap-1 text-xs text-amber-400 font-semibold hover:underline cursor-pointer"
+            >
+              <Trophy className="w-3.5 h-3.5" /> Achievements
+            </button>
           </div>
 
           {loading ? (
-            <div className="text-center py-6 text-sm text-ink-soft">Loading...</div>
+            <div className="text-center py-6 text-xs text-slate-400 animate-pulse">Loading saved slots...</div>
           ) : saves.length === 0 ? (
-            <div className="text-center py-6 text-sm text-ink-soft border border-dashed border-border rounded-xl">
-              No saved games yet
+            <div className="text-center py-6 text-xs text-slate-400 border border-dashed border-white/10 rounded-xl">
+              Belum ada file save game. Klik "Main Game Baru" untuk memulai!
             </div>
           ) : (
-            <div className="space-y-1.5 max-h-[320px] overflow-y-auto">
-              {saves.map(save => {
-                const product = save.selectedProduct ? PRODUCT_LABELS[save.selectedProduct] ?? save.selectedProduct : null;
-                return (
-                  <div key={save.id}
-                    className="group flex items-center gap-3 px-4 py-3 rounded-xl border border-border hover:border-indigo/30 hover:bg-indigo/5 transition-all cursor-pointer"
-                    onClick={() => handleLoad(save.id)}
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-surface-2 flex items-center justify-center text-xs font-bold text-ink-soft shrink-0">
-                      {save.id}
+            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+              {saves.map(s => (
+                <div
+                  key={s.id}
+                  onClick={() => handleLoad(s.id)}
+                  className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10 hover:border-indigo-400/60 hover:bg-white/10 transition-all cursor-pointer group"
+                >
+                  <div className="space-y-0.5">
+                    <div className="font-bold text-xs text-white group-hover:text-indigo-300 transition-colors">
+                      {s.companyName || 'Startup'} {s.playerName && <span className="text-[10px] text-slate-400 font-normal">({s.playerName})</span>}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 text-sm">
-                        <span className="font-semibold text-ink truncate">{product ?? 'Unknown'}</span>
-                        <span className="text-[11px] font-mono font-bold text-ink-soft">Month {save.month + 1}</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-[11px] text-ink-soft mt-0.5">
-                        <span className="flex items-center gap-1"><DollarSign className="w-2.5 h-2.5" />{fmtCash(save.cash)}</span>
-                        {save.currentUsers > 0 && <span className="flex items-center gap-1"><Users className="w-2.5 h-2.5" />{save.currentUsers.toLocaleString()}</span>}
-                        <span className="flex items-center gap-1"><Clock className="w-2.5 h-2.5" />{fmtDate(save.timestamp)}</span>
-                      </div>
+                    <div className="flex items-center gap-2 text-[10px] text-slate-400">
+                      <span className="flex items-center gap-0.5"><DollarSign className="w-2.5 h-2.5 text-emerald-400" />{fmtCash(s.cash)}</span>
+                      <span>• Month {s.month}</span>
+                      {s.selectedProduct && <span>• {PRODUCT_LABELS[s.selectedProduct] || s.selectedProduct}</span>}
                     </div>
-                    <button onClick={e => { e.stopPropagation(); handleDelete(save.id); }}
-                      className="p-2 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-red-soft hover:text-red text-ink-soft transition-all cursor-pointer"
-                      title="Delete save">
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] text-slate-400 flex items-center gap-0.5"><Clock className="w-2.5 h-2.5" />{fmtDate(s.timestamp)}</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/20 transition-colors cursor-pointer"
+                      title="Delete save file"
+                    >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Quit Button */}
+        <button
+          onClick={handleQuit}
+          className="w-full flex items-center justify-center gap-2 py-3 bg-white/5 hover:bg-red-500/20 border border-white/10 hover:border-red-500/40 text-slate-300 hover:text-red-400 text-xs font-semibold rounded-xl transition-all cursor-pointer"
+        >
+          <Power className="w-4 h-4" /> Keluar dari Game
+        </button>
+      </div>
+
+      {/* Global Achievements Modal */}
+      {showAchievements && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="card p-6 max-w-lg w-full bg-slate-900 border border-white/10 shadow-2xl rounded-2xl space-y-4 max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2 text-amber-400 font-bold">
+                <Trophy className="w-5 h-5" /> Global Achievements
+              </div>
+              <button onClick={() => setShowAchievements(false)} className="p-1 text-slate-400 hover:text-white cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="overflow-y-auto space-y-2 flex-1 pr-1">
+              {ACHIEVEMENTS.map(ach => {
+                const obtained = isAchievementObtained(ach.id);
+                return (
+                  <div key={ach.id} className={`p-3 rounded-xl border text-xs ${obtained ? 'border-amber-500/40 bg-amber-500/10' : 'border-white/10 bg-white/5 opacity-50'}`}>
+                    <div className="font-bold text-white flex items-center justify-between">
+                      <span className="flex items-center gap-1.5"><span>{ach.icon}</span> {ach.label}</span>
+                      {obtained && <span className="text-[10px] text-amber-400 font-bold">UNLOCKED</span>}
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-1">{ach.description}</p>
                   </div>
                 );
               })}
             </div>
-          )}
-        </div>
-
-        <hr className="border-border" />
-
-        <button onClick={() => setShowAchievements(true)}
-          className="w-full flex items-center justify-between px-5 py-3.5 rounded-xl transition-all duration-200 cursor-pointer hover:translate-x-0.5 text-ink-soft hover:text-amber hover:bg-amber/5">
-          <span className="text-sm font-semibold flex items-center gap-2">
-            <Trophy className="w-4 h-4" /> Achievements
-          </span>
-          <span className="text-xs text-ink-soft">{ACHIEVEMENTS.length}</span>
-        </button>
-
-        <hr className="border-border" />
-
-        <button onClick={handleQuit}
-          className="w-full flex items-center justify-between px-5 py-3.5 rounded-xl transition-all duration-200 cursor-pointer hover:translate-x-0.5 text-ink-soft hover:text-red hover:bg-red/5">
-          <span className="text-sm font-semibold">Keluar</span>
-          <Power className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Achievements popup */}
-      {showAchievements && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
-          onClick={() => setShowAchievements(false)}>
-          <div className="bg-surface border border-border rounded-xl p-5 max-w-lg w-full max-h-[80vh] overflow-y-auto shadow-xl"
-            onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-amber" />
-                <h2 className="text-base font-bold text-ink">Achievements</h2>
-              </div>
-              <button onClick={() => setShowAchievements(false)}
-                className="p-1 rounded-lg hover:bg-surface-2 text-ink-soft hover:text-ink transition-colors cursor-pointer">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="space-y-2">
-              {(() => {
-                const globalObtained = getAllObtained();
-                return ACHIEVEMENTS.map(a => {
-                  const titleIcons: Record<string, string> = {
-                    hustler: '💼', founder: '🏗️', tycoon: '💰', mogul: '👑',
-                    millionaire: '💎', multi_millionaire: '🔷', billionaire: '🌟',
-                  };
-                  const icon = titleIcons[a.id] ?? '🏆';
-                  const obtained = a.id in globalObtained;
-                  return (
-                    <div key={a.id}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg border ${obtained ? 'bg-green-soft/30 border-green/20' : 'bg-surface-2 border-border'}`}>
-                      <span className="text-xl shrink-0 w-8 text-center">{icon}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className={`font-semibold text-xs ${obtained ? 'text-green' : 'text-ink'}`}>
-                          {a.label}
-                          {obtained && <span className="ml-1.5 text-[9px]">✓</span>}
-                        </div>
-                        <div className="text-[9px] text-ink-soft mt-0.5">{a.description}</div>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <div className="text-[9px] text-ink-soft">{fmtRequirement(a.requirement)}</div>
-                        <div className="text-[8px] font-semibold">
-                          {obtained
-                            ? <span className="text-green">Obtained</span>
-                            : <span className="text-ink-soft">—</span>}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                });
-              })()}
-            </div>
-            <div className="text-center text-[9px] text-ink-soft mt-4">
-              Achievements are saved globally across all save games
-            </div>
-            <button onClick={() => setShowAchievements(false)}
-              className="mt-3 w-full px-4 py-2.5 bg-indigo text-white rounded-lg text-xs font-semibold hover:bg-indigo/90 transition-colors cursor-pointer">
-              Close
-            </button>
           </div>
         </div>
       )}
-
-      <div className="text-xs text-ink-soft font-mono mt-6">v2.0</div>
     </div>
   );
 }

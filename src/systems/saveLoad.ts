@@ -2,9 +2,6 @@ import { db, type GameSave } from '../db/gameDB';
 import { useGameStore } from '../store/gameStore';
 import { deduplicateNames, computeRankings } from './competitor';
 import { getDefaultPricingTier } from '../types/monetization';
-import { getProductDef } from '../data/products';
-
-const GRID_COLS = 8;
 
 function serialize(): Omit<GameSave, 'id' | 'timestamp'> {
   const s = useGameStore.getState();
@@ -40,6 +37,7 @@ function serialize(): Omit<GameSave, 'id' | 'timestamp'> {
     selectedHrId: s.selectedHrId,
     currentUsers: s.currentUsers,
     events: s.events,
+    officeTier: s.officeTier,
     officeGridCols: s.officeGridCols,
     officeGridRows: s.officeGridRows,
     perkPoints: s.perkPoints,
@@ -47,9 +45,7 @@ function serialize(): Omit<GameSave, 'id' | 'timestamp'> {
     unlockedPerks: s.unlockedPerks,
     furnitureInventory: s.furnitureInventory,
     furniture: s.furniture,
-    adLeads: s.adLeads,
-    adCampaigns: s.adCampaigns,
-    adSalesUnlockNotified: s.adSalesUnlockNotified,
+    placementFurnitureId: s.placementFurnitureId,
     activePricingTier: s.activePricingTier,
     loan: s.loan,
     creditScore: s.creditScore,
@@ -59,8 +55,11 @@ function serialize(): Omit<GameSave, 'id' | 'timestamp'> {
     competitors: s.competitors,
     marketingCampaigns: s.marketingCampaigns,
     brandScore: s.brandScore,
+    nextCompetitorCheck: s.nextCompetitorCheck,
+    devMode: s.devMode,
     activeResearch: s.activeResearch,
     unlockedTechs: s.unlockedTechs,
+    unlockedLevels: s.unlockedLevels,
     boardSatisfaction: s.boardSatisfaction,
     currentQuarter: s.currentQuarter,
     quarterlyTargets: s.quarterlyTargets,
@@ -77,6 +76,8 @@ function serialize(): Omit<GameSave, 'id' | 'timestamp'> {
     wealthLog: s.wealthLog,
     aiStakes: s.aiStakes,
     pendingFundingRounds: s.pendingFundingRounds,
+    activeProductValuation: s.activeProductValuation,
+    lastWithdrawMonth: s.lastWithdrawMonth,
     monthsAtRankOne: s.monthsAtRankOne,
     endgameUnlocked: s.endgameUnlocked,
     completedGame: s.completedGame,
@@ -85,80 +86,68 @@ function serialize(): Omit<GameSave, 'id' | 'timestamp'> {
   };
 }
 
-export async function saveGame(slotId?: number): Promise<void> {
-  const state = useGameStore.getState();
-  const id = slotId ?? state.currentSlotId ?? (await nextFreeSlot());
+export async function saveGame(slotId?: number): Promise<number> {
   const data = serialize();
-  await db.saves.put({ id, timestamp: Date.now(), ...data });
+  const current = slotId ?? useGameStore.getState().currentSlotId ?? undefined;
+  const id = await db.saves.put({
+    ...(current ? { id: current } : {}),
+    ...data,
+    timestamp: Date.now(),
+  } as GameSave);
   useGameStore.setState({ currentSlotId: id });
+  return id;
 }
 
 export async function loadGame(slotId: number): Promise<boolean> {
   const save = await db.saves.get(slotId);
   if (!save) return false;
 
-  const employees = save.employees.map(emp => {
-    if (emp.gridX === undefined && emp.gridY === undefined) {
-      const dk = (emp as any).deskIndex ?? 0;
-      return { ...emp, gridX: dk % GRID_COLS, gridY: Math.floor(dk / GRID_COLS) };
-    }
-    return emp;
-  });
+  const currentProducts = save.products ?? {};
+  const activeProd = save.activeProductId && currentProducts[save.activeProductId]
+    ? currentProducts[save.activeProductId]
+    : Object.values(currentProducts)[0];
 
-  // v2.2 — Migrate old saves: create product entry from flat fields
-  let products = save.products ?? {};
-  let activeProductId = save.activeProductId ?? null;
-  if (!activeProductId && save.selectedProduct) {
-    activeProductId = save.selectedProduct;
-  }
-  if (Object.keys(products).length === 0 && activeProductId) {
-    const sector = activeProductId as any;
-    const pricingTier = (save as any).activePricingTier ?? getDefaultPricingTier(activeProductId);
-    products = {
-      [activeProductId]: {
-        id: activeProductId, name: getProductDef(activeProductId)?.name ?? activeProductId,
-        sector, features: save.features ?? [],
-        currentUsers: save.currentUsers ?? 0, userMood: save.userMood ?? 80,
-        activeMonetization: save.activeMonetization ?? 'none',
-        activePricingTier: pricingTier, brandScore: save.brandScore ?? 10,
-        marketingCampaigns: save.marketingCampaigns ?? [],
-        adLeads: save.adLeads ?? [], adCampaigns: save.adCampaigns ?? [],
-        adSalesUnlockNotified: save.adSalesUnlockNotified ?? false,
-        campaignCostThisMonth: save.campaignCostThisMonth ?? 0,
-        createdMonth: save.month ?? 0, expandedRegions: [],
-        businessModel: sector === 'search_engine' ? 'b2b' : 'b2c',
-        valuation: 0,
-      },
-    };
-  }
+  const prodType = activeProd ? activeProd.sector : (save.selectedProduct ?? 'social_media');
+  const activePricingTier = save.activePricingTier ?? getDefaultPricingTier(prodType);
+
+  const employees = (save.employees ?? []).map(e => ({
+    ...e,
+    supervisedBy: e.supervisedBy || undefined,
+  }));
+
+  const compState = deduplicateNames(save.competitors ?? []);
+  const rankedCompState = computeRankings(compState);
+
+  const rawActiveView = save.activeView as any;
+  const activeView = (rawActiveView && (rawActiveView.type === 'cityMap' || rawActiveView.type === 'office' || rawActiveView.type === 'server'))
+    ? rawActiveView
+    : { type: 'cityMap' };
 
   useGameStore.setState({
     tick: save.tick,
-    speed: save.speed,
+    speed: save.speed ?? 1,
     cash: save.cash,
     month: save.month,
     employees,
-    resources: save.resources,
-    features: save.features,
-    racks: (save.racks ?? []).map(r => ({
-      ...r,
-      slots: r.slots.map(s => (s.node && (s.node as { typeId?: string }).typeId === 'router') ? { ...s, node: null } : s),
-    })),
+    resources: save.resources ?? [],
+    features: save.features ?? [],
+    racks: save.racks ?? [],
     plots: save.plots ?? [],
-    rentedServers: (save.rentedServers ?? []).map(r => ({ ...r, dbCapacity: r.dbCapacity ?? 0 })),
+    rentedServers: save.rentedServers ?? [],
     inventoryNodes: save.inventoryNodes ?? [],
-    activeView: save.activeView ?? { type: 'office' },
+    activeView,
     visitedPlots: save.visitedPlots ?? [],
-    totalSalary: save.totalSalary,
-    activeProductId,
-    products,
+    totalSalary: save.totalSalary ?? 0,
+    activeProductId: save.activeProductId ?? (activeProd ? activeProd.id : null),
+    activeProductTypeId: prodType,
+    products: currentProducts,
     activeMonetization: save.activeMonetization ?? 'none',
     userMood: save.userMood ?? 80,
-    internetSubscriptions: (save.internetSubscriptions ?? []).map(s => ({ ...s })),
-    isBankrupt: save.isBankrupt,
-    negativeCashMonths: save.negativeCashMonths,
+    internetSubscriptions: save.internetSubscriptions ?? [],
+    isBankrupt: save.isBankrupt ?? false,
+    negativeCashMonths: save.negativeCashMonths ?? 0,
     screen: save.screen ?? 'playing',
-    companyName: (save as any).companyName ?? '',
+    companyName: save.companyName ?? '',
     cashFlowHistory: save.cashFlowHistory ?? [],
     fundingRounds: save.fundingRounds ?? [],
     sourcingCampaign: save.sourcingCampaign ?? null,
@@ -166,65 +155,54 @@ export async function loadGame(slotId: number): Promise<boolean> {
     selectedHrId: save.selectedHrId ?? null,
     currentUsers: save.currentUsers ?? 0,
     events: save.events ?? [],
-    officeGridCols: save.officeGridCols ?? 8,
-    officeGridRows: save.officeGridRows ?? 8,
+    officeTier: save.officeTier ?? 1,
+    officeGridCols: save.officeGridCols ?? 4,
+    officeGridRows: save.officeGridRows ?? 4,
     perkPoints: save.perkPoints ?? 0,
     earnedMilestones: save.earnedMilestones ?? [],
     unlockedPerks: save.unlockedPerks ?? [],
     furnitureInventory: save.furnitureInventory ?? [],
     furniture: save.furniture ?? [],
-    adLeads: save.adLeads ?? [],
-    adCampaigns: save.adCampaigns ?? [],
-    adSalesUnlockNotified: save.adSalesUnlockNotified ?? false,
-    activePricingTier: save.activePricingTier ?? '',
+    placementFurnitureId: save.placementFurnitureId ?? null,
+    activePricingTier,
     loan: save.loan ?? null,
     creditScore: save.creditScore ?? 50,
     missedPaymentTicks: save.missedPaymentTicks ?? 0,
     autoRenewEnabled: save.autoRenewEnabled ?? true,
     campaignCostThisMonth: save.campaignCostThisMonth ?? 0,
-    competitors: save.competitors ?? [],
+    competitors: rankedCompState,
     marketingCampaigns: save.marketingCampaigns ?? [],
     brandScore: save.brandScore ?? 10,
-    activeResearch: (save as any).activeResearch ?? null,
-    unlockedTechs: (save as any).unlockedTechs ?? [],
-    boardSatisfaction: (save as any).boardSatisfaction ?? 50,
-    currentQuarter: (save as any).currentQuarter ?? 1,
-    quarterlyTargets: (save as any).quarterlyTargets ?? [],
-    quarterlyHistory: (save as any).quarterlyHistory ?? [],
-    termSheet: (save as any).termSheet ?? null,
-    totalEquityGiven: (save as any).totalEquityGiven ?? 0,
-    personalCash: (save as any).personalCash ?? 0,
-    lifetimeWithdrawn: (save as any).lifetimeWithdrawn ?? 0,
-    unlockedTitles: (save as any).unlockedTitles ?? [],
-    victoryAchieved: (save as any).victoryAchieved ?? false,
-    totalDividendsReceived: (save as any).totalDividendsReceived ?? 0,
-    takeoverCapital: (save as any).takeoverCapital ?? 0,
-    acquiredBy: (save as any).acquiredBy ?? null,
-    wealthLog: (save as any).wealthLog ?? [],
-    aiStakes: (save as any).aiStakes ?? [],
-    pendingFundingRounds: (save as any).pendingFundingRounds ?? [],
-    monthsAtRankOne: (save as any).monthsAtRankOne ?? 0,
-    endgameUnlocked: (save as any).endgameUnlocked ?? false,
-    completedGame: (save as any).completedGame ?? false,
-    newGamePlus: (save as any).newGamePlus ?? false,
-    newGamePlusTitle: (save as any).newGamePlusTitle ?? null,
-    currentSlotId: slotId,
+    nextCompetitorCheck: save.nextCompetitorCheck ?? 600,
+    devMode: save.devMode ?? false,
+    currentSlotId: save.id,
+    activeResearch: save.activeResearch ?? null,
+    unlockedTechs: save.unlockedTechs ?? [],
+    unlockedLevels: save.unlockedLevels ?? {},
+    boardSatisfaction: save.boardSatisfaction ?? 50,
+    currentQuarter: save.currentQuarter ?? 1,
+    quarterlyTargets: save.quarterlyTargets ?? [],
+    quarterlyHistory: save.quarterlyHistory ?? [],
+    termSheet: save.termSheet ?? null,
+    totalEquityGiven: save.totalEquityGiven ?? 0,
+    personalCash: save.personalCash ?? 0,
+    lifetimeWithdrawn: save.lifetimeWithdrawn ?? 0,
+    unlockedTitles: save.unlockedTitles ?? [],
+    victoryAchieved: save.victoryAchieved ?? false,
+    totalDividendsReceived: save.totalDividendsReceived ?? 0,
+    takeoverCapital: save.takeoverCapital ?? 0,
+    acquiredBy: save.acquiredBy ?? null,
+    wealthLog: save.wealthLog ?? [],
+    aiStakes: save.aiStakes ?? [],
+    pendingFundingRounds: save.pendingFundingRounds ?? [],
+    activeProductValuation: save.activeProductValuation ?? 0,
+    lastWithdrawMonth: save.lastWithdrawMonth ?? -1,
+    monthsAtRankOne: save.monthsAtRankOne ?? 0,
+    endgameUnlocked: save.endgameUnlocked ?? false,
+    completedGame: save.completedGame ?? false,
+    newGamePlus: save.newGamePlus ?? false,
+    newGamePlusTitle: save.newGamePlusTitle ?? null,
   });
-
-  // Fix old save competitors — ensure new v2.1 fields
-  const competitors = useGameStore.getState().competitors;
-  if (competitors.length > 0) {
-    const migrated = competitors.map(c => ({
-      ...c,
-      totalShares: c.totalShares ?? 100_000,
-      sharePrice: c.sharePrice ?? (c.valuation > 0 ? Math.round(c.valuation / 100_000) : 1),
-      ownership: c.ownership ?? [{ ownerId: c.id, percentage: 100 }],
-      userHistory: c.userHistory ?? [c.userCount ?? 1000],
-      isUnicorn: c.isUnicorn ?? false,
-    }));
-    const fixed = computeRankings(deduplicateNames(migrated));
-    useGameStore.setState({ competitors: fixed });
-  }
 
   return true;
 }
@@ -237,7 +215,8 @@ export interface SaveSlotInfo {
   currentUsers: number;
   selectedProduct: string | null;
   tick: number;
-  products?: Record<string, { name: string; sector: string }>;
+  companyName?: string;
+  playerName?: string;
 }
 
 export async function listSaves(): Promise<SaveSlotInfo[]> {
@@ -251,7 +230,8 @@ export async function listSaves(): Promise<SaveSlotInfo[]> {
       currentUsers: s.currentUsers,
       selectedProduct: s.selectedProduct ?? null,
       tick: s.tick,
-      products: s.products,
+      companyName: s.companyName,
+      playerName: (s as any).playerName || (s as any).ceoName,
     }))
     .sort((a, b) => b.timestamp - a.timestamp);
 }

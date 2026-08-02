@@ -1,24 +1,125 @@
-export type NodeTypeId =
-  | 'web_t1' | 'web_t2' | 'web_t3' | 'web_t4'
-  | 'db_t1' | 'db_t2' | 'db_t3'
-  | 'cache_t1' | 'cache_t2' | 'cache_t3'
-  | 'cooling_fan' | 'industrial_fan' | 'liquid_cooling'
-  | 'storage'
-  | 'firewall_t1' | 'firewall_t2'
-  | 'rate_limiter'
-  | 'load_balancer';
-
 export type NodeCategory = 'web_server' | 'database' | 'caching' | 'cooling' | 'storage' | 'security';
+export type NodeTypeId = string;
 
-export type InternetProviderId = 'nusantara' | 'aerolink' | 'rakyat';
+export interface NodeDef {
+  typeId: string;
+  label: string;
+  category: NodeCategory;
+  capacity: number;
+  heat: number;
+  power: number;
+  price: number;
+  monthlyCost: number;
+  compute: number;
+  data: number;
+  network: number;
+  security: number;
+  description: string;
+}
+
+export interface ServerNode {
+  id: string;
+  typeId: string;
+  label: string;
+  category: NodeCategory;
+  capacity: number;       // RPS capacity (web), connections (db), cache ops (caching), or heat reduction (cooling)
+  heat: number;           // Heat generated per tick
+  power: number;          // Power consumed (monthly cost multiplier)
+  price: number;
+  monthlyCost: number;
+  status: 'active' | 'crashed' | 'maintenance' | 'overheating' | 'overloaded' | 'offline';
+  load: number;           // 0-1 load ratio
+  crashTicks: number;     // Remaining ticks until auto-recovery
+  recoveryTicks: number;  // Ticks taken to recover
+  scaleLevel: number;     // Hardware upgrade level (1–5)
+}
+
+export type RackTier = 'starter' | 'medium' | 'enterprise' | 'basic' | 'advanced';
+
+export interface RackDef {
+  tier: RackTier;
+  label: string;
+  gridW: number;
+  gridH: number;
+  maxSlots: number;
+  price: number;
+  monthlyCost: number;
+  coolingCapacity: number;
+  description: string;
+}
+
+export interface RackSlot {
+  index: number;          // 0..maxSlots-1
+  node: ServerNode | null;
+}
+
+export interface ServerRack {
+  id: string;
+  plotId: string | null;  // null = in inventory
+  label: string;
+  tier: RackTier;
+  gridX: number;
+  gridY: number;
+  gridW: number;
+  gridH: number;
+  maxSlots: number;
+  slots: RackSlot[];
+  price: number;
+  monthlyCost: number;
+  coolingCapacity: number; // Max heat capacity this rack's cooling can dissipate
+  coolingUsed: number;     // Current total heat from nodes
+  powerDraw: number;
+  isOverheating: boolean;
+  isCritical: boolean;
+  overheatTicks: number;
+  heatRatio: number;
+  adjacentRackIds: string[];
+  assignedProductId: string | null;
+}
+
+export interface Plot {
+  id: string;
+  label: string;
+  price: number;
+  monthlyCost: number;
+  rackIds: string[];
+  gridCols: number;
+  gridRows: number;
+  tier?: number;
+}
+
+export type RentalType = 'vps' | 'dedicated' | 'cloud' | 'db';
+
+export interface RentedServer {
+  id: string;
+  type: RentalType;
+  label: string;
+  capacityRps: number;
+  storage: number;
+  monthlyCost: number;
+  uptime: number;
+  load: number;
+  scaleLevel: number;
+  compute: number;
+  data: number;
+  network: number;
+  dbCapacity: number;
+  status: 'active' | 'crashed' | 'maintenance' | 'offline';
+  crashTicks: number;
+  assignedProductId: string | null;
+}
+
+export type InternetProviderId = string;
 
 export interface InternetTierDef {
   id: string;
+  bandwidthMbps: number;
   speedMbps: number;
+  monthlyCost: number;
+  baseCost: number;
   network: number;
   rpsBonus: number;
   moodBonus: number;
-  baseCost: number;
 }
 
 export interface InternetProviderDef {
@@ -38,116 +139,12 @@ export interface InternetProviderDef {
 export interface InternetSubscription {
   id: string;
   providerId: InternetProviderId;
-  tierId: string;
   providerName: string;
+  tierId: string;
+  bandwidthMbps: number;
   speedMbps: number;
+  monthlyCost: number;
   network: number;
   rpsBonus: number;
   moodBonus: number;
-  monthlyCost: number;
-}
-
-export interface ServerNode {
-  id: string;
-  typeId: NodeTypeId;
-  label: string;
-  category: NodeCategory;
-  capacity: number;
-  heat: number;
-  power: number;
-  price: number;
-  monthlyCost: number;
-  status: 'active' | 'overloaded' | 'overheating' | 'crashed' | 'offline';
-  load: number;
-  crashTicks: number;
-  recoveryTicks: number;
-  scaleLevel: number;
-}
-
-export type RackTier = 'basic' | 'advanced' | 'enterprise';
-
-export interface RackSlot {
-  index: number;
-  node: ServerNode | null;
-}
-
-export interface ServerRack {
-  id: string;
-  tier: RackTier;
-  label: string;
-  plotId: string | null;
-  gridX: number;
-  gridY: number;
-  gridW: number;
-  gridH: number;
-  slots: RackSlot[];
-  maxSlots: number;
-  coolingCapacity: number;
-  coolingUsed: number;
-  powerDraw: number;
-  price: number;
-  monthlyCost: number;
-  isOverheating: boolean;
-  isCritical: boolean;
-  overheatTicks: number;
-  heatRatio: number;
-  adjacentRackIds: string[];
-  assignedProductId: string | null;
-}
-
-export interface Plot {
-  id: string;
-  label: string;
-  price: number;
-  monthlyCost: number;
-  rackIds: string[];
-  gridCols: number;
-  gridRows: number;
-}
-
-export type RentalType = 'vps' | 'dedicated' | 'cloud' | 'db';
-
-export interface RentedServer {
-  id: string;
-  type: RentalType;
-  label: string;
-  capacityRps: number;
-  storage: number;
-  monthlyCost: number;
-  uptime: number;
-  load: number;
-  scaleLevel: number;
-  compute: number;
-  data: number;
-  network: number;
-  dbCapacity: number;
-  assignedProductId: string | null;
-}
-
-export interface NodeDef {
-  typeId: NodeTypeId;
-  label: string;
-  category: NodeCategory;
-  capacity: number;
-  heat: number;
-  power: number;
-  price: number;
-  monthlyCost: number;
-  compute: number;
-  data: number;
-  network: number;
-  security: number;
-  description: string;
-}
-
-export interface RackDef {
-  tier: RackTier;
-  label: string;
-  maxSlots: number;
-  coolingCapacity: number;
-  price: number;
-  monthlyCost: number;
-  gridW: number;
-  gridH: number;
-  description: string;
 }

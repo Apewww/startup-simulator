@@ -1,337 +1,505 @@
-import { useState, useRef, useCallback } from 'react';
-import { Star, Coffee, Armchair, Droplets, X } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { X, ZoomIn, ZoomOut, RotateCcw, Volume2, VolumeX, Move, PackageMinus } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
-import { getComponentDef } from '../data/components';
 import { getFurnitureDef } from '../data/furniture';
 import { roleColor } from './CharacterAvatar';
+import { gridToIso, isoToGrid, type IsoConfig, sortIsometricEntities } from '../systems/isoRenderer';
+import { assetLoader } from '../systems/assetLoader';
+import { drawEmployeeCharacter } from '../systems/characterSprite';
+import { soundManager } from '../systems/soundManager';
 
-const CELL_SIZE = 72;
-
-const FURNITURE_ICON: Record<string, typeof Coffee> = {
-  coffee_machine: Coffee,
-  ergonomic_chair: Armchair,
-  water_dispenser: Droplets,
+const ISO_CONFIG: IsoConfig = {
+  tileWidth: 96,
+  tileHeight: 48,
+  originX: 0,
+  originY: 40,
 };
-
-const FURNITURE_COLOR: Record<string, string> = {
-  coffee_machine: '#B7791F',
-  ergonomic_chair: '#4F5EFF',
-  water_dispenser: '#0EA5E9',
-};
-
-function getStatusText(task: string | null): string {
-  if (!task) return 'Idle';
-  return task.replace(/_/g, ' ');
-}
-
-function getDeskClass(task: string | null, happiness: number): string {
-  if (happiness < 15) return 'low';
-  if (happiness < 30) return 'idle';
-  if (task) return 'working';
-  return 'idle';
-}
-
-function isValidPlacement(
-  defId: string,
-  x: number,
-  y: number,
-  cols: number,
-  rows: number,
-  employees: { gridX: number; gridY: number }[],
-  furniture: { defId: string; gridX: number; gridY: number }[],
-): boolean {
-  if (x < 0 || x >= cols || y < 0 || y >= rows) return false;
-  const def = getFurnitureDef(defId);
-  if (!def) return false;
-  if (def.placement === 'tile') {
-    return !employees.some(e => e.gridX === x && e.gridY === y)
-      && !furniture.some(f => f.gridX === x && f.gridY === y);
-  }
-  const empHere = employees.some(e => e.gridX === x && e.gridY === y);
-  const chairHere = furniture.some(f => f.defId === 'ergonomic_chair' && f.gridX === x && f.gridY === y);
-  return empHere && !chairHere;
-}
 
 export function OfficeGrid() {
   const employees = useGameStore((s) => s.employees);
   const furniture = useGameStore((s) => s.furniture);
-  const furnitureInventory = useGameStore((s) => s.furnitureInventory);
-  const focusEmployee = useGameStore((s) => s.focusEmployee);
   const moveEmployee = useGameStore((s) => s.moveEmployee);
   const moveFurniture = useGameStore((s) => s.moveFurniture);
+  const unplaceFurniture = useGameStore((s) => s.unplaceFurniture);
+
+  const focusEmployee = useGameStore((s) => s.focusEmployee);
   const darkMode = useGameStore((s) => s.darkMode);
   const officeGridCols = useGameStore((s) => s.officeGridCols);
   const officeGridRows = useGameStore((s) => s.officeGridRows);
   const placementFurnitureId = useGameStore((s) => s.placementFurnitureId);
   const placeFurniture = useGameStore((s) => s.placeFurniture);
-  const unplaceFurniture = useGameStore((s) => s.unplaceFurniture);
   const cancelFurniturePlacement = useGameStore((s) => s.cancelFurniturePlacement);
-  const gridRef = useRef<HTMLDivElement>(null);
-  const [dragOverPos, setDragOverPos] = useState<{ x: number; y: number } | null>(null);
-  const [draggedEmpId, setDraggedEmpId] = useState<string | null>(null);
-  const [draggedFurnId, setDraggedFurnId] = useState<string | null>(null);
-  const [placeHover, setPlaceHover] = useState<{ x: number; y: number } | null>(null);
 
-  const getGridPos = useCallback((clientX: number, clientY: number) => {
-    if (!gridRef.current) return null;
-    const rect = gridRef.current.getBoundingClientRect();
-    const x = Math.floor((clientX - rect.left) / CELL_SIZE);
-    const y = Math.floor((clientY - rect.top) / CELL_SIZE);
-    return { x: Math.max(0, Math.min(x, officeGridCols - 1)), y: Math.max(0, Math.min(y, officeGridRows - 1)) };
-  }, [officeGridCols, officeGridRows]);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleEmpDragStart = (e: React.DragEvent, empId: string) => {
-    e.dataTransfer.setData('application/emp-id', empId);
-    e.dataTransfer.effectAllowed = 'move';
-    setDraggedEmpId(empId);
-    const el = e.currentTarget as HTMLElement;
-    setTimeout(() => el.style.opacity = '0.3', 0);
-  };
+  // Camera & Animation state
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [startPan, setStartPan] = useState({ x: 0, y: 0 });
 
-  const handleEmpDragEnd = (e: React.DragEvent) => {
-    const el = e.currentTarget as HTMLElement;
-    el.style.opacity = '';
-    setDragOverPos(null);
-    setDraggedEmpId(null);
-  };
+  const [hoverTile, setHoverTile] = useState<{ gridX: number; gridY: number } | null>(null);
+  const [selectedEntity, setSelectedEntity] = useState<{ type: 'employee' | 'furniture'; id: string } | null>(null);
+  const [relocateEntity, setRelocateEntity] = useState<{ type: 'employee' | 'furniture'; id: string; name: string } | null>(null);
+  const [isMuted, setIsMuted] = useState(soundManager.getMuted());
 
-  const handleFurnDragStart = (e: React.DragEvent, furnId: string) => {
-    if (placementFurnitureId) return;
-    e.dataTransfer.setData('application/furn-id', furnId);
-    e.dataTransfer.effectAllowed = 'move';
-    setDraggedFurnId(furnId);
-    const el = e.currentTarget as HTMLElement;
-    setTimeout(() => el.style.opacity = '0.3', 0);
-  };
+  const animTickRef = useRef(0);
 
-  const handleFurnDragEnd = (e: React.DragEvent) => {
-    const el = e.currentTarget as HTMLElement;
-    el.style.opacity = '';
-    setDragOverPos(null);
-    setDraggedFurnId(null);
-  };
+  // Calculate mouse screen position to isometric grid tile
+  const getGridFromMouse = useCallback((clientX: number, clientY: number) => {
+    if (!canvasRef.current) return null;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const mouseX = (clientX - rect.left - pan.x - canvasRef.current.width / 2) / zoom;
+    const mouseY = (clientY - rect.top - pan.y - ISO_CONFIG.originY) / zoom;
 
-  const handleGridDragOver = (e: React.DragEvent) => {
-    if (!e.dataTransfer.types.includes('application/emp-id') && !e.dataTransfer.types.includes('application/furn-id')) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    const pos = getGridPos(e.clientX, e.clientY);
-    if (!pos) return;
-    if (e.dataTransfer.types.includes('application/emp-id')) {
-      const collision = draggedEmpId && employees.some(emp => emp.id !== draggedEmpId && emp.gridX === pos.x && emp.gridY === pos.y);
-      if (collision) return;
+    const config: IsoConfig = {
+      tileWidth: ISO_CONFIG.tileWidth,
+      tileHeight: ISO_CONFIG.tileHeight,
+      originX: 0,
+      originY: 0,
+    };
+
+    const pt = isoToGrid(mouseX, mouseY, config);
+    if (pt.gridX >= 0 && pt.gridX < officeGridCols && pt.gridY >= 0 && pt.gridY < officeGridRows) {
+      return pt;
     }
-    setDragOverPos(pos);
+    return null;
+  }, [pan, zoom, officeGridCols, officeGridRows]);
+
+  // Main Isometric Rendering Loop
+  const renderIsometricScene = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    animTickRef.current += 1;
+    const animTick = animTickRef.current;
+
+    // Reset Canvas viewport
+    ctx.save();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Center camera origin
+    const centerX = canvas.width / 2 + pan.x;
+    const centerY = pan.y;
+
+    ctx.translate(centerX, centerY);
+    ctx.scale(zoom, zoom);
+
+    const config: IsoConfig = {
+      ...ISO_CONFIG,
+      originX: 0,
+      originY: ISO_CONFIG.originY,
+    };
+
+    // Check tile occupancy
+    const isTileOccupied = (gx: number, gy: number) => {
+      const empHere = employees.some(e => e.gridX === gx && e.gridY === gy && (relocateEntity?.id !== e.id));
+      const furnHere = furniture.some(f => f.gridX === gx && f.gridY === gy && (relocateEntity?.id !== f.id));
+      return empHere || furnHere;
+    };
+
+    // 1. Render Isometric Floor Grid
+    for (let r = 0; r < officeGridRows; r++) {
+      for (let c = 0; c < officeGridCols; c++) {
+        const isHover = hoverTile?.gridX === c && hoverTile?.gridY === r;
+        const isOccupied = isTileOccupied(c, r);
+
+        let strokeColor = isHover ? '#6366f1' : undefined;
+        if (isHover && relocateEntity) {
+          strokeColor = isOccupied ? '#ef4444' : '#22c55e';
+        }
+
+        const tileSprite = assetLoader.getFloorTileSprite(config, darkMode, isHover);
+        const isoPt = gridToIso(c, r, config);
+
+        ctx.drawImage(
+          tileSprite,
+          isoPt.x - tileSprite.width / 2,
+          isoPt.y
+        );
+
+        if (strokeColor && isHover) {
+          ctx.beginPath();
+          const hw = config.tileWidth / 2;
+          const hh = config.tileHeight / 2;
+          const topY = isoPt.y + config.originY - 8;
+          ctx.moveTo(isoPt.x, topY);
+          ctx.lineTo(isoPt.x + hw, topY + hh);
+          ctx.lineTo(isoPt.x, topY + config.tileHeight);
+          ctx.lineTo(isoPt.x - hw, topY + hh);
+          ctx.closePath();
+          ctx.strokeStyle = strokeColor;
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+        }
+      }
+    }
+
+    // 2. Prepare & Depth-Sort Entities (Furniture + Desks + Employees)
+    const entities: Array<{
+      type: 'furniture' | 'employee';
+      gridX: number;
+      gridY: number;
+      data: any;
+    }> = [];
+
+    furniture.forEach((f) => {
+      entities.push({ type: 'furniture', gridX: f.gridX, gridY: f.gridY, data: f });
+    });
+
+    employees.forEach((e) => {
+      entities.push({ type: 'employee', gridX: e.gridX, gridY: e.gridY, data: e });
+    });
+
+    const sortedEntities = sortIsometricEntities(entities);
+
+    // 3. Render Entities in Isometric Z-Index order
+    sortedEntities.forEach((ent) => {
+      const isoPt = gridToIso(ent.gridX, ent.gridY, config);
+      const isSelected = selectedEntity?.type === ent.type && selectedEntity?.id === ent.data.id;
+
+      if (ent.type === 'furniture') {
+        const furn = ent.data;
+        const sprite = assetLoader.getFurnitureSprite(furn.defId, config);
+
+        if (isSelected) {
+          ctx.save();
+          ctx.shadowColor = '#6366f1';
+          ctx.shadowBlur = 10;
+        }
+
+        ctx.drawImage(sprite, isoPt.x - sprite.width / 2, isoPt.y + config.tileHeight / 2 - sprite.height + 6);
+
+        if (isSelected) {
+          ctx.restore();
+        }
+      } else if (ent.type === 'employee') {
+        const emp = ent.data;
+        const color = roleColor(emp.role);
+
+        // Render Desk first
+        const deskSprite = assetLoader.getDeskSprite(color, emp.currentTask !== null, config);
+        ctx.drawImage(deskSprite, isoPt.x - deskSprite.width / 2, isoPt.y + config.tileHeight / 2 - deskSprite.height + 10);
+
+        // Render Employee Character on top of desk
+        drawEmployeeCharacter(
+          ctx,
+          {
+            id: emp.id,
+            name: emp.name,
+            role: emp.role,
+            gender: emp.gender || 'male',
+            happiness: emp.happiness,
+            currentTask: emp.currentTask,
+            gridX: emp.gridX,
+            gridY: emp.gridY,
+            roleColor: color,
+          },
+          isoPt.x,
+          isoPt.y,
+          config,
+          animTick,
+          isSelected
+        );
+      }
+    });
+
+    // 4. Render Active Placement / Relocation Preview Highlight
+    if ((placementFurnitureId || relocateEntity) && hoverTile) {
+      const isoPt = gridToIso(hoverTile.gridX, hoverTile.gridY, config);
+      let sprite: HTMLCanvasElement | null = null;
+
+      if (placementFurnitureId) {
+        sprite = assetLoader.getFurnitureSprite(placementFurnitureId, config);
+      } else if (relocateEntity?.type === 'furniture') {
+        const furn = furniture.find(f => f.id === relocateEntity.id);
+        if (furn) sprite = assetLoader.getFurnitureSprite(furn.defId, config);
+      } else if (relocateEntity?.type === 'employee') {
+        const emp = employees.find(e => e.id === relocateEntity.id);
+        if (emp) sprite = assetLoader.getDeskSprite(roleColor(emp.role), false, config);
+      }
+
+      if (sprite) {
+        ctx.globalAlpha = 0.65;
+        ctx.drawImage(sprite, isoPt.x - sprite.width / 2, isoPt.y + config.tileHeight / 2 - sprite.height + 6);
+        ctx.globalAlpha = 1.0;
+      }
+    }
+
+    ctx.restore();
+  }, [
+    darkMode,
+    employees,
+    furniture,
+    hoverTile,
+    officeGridCols,
+    officeGridRows,
+    pan,
+    placementFurnitureId,
+    relocateEntity,
+    selectedEntity,
+    zoom,
+  ]);
+
+  // RequestAnimationFrame animation loop
+  useEffect(() => {
+    let animId: number;
+    const loop = () => {
+      renderIsometricScene();
+      animId = requestAnimationFrame(loop);
+    };
+    loop();
+    return () => cancelAnimationFrame(animId);
+  }, [renderIsometricScene]);
+
+  // Resize canvas according to container dimensions
+  useEffect(() => {
+    const handleResize = () => {
+      if (containerRef.current && canvasRef.current) {
+        canvasRef.current.width = containerRef.current.clientWidth;
+        canvasRef.current.height = Math.max(500, containerRef.current.clientHeight);
+      }
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Mouse Interaction Handlers
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.button === 1 || e.button === 2) {
+      // Middle or Right Click for Panning
+      setIsPanning(true);
+      setStartPan({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+    }
   };
 
-  const handleGridDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    const furnId = e.dataTransfer.getData('application/furn-id');
-    if (furnId) {
-      const pos = getGridPos(e.clientX, e.clientY);
-      if (pos) moveFurniture(furnId, pos.x, pos.y);
-      setDragOverPos(null);
-      setDraggedFurnId(null);
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (isPanning) {
+      setPan({ x: e.clientX - startPan.x, y: e.clientY - startPan.y });
       return;
     }
-    const empId = e.dataTransfer.getData('application/emp-id');
-    if (!empId) return;
-    const pos = getGridPos(e.clientX, e.clientY);
-    if (!pos) return;
-    const collision = employees.some(emp => emp.id !== empId && emp.gridX === pos.x && emp.gridY === pos.y);
-    if (collision) return;
-    moveEmployee(empId, pos.x, pos.y);
-    setDragOverPos(null);
-    setDraggedEmpId(null);
+
+    const tile = getGridFromMouse(e.clientX, e.clientY);
+    setHoverTile(tile);
   };
 
-  const handleGridMouseMove = (e: React.MouseEvent) => {
-    if (!placementFurnitureId) return;
-    const pos = getGridPos(e.clientX, e.clientY);
-    setPlaceHover(pos);
+  const handlePointerUp = () => {
+    setIsPanning(false);
   };
 
-  const handleGridClick = (e: React.MouseEvent) => {
-    if (!placementFurnitureId) return;
-    const pos = getGridPos(e.clientX, e.clientY);
-    if (!pos) return;
-    placeFurniture(pos.x, pos.y);
+  const handleClick = (e: React.MouseEvent) => {
+    soundManager.playClick();
+    const tile = getGridFromMouse(e.clientX, e.clientY);
+    if (!tile) return;
+
+    // Handle Active Relocation Mode
+    if (relocateEntity) {
+      const occupied = employees.some(emp => emp.gridX === tile.gridX && emp.gridY === tile.gridY && emp.id !== relocateEntity.id)
+        || furniture.some(f => f.gridX === tile.gridX && f.gridY === tile.gridY && f.id !== relocateEntity.id);
+
+      if (occupied) return;
+
+      if (relocateEntity.type === 'employee') {
+        moveEmployee(relocateEntity.id, tile.gridX, tile.gridY);
+      } else {
+        moveFurniture(relocateEntity.id, tile.gridX, tile.gridY);
+      }
+
+      soundManager.playSuccess();
+      setRelocateEntity(null);
+      setSelectedEntity(null);
+      return;
+    }
+
+    // Handle Furniture Shop Placement Mode
+    if (placementFurnitureId) {
+      placeFurniture(tile.gridX, tile.gridY);
+      soundManager.playSuccess();
+      return;
+    }
+
+    // Check Employee click
+    const clickedEmp = employees.find((emp) => emp.gridX === tile.gridX && emp.gridY === tile.gridY);
+    if (clickedEmp) {
+      setSelectedEntity({ type: 'employee', id: clickedEmp.id });
+      focusEmployee(clickedEmp.id);
+      soundManager.playTyping();
+      return;
+    }
+
+    // Check Furniture click
+    const clickedFurn = furniture.find((f) => f.gridX === tile.gridX && f.gridY === tile.gridY);
+    if (clickedFurn) {
+      setSelectedEntity({ type: 'furniture', id: clickedFurn.id });
+      return;
+    }
+
+    setSelectedEntity(null);
   };
 
-  const totalCells = officeGridCols * officeGridRows;
-  const placeDefId = placementFurnitureId
-    ? furnitureInventory.find(i => i.id === placementFurnitureId)?.defId
-    : undefined;
-  const placeValid = placeDefId && placeHover
-    ? isValidPlacement(placeDefId, placeHover.x, placeHover.y, officeGridCols, officeGridRows, employees, furniture)
-    : false;
+  const startRelocate = (type: 'employee' | 'furniture', id: string, name: string) => {
+    soundManager.playClick();
+    setRelocateEntity({ type, id, name });
+  };
+
+  const handleUnplace = (furnId: string) => {
+    soundManager.playClick();
+    unplaceFurniture(furnId);
+    setSelectedEntity(null);
+  };
+
+  const toggleSound = () => {
+    const muted = soundManager.toggleMute();
+    setIsMuted(muted);
+  };
+
+  const selectedEmp = selectedEntity?.type === 'employee' ? employees.find((e) => e.id === selectedEntity.id) : null;
+  const selectedFurn = selectedEntity?.type === 'furniture' ? furniture.find((f) => f.id === selectedEntity.id) : null;
+  const selectedFurnDef = selectedFurn ? getFurnitureDef(selectedFurn.defId) : null;
+  const activePlacementDef = placementFurnitureId ? getFurnitureDef(placementFurnitureId) : null;
 
   return (
-    <div className="card p-5 flex-1">
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <h2 className="text-[18px] font-extrabold tracking-tight">Office Grid</h2>
-          <p className="text-xs text-ink-soft mt-0.5">{employees.length} / {totalCells} meja terisi</p>
+    <div className="card p-4 flex flex-col gap-4 flex-1 min-h-0 relative select-none" ref={containerRef}>
+      {/* Top Action & Camera Control Bar */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-ink uppercase tracking-wider">Visual Kantor Isometric 2D</span>
+          <span className="text-[10px] bg-indigo/10 text-indigo font-semibold px-2 py-0.5 rounded-full">
+            {employees.length} Karyawan
+          </span>
+        </div>
+
+        <div className="flex items-center gap-1.5 bg-surface-2 p-1 rounded-lg border border-border">
+          <button
+            onClick={toggleSound}
+            className="p-1.5 rounded hover:bg-surface text-ink-soft hover:text-ink cursor-pointer"
+            title={isMuted ? 'Unmute Sound SFX' : 'Mute Sound SFX'}
+          >
+            {isMuted ? <VolumeX className="w-4 h-4 text-red" /> : <Volume2 className="w-4 h-4 text-indigo" />}
+          </button>
+          <div className="w-[1px] h-4 bg-border" />
+          <button
+            onClick={() => setZoom((z) => Math.min(1.8, z + 0.15))}
+            className="p-1.5 rounded hover:bg-surface text-ink-soft hover:text-ink cursor-pointer"
+            title="Zoom In"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setZoom((z) => Math.max(0.6, z - 0.15))}
+            className="p-1.5 rounded hover:bg-surface text-ink-soft hover:text-ink cursor-pointer"
+            title="Zoom Out"
+          >
+            <ZoomOut className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => {
+              setZoom(1);
+              setPan({ x: 0, y: 0 });
+            }}
+            className="p-1.5 rounded hover:bg-surface text-ink-soft hover:text-ink cursor-pointer"
+            title="Reset Camera"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
-      {placementFurnitureId && placeDefId && (
-        <div className="flex items-center gap-2 mb-3 p-2 rounded-lg bg-amber-soft border border-amber/30">
-          <span className="text-[11px] font-semibold text-amber flex-1">
-            Placing {getFurnitureDef(placeDefId)?.name} — click a {getFurnitureDef(placeDefId)?.placement === 'desk' ? 'desk' : 'tile'}
-          </span>
+      {/* Relocation & Furniture Placement Notice Banner */}
+      {relocateEntity && (
+        <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/30 p-2.5 rounded-lg text-xs text-emerald-600 font-medium">
+          <span>Relokasi <strong>{relocateEntity.name}</strong> — Klik tile isometrik hijau untuk memindahkannya.</span>
           <button
-            onClick={cancelFurniturePlacement}
-            className="p-1 rounded hover:bg-red-soft hover:text-red cursor-pointer text-ink-soft transition-colors"
+            onClick={() => setRelocateEntity(null)}
+            className="p-1 hover:bg-emerald-500/20 rounded cursor-pointer"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      <div className="relative pl-5 pb-5 flex justify-center">
-        <div
-          ref={gridRef}
-          className={`relative border-2 rounded-lg transition-colors box-border ${dragOverPos ? 'border-indigo bg-indigo-soft/30' : 'border-border bg-surface'}`}
-          style={{ width: officeGridCols * CELL_SIZE, height: officeGridRows * CELL_SIZE }}
-          onDrop={handleGridDrop}
-          onDragOver={handleGridDragOver}
-          onDragLeave={() => setDragOverPos(null)}
-          onMouseMove={handleGridMouseMove}
-          onMouseLeave={() => setPlaceHover(null)}
-          onClick={handleGridClick}
-        >
-          {Array.from({ length: officeGridRows }, (_, row) =>
-            Array.from({ length: officeGridCols }, (_, col) => (
-              <div key={`${row}-${col}`} className="absolute border border-border/30"
-                style={{ left: col * CELL_SIZE, top: row * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }}
-              />
-            ))
-          )}
-
-          {Array.from({ length: officeGridCols }, (_, i) => (
-            <div key={`cl${i}`} className="absolute -bottom-5 text-[9px] text-ink-soft font-mono text-center"
-              style={{ left: i * CELL_SIZE, width: CELL_SIZE }}>{i}</div>
-          ))}
-          {Array.from({ length: officeGridRows }, (_, i) => (
-            <div key={`rl${i}`} className="absolute -left-5 text-[9px] text-ink-soft font-mono leading-none"
-              style={{ top: i * CELL_SIZE + 2, width: 16, textAlign: 'right' }}>{i}</div>
-          ))}
-
-          {furniture.map(furn => {
-            const def = getFurnitureDef(furn.defId);
-            if (!def) return null;
-            const Icon = FURNITURE_ICON[furn.defId] ?? Coffee;
-            const color = FURNITURE_COLOR[furn.defId] ?? '#B7791F';
-            return (
-              <div key={furn.id}>
-                {def.radius > 0 && (
-                  <div
-                    className="absolute bg-amber/10 border border-amber/30 pointer-events-none"
-                    style={{
-                      left: 0,
-                      top: furn.gridY * CELL_SIZE,
-                      width: officeGridCols * CELL_SIZE,
-                      height: 2 * CELL_SIZE,
-                    }}
-                  />
-                )}
-                <div
-                  draggable
-                  onDragStart={(e) => handleFurnDragStart(e, furn.id)}
-                  onDragEnd={handleFurnDragEnd}
-                  className="absolute border rounded-lg box-border border-amber/40 bg-amber-soft flex items-center justify-center cursor-grab active:cursor-grabbing hover:bg-amber-soft/70"
-                  style={{
-                    left: furn.gridX * CELL_SIZE,
-                    top: furn.gridY * CELL_SIZE,
-                    width: CELL_SIZE - 4,
-                    height: CELL_SIZE - 4,
-                    margin: 2,
-                    zIndex: 5,
-                  }}
-                  onClick={() => { if (!placementFurnitureId && !draggedFurnId) unplaceFurniture(furn.id); }}
-                  title={`${def.name}${def.placement === 'desk' ? ' (on desk)' : ` (radius ${def.radius})`} — drag to move, click to pick up`}
-                >
-                  <Icon className="w-7 h-7" style={{ color }} strokeWidth={1.8} />
-                </div>
-              </div>
-            );
-          })}
-
-          {dragOverPos && (
-            <div className="absolute border-2 rounded-lg z-10 border-indigo bg-indigo/20 transition-all duration-100"
-              style={{ left: dragOverPos.x * CELL_SIZE, top: dragOverPos.y * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }}
-            />
-          )}
-
-          {placementFurnitureId && placeHover && (
-            <div
-              className={`absolute border-2 rounded-lg z-10 transition-all duration-75 ${placeValid ? 'border-green bg-green/20' : 'border-red bg-red/20'}`}
-              style={{ left: placeHover.x * CELL_SIZE, top: placeHover.y * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }}
-            />
-          )}
-
-          {employees.map(emp => {
-            const deskClass = getDeskClass(emp.currentTask, emp.happiness);
-            const progress = emp.currentTask
-              ? Math.min(100, Math.round((emp.taskProgress / (getComponentDef(emp.currentTask)?.baseTicks ?? 1)) * 100))
-              : 0;
-
-            const bgColorWorking = darkMode ? 'bg-green/20' : 'bg-green-soft';
-            const borderColorWorking = darkMode ? 'border-green' : 'border-green';
-            const bgColorLow = darkMode ? 'bg-red/20' : 'bg-red-soft';
-            const borderColorLow = darkMode ? 'border-red' : 'border-red';
-            const bgColorIdle = darkMode ? 'bg-surface-2' : 'bg-surface-2';
-            const borderColorIdle = darkMode ? 'border-border' : 'border-border';
-
-            const avatarColor = deskClass === 'working' ? (darkMode ? '#34D399' : '#17A366') : deskClass === 'low' ? (darkMode ? '#F87171' : '#D1453B') : (darkMode ? '#94A3B8' : '#4F5EFF');
-
-            return (
-              <div
-                key={emp.id}
-                draggable
-                onDragStart={(e) => handleEmpDragStart(e, emp.id)}
-                onDragEnd={handleEmpDragEnd}
-                className={`absolute border rounded-lg transition-colors cursor-grab active:cursor-grabbing group box-border
-                  ${emp.role === 'Lead_Developer' ? 'ring-2 ring-indigo/60' : ''}
-                  ${deskClass === 'working' ? `${borderColorWorking} ${bgColorWorking}` :
-                    deskClass === 'low' ? `${borderColorLow} ${bgColorLow}` :
-                    `${borderColorIdle} ${bgColorIdle}`}`}
-                style={{
-                  left: emp.gridX * CELL_SIZE,
-                  top: emp.gridY * CELL_SIZE,
-                  width: CELL_SIZE - 4,
-                  height: CELL_SIZE - 4,
-                  margin: 2,
-                  zIndex: draggedEmpId === emp.id ? 20 : 10,
-                }}
-                onClick={() => { if (!placementFurnitureId) focusEmployee(emp.id); }}
-                title={`${emp.name} (${emp.role.replace('_', ' ')})${emp.supervisedBy ? ' (supervised)' : ''} - ${getStatusText(emp.currentTask)} - ${emp.happiness.toFixed(0)}% happiness`}
-              >
-                <div className="flex flex-col items-center justify-center h-full relative p-1">
-                  <div className="w-[22px] h-[22px] rounded-md" style={{ backgroundColor: avatarColor, opacity: deskClass === 'idle' ? 0.55 : 1 }} />
-                  <span className="text-[9px] font-semibold mt-1 truncate max-w-full px-0.5" style={{ color: roleColor(emp.role) }}>
-                    {emp.name}
-                  </span>
-                  {emp.currentTask && (
-                    <div className="absolute bottom-1 left-2 right-2 h-1 bg-ink/10 rounded-full overflow-hidden">
-                      <div className="h-full bg-indigo rounded-full transition-all duration-300 ease-out" style={{ width: `${progress}%` }} />
-                    </div>
-                  )}
-                  {emp.happiness < 15 && (
-                    <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red rounded-full animate-pulse z-10" title="Resign risk!" />
-                  )}
-                  {emp.role === 'Lead_Developer' && (
-                    <Star className="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 text-indigo drop-shadow z-20" strokeWidth={2.5} />
-                  )}
-                  {emp.supervisedBy && (
-                    <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-indigo rounded-full z-10" title="Supervised" />
-                  )}
-                </div>
-              </div>
-            );
-          })}
+      {activePlacementDef && (
+        <div className="flex items-center justify-between bg-indigo/10 border border-indigo/20 p-2.5 rounded-lg text-xs text-indigo font-medium">
+          <span>Memasang <strong>{activePlacementDef.name}</strong> — Klik pada tile isometrik untuk menempatkannya.</span>
+          <button
+            onClick={cancelFurniturePlacement}
+            className="p-1 hover:bg-indigo/20 rounded cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
+      )}
+
+      {/* Main Isometric HTML5 2D Canvas Viewport */}
+      <div
+        className="flex-1 w-full bg-slate-900/10 rounded-xl overflow-hidden relative cursor-grab active:cursor-grabbing border border-border"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onClick={handleClick}
+      >
+        <canvas ref={canvasRef} className="w-full h-full block" />
+
+        {/* Floating Controls Overlay for Selected Employee */}
+        {selectedEmp && (
+          <div className="absolute bottom-4 left-4 card p-3 border border-indigo/30 bg-surface/90 backdrop-blur shadow-lg text-xs max-w-xs space-y-2">
+            <div className="flex items-center justify-between font-bold text-ink">
+              <span>{selectedEmp.name}</span>
+              <button onClick={() => setSelectedEntity(null)} className="text-ink-soft hover:text-red">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <div className="text-ink-soft text-[11px]">{selectedEmp.role} • Lv.{selectedEmp.level}</div>
+            <div className="flex items-center justify-between text-[11px]">
+              <span>Happiness:</span>
+              <span className="font-semibold text-indigo">{Math.round(selectedEmp.happiness)}%</span>
+            </div>
+            <div className="w-full bg-surface-2 h-1.5 rounded-full overflow-hidden">
+              <div
+                className="bg-indigo h-full transition-all"
+                style={{ width: `${selectedEmp.happiness}%` }}
+              />
+            </div>
+            <button
+              onClick={() => startRelocate('employee', selectedEmp.id, selectedEmp.name)}
+              className="w-full mt-2 py-1.5 px-3 bg-indigo hover:bg-indigo/90 text-white rounded-lg font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <Move className="w-3.5 h-3.5" /> Pindah Posisi Meja
+            </button>
+          </div>
+        )}
+
+        {/* Floating Controls Overlay for Selected Furniture */}
+        {selectedFurnDef && selectedFurn && (
+          <div className="absolute bottom-4 left-4 card p-3 border border-indigo/30 bg-surface/90 backdrop-blur shadow-lg text-xs max-w-xs space-y-2">
+            <div className="flex items-center justify-between font-bold text-ink">
+              <span>{selectedFurnDef.name}</span>
+              <button onClick={() => setSelectedEntity(null)} className="text-ink-soft hover:text-red">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <div className="text-ink-soft text-[11px]">Tile Posisi: ({selectedFurn.gridX}, {selectedFurn.gridY})</div>
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={() => startRelocate('furniture', selectedFurn.id, selectedFurnDef.name)}
+                className="flex-1 py-1.5 px-2 bg-indigo hover:bg-indigo/90 text-white rounded-lg font-semibold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+              >
+                <Move className="w-3.5 h-3.5" /> Pindah
+              </button>
+              <button
+                onClick={() => handleUnplace(selectedFurn.id)}
+                className="py-1.5 px-2 bg-red-soft text-red hover:bg-red hover:text-white rounded-lg font-semibold flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                title="Simpan ke gudang inventaris"
+              >
+                <PackageMinus className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

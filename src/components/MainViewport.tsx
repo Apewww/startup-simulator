@@ -1,7 +1,9 @@
-import { Monitor, Server, X } from 'lucide-react';
+import { Monitor, Server, Globe, X } from 'lucide-react';
 import { useGameStore } from '../store/gameStore';
 import { OfficeGrid } from './OfficeGrid';
 import { ServerRoomView } from './ServerRoomView';
+import { CityMapView } from './CityMapView';
+import { soundManager } from '../systems/soundManager';
 
 export function MainViewport() {
   const activeView = useGameStore((s) => s.activeView);
@@ -12,8 +14,13 @@ export function MainViewport() {
     const next = visitedPlots.filter(p => p !== plotId);
     useGameStore.setState({ visitedPlots: next });
     if (activeView.type === 'server' && activeView.plotId === plotId) {
-      setActiveView({ type: 'office' });
+      setActiveView({ type: 'cityMap' });
     }
+  };
+
+  const handleTabClick = (view: { type: 'cityMap' } | { type: 'office' } | { type: 'server'; plotId: string }) => {
+    soundManager.playClick();
+    setActiveView(view);
   };
 
   return (
@@ -21,7 +28,19 @@ export function MainViewport() {
       {/* Tab bar */}
       <div className="flex items-center gap-4 border-b border-border pb-0">
         <button
-          onClick={() => setActiveView({ type: 'office' })}
+          onClick={() => handleTabClick({ type: 'cityMap' })}
+          className={`flex items-center gap-1.5 pb-2 text-xs font-semibold transition-colors cursor-pointer border-b-2 -mb-[1px] ${
+            activeView.type === 'cityMap'
+              ? 'text-indigo border-indigo'
+              : 'text-ink-soft border-transparent hover:text-ink'
+          }`}
+        >
+          <Globe className="w-3.5 h-3.5" />
+          PETA KOTA
+        </button>
+
+        <button
+          onClick={() => handleTabClick({ type: 'office' })}
           className={`flex items-center gap-1.5 pb-2 text-xs font-semibold transition-colors cursor-pointer border-b-2 -mb-[1px] ${
             activeView.type === 'office'
               ? 'text-indigo border-indigo'
@@ -29,14 +48,15 @@ export function MainViewport() {
           }`}
         >
           <Monitor className="w-3.5 h-3.5" />
-          KANTOR
+          KANTOR (HQ)
         </button>
+
         {visitedPlots.map(plotId => {
           const isActive = activeView.type === 'server' && activeView.plotId === plotId;
           return (
             <div key={plotId} className="flex items-center">
               <button
-                onClick={() => setActiveView({ type: 'server', plotId })}
+                onClick={() => handleTabClick({ type: 'server', plotId })}
                 className={`flex items-center gap-1.5 pb-2 text-xs font-semibold transition-colors cursor-pointer border-b-2 -mb-[1px] ${isActive ? 'text-indigo border-indigo' : 'text-ink-soft border-transparent hover:text-ink'}`}
               >
                 <Server className="w-3 h-3" />
@@ -54,7 +74,13 @@ export function MainViewport() {
         })}
       </div>
 
-      {activeView.type === 'office' ? <OfficeGrid /> : <ServerRoomView />}
+      {activeView.type === 'cityMap' ? (
+        <CityMapView />
+      ) : activeView.type === 'office' ? (
+        <OfficeGrid />
+      ) : (
+        <ServerRoomView />
+      )}
     </div>
   );
 }

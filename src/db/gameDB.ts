@@ -19,7 +19,7 @@ export interface GameSave {
   plots: Plot[];
   rentedServers: RentedServer[];
   inventoryNodes: ServerNode[];
-  activeView: { type: 'office' } | { type: 'server'; plotId: string };
+  activeView: { type: 'cityMap' } | { type: 'office' } | { type: 'server'; plotId: string };
   visitedPlots: string[];
   totalSalary: number;
   // v2.0
@@ -41,6 +41,7 @@ export interface GameSave {
   selectedHrId: string | null;
   currentUsers: number;
   events: GameEvent[];
+  officeTier?: number;
   officeGridCols?: number;
   officeGridRows?: number;
   perkPoints?: number;
@@ -48,6 +49,7 @@ export interface GameSave {
   unlockedPerks?: string[];
   furnitureInventory?: FurnitureInventoryItem[];
   furniture?: PlacedFurniture[];
+  placementFurnitureId?: string | null;
   adLeads?: AdLead[];
   adCampaigns?: AdCampaign[];
   adSalesUnlockNotified?: boolean;
@@ -60,14 +62,20 @@ export interface GameSave {
   competitors?: CompetitorProduct[];
   marketingCampaigns?: MarketingCampaign[];
   brandScore?: number;
+  nextCompetitorCheck?: number;
+  devMode?: boolean;
+  // R&D
   activeResearch?: ActiveResearch | null;
   unlockedTechs?: string[];
+  unlockedLevels?: Record<string, number>;
+  // Investor
   boardSatisfaction?: number;
   currentQuarter?: number;
   quarterlyTargets?: BoardTarget[];
   quarterlyHistory?: QuarterlyReport[];
   termSheet?: TermSheet | null;
   totalEquityGiven?: number;
+  // Wealth
   personalCash?: number;
   lifetimeWithdrawn?: number;
   unlockedTitles?: string[];
@@ -78,8 +86,8 @@ export interface GameSave {
   wealthLog?: WealthEntry[];
   aiStakes?: { aiId: string; name: string; percentage: number }[];
   pendingFundingRounds?: AiFundingOffer[];
-
-  // v2.3 — Endgame
+  activeProductValuation?: number;
+  lastWithdrawMonth?: number;
   monthsAtRankOne?: number;
   endgameUnlocked?: boolean;
   completedGame?: boolean;
@@ -87,31 +95,24 @@ export interface GameSave {
   newGamePlusTitle?: string | null;
 }
 
-export class GameDB extends Dexie {
+export class GameDatabase extends Dexie {
   saves!: Table<GameSave, number>;
 
   constructor() {
     super('StartupSimulatorDB');
-    this.version(1).stores({ saves: '++id, timestamp' });
-    this.version(2).stores({ saves: '++id, timestamp' });
-    this.version(3).stores({ saves: '++id, timestamp' });
-    this.version(4).stores({ saves: '++id, timestamp' });
-    this.version(5).stores({ saves: '++id, timestamp' });
-    this.version(6).stores({ saves: '++id, timestamp' });
-    this.version(7).stores({ saves: '++id, timestamp' });
-    this.version(8).stores({ saves: '++id, timestamp' });
-    this.version(9).stores({ saves: '++id, timestamp' });
-    this.version(10).stores({ saves: '++id, timestamp' });
-    this.version(11).stores({ saves: '++id, timestamp' });
-    this.version(12).stores({ saves: '++id, timestamp' });
-    this.version(13).stores({ saves: '++id, timestamp' });
-    this.version(14).stores({ saves: '++id, timestamp' });
-    this.version(15).stores({ saves: '++id, timestamp' });
-    this.version(16).stores({ saves: '++id, timestamp' });
-    this.version(17).stores({ saves: '++id, timestamp' });
-    this.version(18).stores({ saves: '++id, timestamp' });
-    this.version(19).stores({ saves: '++id, timestamp' });
+    this.version(1).stores({
+      saves: 'id, timestamp',
+    });
+    this.version(2).stores({
+      saves: 'id, timestamp',
+    });
+    this.version(3).stores({
+      saves: 'id, timestamp',
+    });
+    this.version(4).stores({
+      saves: 'id, timestamp',
+    });
   }
 }
 
-export const db = new GameDB();
+export const db = new GameDatabase();

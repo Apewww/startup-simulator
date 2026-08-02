@@ -3,11 +3,11 @@ import type { InternetProviderDef, InternetProviderId, InternetSubscription, Int
 // Ladder kecepatan bersama (data value berkesinambungan). Tiap provider memodifikasi
 // via multiplier, sehingga "paket 100/300/500/1G/2G" tiap provider punya nilai efektif sendiri.
 export const INTERNET_TIERS: InternetTierDef[] = [
-  { id: '100', speedMbps: 100, network: 1, rpsBonus: 150, moodBonus: 0.02, baseCost: 40 },
-  { id: '300', speedMbps: 300, network: 2.5, rpsBonus: 400, moodBonus: 0.03, baseCost: 90 },
-  { id: '500', speedMbps: 500, network: 4, rpsBonus: 700, moodBonus: 0.04, baseCost: 160 },
-  { id: '1000', speedMbps: 1000, network: 7, rpsBonus: 1200, moodBonus: 0.05, baseCost: 280 },
-  { id: '2000', speedMbps: 2000, network: 11, rpsBonus: 2000, moodBonus: 0.06, baseCost: 480 },
+  { id: '100', speedMbps: 100, bandwidthMbps: 100, network: 1, rpsBonus: 150, moodBonus: 0.02, baseCost: 40, monthlyCost: 40 },
+  { id: '300', speedMbps: 300, bandwidthMbps: 300, network: 2.5, rpsBonus: 400, moodBonus: 0.03, baseCost: 90, monthlyCost: 90 },
+  { id: '500', speedMbps: 500, bandwidthMbps: 500, network: 4, rpsBonus: 700, moodBonus: 0.04, baseCost: 160, monthlyCost: 160 },
+  { id: '1000', speedMbps: 1000, bandwidthMbps: 1000, network: 7, rpsBonus: 1200, moodBonus: 0.05, baseCost: 280, monthlyCost: 280 },
+  { id: '2000', speedMbps: 2000, bandwidthMbps: 2000, network: 11, rpsBonus: 2000, moodBonus: 0.06, baseCost: 480, monthlyCost: 480 },
 ];
 
 export const INTERNET_PROVIDERS: InternetProviderDef[] = [
@@ -64,6 +64,7 @@ export function makeInternetSubscription(providerId: InternetProviderId, tierId:
     tierId,
     providerName: p.name,
     speedMbps: t.speedMbps,
+    bandwidthMbps: t.speedMbps,
     network: Math.round(t.network * p.networkMult * 10) / 10,
     rpsBonus: Math.round(t.rpsBonus * p.rpsMult),
     moodBonus: Math.round(t.moodBonus * p.moodMult * 1000) / 1000,

@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Startup Simulator",
   "version": "0.1.0",
-  "identifier": "com.startupsimulator.app",
+  "identifier": "com.startupsimulator.game",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
@@ -34,9 +34,6 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ],
-    "windows": {
-      "wix": null
-    }
+    ]
   }
 }

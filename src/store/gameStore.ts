@@ -93,7 +93,7 @@ interface GameState {
   devMode: boolean;
   currentSlotId: number | null;
   inventoryNodes: ServerNode[];
-  activeView: { type: 'office' } | { type: 'server', plotId: string };
+  activeView: { type: 'cityMap' } | { type: 'office' } | { type: 'server', plotId: string };
   visitedPlots: string[];
   gameLog: string[];
   notifications: Notification[];
@@ -159,7 +159,7 @@ interface GameState {
   rentInternet: (providerId: InternetProviderId, tierId: string) => void;
   cancelInternet: (id: string) => void;
   toggleDevMode: () => void;
-  setActiveView: (view: { type: 'office' } | { type: 'server', plotId: string }) => void;
+  setActiveView: (view: { type: 'cityMap' } | { type: 'office' } | { type: 'server', plotId: string }) => void;
   addLog: (msg: string) => void;
   addNotification: (msg: string, type?: Notification['type']) => void;
   dismissNotification: (id: string) => void;
@@ -190,6 +190,9 @@ interface GameState {
   currentUsers: number;
   events: GameEvent[];
   upgradeNode: (nodeId: string, delta: 1 | -1) => void;
+  officeTier: number;
+  upgradeOfficeTier: () => void;
+  upgradePlotTier: (plotId: string) => void;
   officeGridCols: number;
   officeGridRows: number;
   moveEmployee: (empId: string, x: number, y: number) => void;
@@ -318,7 +321,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   resources: [],
   features: [],
   racks: [],
-  plots: [],
+  plots: [
+    { id: 'plot-1', label: 'Plot A', price: 1500, monthlyCost: 500, rackIds: [], gridCols: 3, gridRows: 3, tier: 1 }
+  ],
   rentedServers: [],
   internetSubscriptions: [],
   totalSalary: 0,
@@ -345,7 +350,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   devMode: false,
   currentSlotId: null,
   inventoryNodes: [],
-  activeView: { type: 'office' },
+  activeView: { type: 'cityMap' },
   visitedPlots: [],
   gameLog: [],
   isBankrupt: false,
@@ -366,8 +371,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   selectedHrId: null,
   currentUsers: 0,
   events: [],
-  officeGridCols: 8,
-      officeGridRows: 8,
+  officeTier: 1,
+  officeGridCols: 4,
+  officeGridRows: 4,
       perkPoints: 0,
       earnedMilestones: [],
       unlockedPerks: [],
@@ -2378,20 +2384,74 @@ const pDelta = (pPlatform.targetUsers - prod.currentUsers) * 0.005 * pCohesion *
     get().addNotification('No empty slots available in any rack', 'warning');
   },
 
+  upgradeOfficeTier: () => {
+    const state = get();
+    const currentTier = state.officeTier || 1;
+    if (currentTier >= 3) return;
+
+    const nextTier = (currentTier + 1) as 2 | 3;
+    const cost = nextTier === 2 ? 10000 : 75000;
+    const newCols = nextTier === 2 ? 8 : 12;
+    const newRows = nextTier === 2 ? 8 : 12;
+    const name = nextTier === 2 ? 'Medium Tech Floor' : 'High-Rise HQ Skyscraper';
+
+    if (state.cash < cost) {
+      get().addNotification('Not enough cash to upgrade office', 'warning');
+      return;
+    }
+
+    get().addLog(`Upgraded HQ Office to Tier ${nextTier} (${name})`);
+    get().addNotification(`Upgraded Office to Tier ${nextTier} — $${cost.toLocaleString()}`, 'success');
+    set({
+      cash: state.cash - cost,
+      officeTier: nextTier,
+      officeGridCols: newCols,
+      officeGridRows: newRows,
+    });
+  },
+
+  upgradePlotTier: (plotId: string) => {
+    const state = get();
+    const plot = state.plots.find(p => p.id === plotId);
+    if (!plot) return;
+
+    const currentTier = plot.tier || 1;
+    if (currentTier >= 3) return;
+
+    const nextTier = (currentTier + 1) as 2 | 3;
+    const cost = nextTier === 2 ? 15000 : 60000;
+    const newCols = nextTier === 2 ? 6 : 10;
+    const newRows = nextTier === 2 ? 6 : 10;
+    const name = nextTier === 2 ? 'Medium Data Center Facility' : 'Hyperscale Campus Data Center';
+
+    if (state.cash < cost) {
+      get().addNotification('Not enough cash to upgrade plot', 'warning');
+      return;
+    }
+
+    get().addLog(`Upgraded ${plot.label} to Tier ${nextTier} (${name})`);
+    get().addNotification(`Upgraded ${plot.label} to Tier ${nextTier} — $${cost.toLocaleString()}`, 'success');
+    set({
+      cash: state.cash - cost,
+      plots: state.plots.map(p => p.id === plotId ? { ...p, tier: nextTier, gridCols: newCols, gridRows: newRows } : p),
+    });
+  },
+
   buyPlot: () => {
     const state = get();
     const price = 1500;
-    const monthlyCost = 50;
+    const monthlyCost = 500;
     if (state.cash < price) return;
     const plotId = `plot-${state.plots.length + 1}`;
     const newPlot: Plot = {
       id: plotId,
-      label: `Plot ${String.fromCharCode(64 + state.plots.length + 1)}`,
+      label: `Plot ${String.fromCharCode(65 + state.plots.length)}`,
       price,
       monthlyCost,
       rackIds: [],
-      gridCols: 6,
-      gridRows: 8,
+      gridCols: 3,
+      gridRows: 3,
+      tier: 1,
     };
     get().addNotification(`Bought plot ${newPlot.label} — $${price}`, 'success');
     set({ cash: state.cash - price, plots: [...state.plots, newPlot] });
@@ -2572,7 +2632,7 @@ const pDelta = (pPlatform.targetUsers - prod.currentUsers) * 0.005 * pCohesion *
     };
     const def = baseDefs[type];
     get().addNotification(`Rented ${def.label} — $${def.monthlyCost}/mo`, 'info');
-    set({ rentedServers: [...state.rentedServers, { id: `rent-${state.rentedServers.length + 1}`, type, ...def, load: 0, scaleLevel: 1, assignedProductId: null }] });
+    set({ rentedServers: [...state.rentedServers, { id: `rent-${state.rentedServers.length + 1}`, type, ...def, load: 0, scaleLevel: 1, status: 'active', crashTicks: 0, assignedProductId: null }] });
   },
 
   scaleRental: (rentalId: string, delta: number) => {
